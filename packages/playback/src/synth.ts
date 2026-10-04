@@ -1,4 +1,4 @@
-import type { NoteEvent } from '@thumbline/engine';
+import type { MoodLabel, NoteEvent } from '@thumbline/engine';
 
 /** engine-spec: MIDI of each open string, string 0 = low E. */
 const OPEN_MIDI = [40, 45, 50, 55, 59, 64] as const;
@@ -222,7 +222,7 @@ export function soundOf(e: NoteEvent, capo: number): NoteSound {
 }
 
 /** Seconds to delay each strummed note, by event index (rasgueado only). */
-export function strumOffsets(events: readonly NoteEvent[]): Map<number, number> {
+export function strumOffsets(events: readonly NoteEvent[], stepMs = STRUM_STEP_MS): Map<number, number> {
   const offsets = new Map<number, number>();
   const groups = new Map<string, number[]>();
   events.forEach((e, i) => {
@@ -237,11 +237,23 @@ export function strumOffsets(events: readonly NoteEvent[]): Map<number, number> 
     const order = [...indexes].sort((a, b) => (up ? events[b].string - events[a].string : events[a].string - events[b].string));
     order.forEach((i, rank) => {
       const explicit = events[i].strumOffsetMs;
-      offsets.set(i, (explicit ?? rank * STRUM_STEP_MS) / 1000);
+      offsets.set(i, (explicit ?? rank * stepMs) / 1000);
     });
   }
   return offsets;
 }
+
+/**
+ * engine-spec §6 feel by mood: strum speed (ms between strings), reverb send,
+ * a high shelf (dB at 3 kHz: darker or brighter), and whether pattern notes
+ * stop at their written length (crisp) or ring on.
+ */
+export const FEEL: Record<MoodLabel, { strumMs: number; reverb: number; shelfDb: number; crisp: boolean }> = {
+  melancholic: { strumMs: 18, reverb: 0.32, shelfDb: -4, crisp: false },
+  warm: { strumMs: 14, reverb: 0.26, shelfDb: -2, crisp: false },
+  intense: { strumMs: 11, reverb: 0.2, shelfDb: 0, crisp: true },
+  upbeat: { strumMs: 9, reverb: 0.18, shelfDb: 2, crisp: true },
+};
 
 /** The tune sits on top of the pattern. */
 const MELODY_LIFT = 1.3;

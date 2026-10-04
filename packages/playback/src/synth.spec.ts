@@ -1,5 +1,5 @@
 import type { NoteEvent } from '@thumbline/engine';
-import { STRUM_STEP_MS, apagadoChunk, golpeBurst, harmonicTone, midiOf, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
+import { FEEL, STRUM_STEP_MS, apagadoChunk, golpeBurst, harmonicTone, midiOf, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 
 const SR = 44100;
 
@@ -125,6 +125,19 @@ describe('golpeBurst', () => {
     expect(x.length).toBeLessThan(SR * 0.25);
     expect(rms(x, 0, Math.floor(SR * 0.04))).toBeGreaterThan(total);
     expect(Math.max(...x.map(Math.abs))).toBeCloseTo(0.8, 2);
+  });
+});
+
+describe('FEEL', () => {
+  it('strums a sad song slower and darker than a happy one', () => {
+    expect(FEEL.melancholic.strumMs).toBeGreaterThan(FEEL.upbeat.strumMs);
+    expect(FEEL.melancholic.shelfDb).toBeLessThan(FEEL.upbeat.shelfDb);
+    expect(FEEL.melancholic.reverb).toBeGreaterThan(FEEL.upbeat.reverb);
+  });
+
+  it('spaces the strings of a strum by the mood’s step', () => {
+    const strum: NoteEvent[] = [0, 1, 2].map((string) => ({ tick: 0, dur: 240, string, fret: 0, finger: 'i', velocity: 0.8, tech: 'rasgueo-down' }));
+    expect([...strumOffsets(strum, 18).values()]).toEqual([0, 0.018, 0.036]);
   });
 });
 

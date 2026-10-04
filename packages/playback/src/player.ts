@@ -1,7 +1,7 @@
 import type { Arrangement } from '@thumbline/engine';
 import { type Scheduler, createScheduler } from './scheduler.js';
 import { timeStretchAsync } from './stretch.js';
-import { type NoteSound, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
+import { FEEL, type NoteSound, STRUM_STEP_MS, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 import { type Beats, TICKS_PER_BEAT, createTimeline } from './timeline.js';
 
 export type Mix = 'sheet' | 'original' | 'both';
@@ -59,6 +59,8 @@ const VIBRATO_MIN_SEC = 0.45;
 const VIBRATO_DELAY_SEC = 0.25;
 const VIBRATO_HZ = 5.5;
 const VIBRATO_CENTS = 15;
+/** How fast a crisp note dies at its end (time constant). */
+const CRISP_RELEASE_SEC = 0.03;
 /** How much of the sheet goes to the room reverb (the original has its own room). */
 const REVERB_SEND = 0.22;
 /** Stereo spread of the strings: low E this far left, high E as far right. */
@@ -85,6 +87,7 @@ export function createPlayer(options: PlayerOptions): Player {
   const ownsContext = !options.context;
   const ctx = options.context ?? new AudioContext({ latencyHint: 'interactive' });
 
+  const feel = a.mood ? FEEL[a.mood] : { strumMs: STRUM_STEP_MS, reverb: REVERB_SEND, shelfDb: 0, crisp: false };
   const master = ctx.createGain();
   const sheetBus = ctx.createGain();
   const originalBus = ctx.createGain();
@@ -102,7 +105,13 @@ export function createPlayer(options: PlayerOptions): Player {
       into.connect(f);
       into = f;
     }
-    into.connect(master);
+    // The mood's colour: darker for sad songs, brighter for happy ones.
+    const shelf = ctx.createBiquadFilter();
+    shelf.type = 'highshelf';
+    shelf.frequency.value = 3000;
+    shelf.gain.value = feel.shelfDb;
+    into.connect(shelf);
+    shelf.connect(master);
   } else sheetBus.connect(master);
   originalBus.connect(master);
   master.connect(compressor);
@@ -119,7 +128,7 @@ export function createPlayer(options: PlayerOptions): Player {
   });
   if (typeof ctx.createConvolver === 'function') {
     const send = ctx.createGain();
-    send.gain.value = REVERB_SEND;
+    send.gain.value = feel.reverb;
     const room = ctx.createConvolver();
     const ir = roomImpulse(ctx.sampleRate);
     const buffer = ctx.createBuffer(2, ir[0].length, ctx.sampleRate);
@@ -132,7 +141,7 @@ export function createPlayer(options: PlayerOptions): Player {
 
   const timeline = createTimeline(a, beats);
   const eventSec = a.events.map((e) => timeline.tickToSec(e.tick));
-  const strum = strumOffsets(a.events);
+  const strum = strumOffsets(a.events, feel.strumMs);
 
   const sounds = a.events.map((e) => soundOf(e, a.capo));
   const buffers = new Map<string, AudioBuffer>();
@@ -257,6 +266,8 @@ export function createPlayer(options: PlayerOptions): Player {
     for (const { eventIndex, when } of r.notes) {
       const e = a.events[eventIndex];
       const at = when + (strum.get(eventIndex) ?? 0);
+      // The note's written length on the audio clock (song seconds run 1/ratio as fast at other speeds).
+      const held = (timeline.tickToSec(e.tick + e.dur) - eventSec[eventIndex]) / ratio;
       const sound = sounds[eventIndex];
       const buffer = buffers.get(soundKey(sound));
       const damp = (s: number) => {
@@ -276,7 +287,7 @@ export function createPlayer(options: PlayerOptions): Player {
         const legato = sound.kind === 'legato';
         const voice = playSource(buffer, stringBus[e.string], at, legato ? 0 : noteGain(e), legato ? LEGATO_SKIP_SEC : 0);
         if (legato) voice.gain.gain.setTargetAtTime(noteGain(e), at, LEGATO_RISE_SEC);
-        const held = timeline.tickToSec(e.tick + e.dur) - eventSec[eventIndex];
+
         if (e.melody && held > VIBRATO_MIN_SEC && typeof ctx.createOscillator === 'function' && voice.src.detune) {
           const lfo = ctx.createOscillator();
           const depth = ctx.createGain();
@@ -288,6 +299,8 @@ export function createPlayer(options: PlayerOptions): Player {
           lfo.start(at + VIBRATO_DELAY_SEC);
           lfo.stop(at + held + 0.5);
         }
+        // Crisp moods stop pattern notes at their written length; the tune always rings.
+        if (feel.crisp && !e.melody) voice.gain.gain.setTargetAtTime(0, at + held, CRISP_RELEASE_SEC);
         ringing[e.string] = voice;
       }
       queue.push({ eventIndex, when });
