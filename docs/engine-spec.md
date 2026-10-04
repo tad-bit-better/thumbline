@@ -33,8 +33,18 @@ type AnalysisResult = {
   meter: { beatsPerBar: 3 | 4 | 12; accents?: number[] }; // accents used from v1.5
   key: { pc: number; mode: 'major' | 'minor' | 'phrygian' };
   chords: ChordSegment[];      // sorted by (bar, beat)
+  melody?: MelodyNote[];       // the tune; absent for clips analysed before M9
+};
+
+type MelodyNote = {
+  startSec: number;            // seconds into the recording
+  durSec: number;
+  midi: number;                // sounding pitch as sung; the engine moves it into guitar range
+  confidence: number;          // 0..1
 };
 ```
+
+**Melody (M9).** The worker tracks the lead voice (essentia `PredominantPitchMelodia`, then `PitchContourSegmentation`) and cleans it: notes under 90 ms are dropped, a note 9+ semitones from the median of its six neighbours moves an octave toward them, a held note split in two (same pitch, gap under 120 ms) is merged, and a short (under 350 ms) note outside the key moves a semitone into it. Notes stay in seconds; the engine quantises them.
 
 The review screen edits `chords[].chord` and `meter.beatsPerBar`. Nothing else is user-editable in v1.
 
@@ -126,6 +136,7 @@ type NoteEvent = {
   accent?: boolean;
   velocity: number;
   strumOffsetMs?: number; // rasgueado: stagger per string
+  melody?: true;          // a note of the tune: on top, louder, drawn bold
 };
 
 type ChordMark = { tick: number; voicing: Voicing; soundingName: string };

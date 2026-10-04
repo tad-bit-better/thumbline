@@ -3,6 +3,7 @@ import { chordName, transpose } from './chords.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import { LEVELS, PALOS, getPattern, patternsFor } from './patterns/index.js';
 import { type ChordSpan, isPlayable, runSegment } from './runner.js';
+import { mergeMelody, placeMelody, quantiseMelody } from './melody.js';
 import { moveTopLine } from './topline.js';
 import type {
   AnalysisResult,
@@ -181,8 +182,12 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   });
 
   events.sort((a, b) => a.tick - b.tick || a.string - b.string);
+  // The tune on top (M9) when we have one; otherwise an invented top line (M6b).
+  const tune = opts.melody !== false && input.melody?.length ? placeMelody(quantiseMelody(input, opts.level, songEnd), spans, capo, opts.level) : [];
+  let notes = events;
+  if (tune.length) notes = mergeMelody(events, tune, spans);
   // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
-  if (opts.style !== 'flamenco') moveTopLine(events, spans, opts.level, { ...input.key, pc: (input.key.pc - capo + 12) % 12 });
+  else if (opts.style !== 'flamenco') moveTopLine(events, spans, opts.level, { ...input.key, pc: (input.key.pc - capo + 12) % 12 });
 
   return {
     style: opts.style,
@@ -193,7 +198,7 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     bpm: input.bpm,
     bars,
     chordMarks,
-    events,
+    events: notes,
     warnings: warnings.list,
   };
 }

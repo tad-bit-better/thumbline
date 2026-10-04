@@ -46,6 +46,18 @@ export type AnalysisResult = {
   key: { pc: number; mode: 'major' | 'minor' | 'phrygian' };
   /** sorted by (bar, beat) */
   chords: ChordSegment[];
+  /** The tune (lead voice), cleaned but not quantised; absent for clips analysed before M9 */
+  melody?: MelodyNote[];
+};
+
+/** One note of the tune, in sounding pitch and seconds into the recording. */
+export type MelodyNote = {
+  startSec: number;
+  durSec: number;
+  /** sounding MIDI pitch, as sung (the engine moves it into guitar range) */
+  midi: number;
+  /** 0..1, how sure the tracker was */
+  confidence: number;
 };
 
 // §2 Pattern DSL
@@ -140,6 +152,8 @@ export type NoteEvent = {
   velocity: number;
   /** rasgueado: stagger per string */
   strumOffsetMs?: number;
+  /** a note of the tune: on top, louder, and drawn bold */
+  melody?: true;
 };
 
 export type ChordMark = { tick: number; voicing: Voicing; soundingName: string };
@@ -170,4 +184,6 @@ export type ArrangeOptions = {
   patternId?: string;
   capo?: number | 'auto';
   palo?: string;
+  /** Put the tune on top when the analysis has one (default true). */
+  melody?: boolean;
 };

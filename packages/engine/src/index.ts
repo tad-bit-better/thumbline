@@ -7,3 +7,4 @@ export * from './bass.js';
 export * from './runner.js';
 export * from './patterns/index.js';
 export * from './arrange.js';
+export * from './melody.js';
