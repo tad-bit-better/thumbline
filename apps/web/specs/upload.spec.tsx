@@ -20,7 +20,7 @@ describe('Upload screen', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Turn any song into a right-hand sheet.');
     expect(screen.getByText('Your audio never leaves this device')).toBeTruthy();
     expect(screen.getByText(/We hear the chords and write a part for you to play/)).toBeTruthy();
-    expect(screen.getByText('MP3, WAV or M4A, up to 6 minutes')).toBeTruthy();
+    expect(screen.getByText('MP3, WAV or M4A, up to 8 minutes')).toBeTruthy();
   });
 
   it('starts a song from the file picker and moves to Listen', async () => {
@@ -57,9 +57,9 @@ describe('Upload screen', () => {
   });
 
   it('shows an error sent back from analysis', () => {
-    songStore.setState({ uploadError: 'Clips can be up to 6 minutes long.' });
+    songStore.setState({ uploadError: 'Clips can be up to 8 minutes long.' });
     render(<Upload />);
-    expect(screen.getByRole('alert').textContent).toContain('6 minutes');
+    expect(screen.getByRole('alert').textContent).toContain('8 minutes');
   });
 
   it('loads the sample clip', async () => {

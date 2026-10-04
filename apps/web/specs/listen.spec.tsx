@@ -63,8 +63,8 @@ describe('Listening screen', () => {
 
   it('sends clip problems back to Upload', async () => {
     render(<Listen />);
-    await act(async () => last().reject(new AnalysisError('too-long', 'Clips can be up to 6 minutes long.')));
-    expect(songStore.getState().uploadError).toBe('Clips can be up to 6 minutes long.');
+    await act(async () => last().reject(new AnalysisError('too-long', 'Clips can be up to 8 minutes long.')));
+    expect(songStore.getState().uploadError).toBe('Clips can be up to 8 minutes long.');
     expect(replace).toHaveBeenCalledWith('/');
   });
 

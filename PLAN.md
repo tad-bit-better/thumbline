@@ -9,7 +9,7 @@
 **What the sheet is:** an arrangement the engine generates from the song's chords, key and tempo. It is **not** a transcription of the recording. UI copy must set this expectation ("We hear the chords and write a part for you to play").
 
 **Core flow (v1)**
-1. **Upload** an audio clip (MP3, WAV, M4A; up to 6 minutes).
+1. **Upload** an audio clip (MP3, WAV, M4A; up to 8 minutes).
 2. **Listen**: in-browser analysis of tempo, beats, key and a bar-aligned chord timeline.
 3. **Review** detected chords. Low-confidence chords are highlighted; tapping one offers the top 3 alternatives. Not a note editor.
 4. **Generate** sheets: **style** (Arpeggio, Fingerstyle, Flamenco) × **level** (Basic, Moderate, Advanced).

@@ -77,9 +77,9 @@ describe('analyzeFile', () => {
     await expect(analyzeFile(file(), options)).rejects.toMatchObject({ code: 'unsupported' });
   });
 
-  it('rejects clips longer than six minutes', async () => {
-    const { options } = setup({ decode: async () => ({ channels: [new Float32Array(44100 * 361)], sampleRate: 44100 }) });
-    await expect(analyzeFile(file(), options)).rejects.toMatchObject({ code: 'too-long' });
+  it('rejects clips longer than eight minutes', async () => {
+    const { options } = setup({ decode: async () => ({ channels: [new Float32Array(44100 * 481)], sampleRate: 44100 }) });
+    await expect(analyzeFile(file(), options)).rejects.toMatchObject({ code: 'too-long', message: 'Clips can be up to 8 minutes long.' });
   });
 
   it('passes clip errors from the worker through', async () => {

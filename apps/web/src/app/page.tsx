@@ -1,6 +1,6 @@
 'use client';
 
-import { isSupportedFile } from '@thumbline/audio-analysis';
+import { MAX_SECONDS, isSupportedFile } from '@thumbline/audio-analysis';
 import {
   Button,
   Chip,
@@ -89,7 +89,7 @@ export default function Upload() {
       return songStore
         .getState()
         .setUploadError(
-          'That file is too big. Clips can be up to 6 minutes long.',
+          `That file is too big. Clips can be up to ${MAX_SECONDS / 60} minutes long.`,
         );
     songStore.getState().startSong(file);
     setDropping((n) => n + 1);
@@ -214,7 +214,7 @@ export default function Upload() {
                   Drop an audio clip here
                 </span>
                 <span id={limitsId} className={styles.limits}>
-                  MP3, WAV or M4A, up to 6 minutes
+                  MP3, WAV or M4A, up to {MAX_SECONDS / 60} minutes
                 </span>
               </button>
               {uploadError && (

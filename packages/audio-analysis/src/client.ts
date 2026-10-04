@@ -3,8 +3,8 @@ import type { FromWorker, ToWorker } from './messages.js';
 import { ANALYSIS_SAMPLE_RATE, AnalysisError, type AnalysisErrorCode, type Progress } from './pipeline.js';
 import type { AnalysisResult } from './types.js';
 
-/** PLAN §1: MP3, WAV, M4A up to 6 minutes. */
-export const MAX_SECONDS = 6 * 60;
+/** PLAN §1: MP3, WAV, M4A up to 8 minutes. */
+export const MAX_SECONDS = 8 * 60;
 const TYPES = /^audio\/(mpeg|mp3|wav|x-wav|wave|vnd\.wave|mp4|x-m4a|m4a|aac)$/;
 const EXTENSIONS = /\.(mp3|wav|m4a)$/i;
 const DECODE_SHARE = 0.1;
@@ -40,7 +40,7 @@ export async function analyzeFile(file: File, { createWorker, onProgress, signal
   }
   if (signal?.aborted) throw aborted();
   if ((decoded.channels[0]?.length ?? 0) / decoded.sampleRate > MAX_SECONDS) {
-    throw new AnalysisError('too-long', 'Clips can be up to 6 minutes long.');
+    throw new AnalysisError('too-long', `Clips can be up to ${MAX_SECONDS / 60} minutes long.`);
   }
   onProgress?.({ step: 'decode', fraction: DECODE_SHARE });
 

@@ -5,7 +5,7 @@ All screens: max content width 1200–1240px, fluid down to 360px; nav with logo
 
 ## 1. Upload (`/`)
 - **Hero (left):** privacy badge ("Your audio never leaves this device"), display headline "Turn any song into a right-hand sheet.", one-line description, primary 3D button "Choose a file", text link "or try a sample clip".
-- **Drop zone (right):** large white card, animated dashed border, floating 3D pick (bob loop), "Drop an audio clip here", "MP3, WAV or M4A, up to 6 minutes". Whole card is the drop target and a button. On drag-over the border turns violet and the pick speeds up; on drop play Pick drop (#1) then transition.
+- **Drop zone (right):** large white card, animated dashed border, floating 3D pick (bob loop), "Drop an audio clip here", "MP3, WAV or M4A, up to 8 minutes". Whole card is the drop target and a button. On drag-over the border turns violet and the pick speeds up; on drop play Pick drop (#1) then transition.
 - **Styles section:** three StyleCards with 3D icons.
 - **How it works:** four numbered steps (Drop a clip, We listen, You check, Play along).
 - **Errors:** unsupported type, too long, silent file → inline message inside the drop zone with a retry.
