@@ -111,9 +111,9 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - **Done when:** every component has stories (default, hover, focus, disabled, reduced motion), axe checks pass in Storybook and unit tests, all interactive targets ≥ 44px. Dark stories come with the v1.1 dark theme (design-system.md).
 
 ### M3: Tab renderer
-- [ ] Staff with wrapping systems, chord lane, technique lane, six strings, finger lane.
-- [ ] Technique symbols: apoyando, rasgueado arrows, golpe, hammer/pull arcs, accents, tremolo.
-- [ ] Notes reveal with `Reveal` on style/level change; playhead with glow.
+- [x] Staff with wrapping systems, chord lane, technique lane, six strings, finger lane.
+- [x] Technique symbols: apoyando, rasgueado arrows, golpe, hammer/pull arcs, accents, tremolo.
+- [x] Notes reveal with `Reveal` on style/level change; playhead with glow.
 - [ ] Chord diagrams.
 - **Done when:** stories for each technique and style-level; 200 bars render in < 50 ms; reveal animation is skipped under reduced motion.
 

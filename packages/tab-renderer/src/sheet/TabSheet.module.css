@@ -129,3 +129,35 @@
 .apoyando {
   fill: var(--color-violet-deep);
 }
+
+/* Playhead (moment #7): 4px violet line with a soft 28px halo. */
+.playhead {
+  transition: transform var(--dur-snap) linear;
+  pointer-events: none;
+}
+
+.playhead .line {
+  stroke: var(--color-violet);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.playhead .glow {
+  stroke: var(--color-violet);
+  stroke-width: 28;
+  stroke-linecap: round;
+  opacity: 0.16;
+}
+
+.sheet[data-reduced-motion] .playhead {
+  transition: none;
+}
+
+/* Notes under the playhead brighten. */
+.note[data-active] .chip {
+  fill: var(--color-violet);
+}
+
+.note[data-active] text {
+  fill: var(--color-surface);
+}
