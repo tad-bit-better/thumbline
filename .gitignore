@@ -84,3 +84,11 @@ pnpm-debug.log*
 
 # Generated eval audio (tools/make-synthetic-fixtures.mjs)
 fixtures/synthetic/
+
+# Songs you own but can't redistribute: local eval only, never committed (AGENTS.md rule 6).
+fixtures/local/
+# Safety net: committed fixtures are licensed WAV only (fixtures/audio/LICENSES.md).
+fixtures/**/*.m4a
+fixtures/**/*.mp3
+fixtures/**/*.aac
+fixtures/**/*.flac

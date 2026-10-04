@@ -1,5 +1,5 @@
 // nx run audio-analysis:eval — tempo, meter and chord accuracy on fixtures.
-// Reads fixtures/audio (real, licensed clips) and fixtures/synthetic (generated).
+// Reads fixtures/audio (real, licensed clips), fixtures/local (real, git-ignored) and fixtures/synthetic (generated).
 // Each clip: <name>.wav + <name>.chords.json { bpm, beatsPerBar, chords: [{ start, chord }] }.
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { analyzeSamples } from '../dist/index.js';
 
 const ROOT = new URL('../../../', import.meta.url).pathname;
-const DIRS = ['fixtures/audio', 'fixtures/synthetic'];
+const DIRS = ['fixtures/audio', 'fixtures/local', 'fixtures/synthetic'];
 const TEMPO_TOLERANCE = 3;
 const require = createRequire(import.meta.url);
 const { EssentiaWASM, Essentia } = require('essentia.js');

@@ -131,6 +131,29 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - [ ] Add ≥ 15 real, licensed clips to `fixtures/audio` (PLAN §7 mix) and re-run the eval: tuning so far is on synthetic audio from our own synth.
 - [ ] Known miss: slow 3/4 (66 bpm) solo picking is read at double tempo by every estimator tried.
 
+### M5b: Chords on songs with vocals
+Real mixes break chord detection: on a commercial track with vocals, half the chords came out low-confidence and half as sus/7/maj7, flipping every half bar. The voice and piano melody leak into the chroma (Fm with a Bb in the melody reads as Fsus4). Tempo, key and capo were fine. We go in stages, cheapest first, measure each one, and move to the next stage if the gate isn't met.
+
+**Measure first**
+- [ ] Local eval set: ≥ 5 songs with vocals in `fixtures/local/` (git-ignored; songs we own but can't redistribute), each with a hand-labelled `.chords.json`. Record baseline numbers before any change.
+
+**Stage 1: signal and music-theory fixes (no new dependencies)**
+- [ ] Bass chroma (below ~250 Hz, where there's almost never voice) picks the chord root.
+- [ ] Stereo side channel (L − R) for chord quality: lead vocals sit in the centre and cancel. Fall back to mono when the clip has no stereo width.
+- [ ] Key-aware smoothing across beats (Viterbi): prefer chords in the detected key, charge for a change, so passing melody notes are outvoted.
+- [ ] Triads by default; sus, 7 and maj7 only on strong evidence.
+- **Gate:** on the local set, major/minor accuracy ≥ 70% and fewer chord changes than bars. No regression on the synthetic set (root 89%, major/minor 81%). If the gate isn't met, go to stage 2.
+
+**Stage 2 (fallback): on-device vocal removal**
+- [ ] Source separation (Demucs or Spleeter, MIT) via ONNX Runtime Web; chords from the accompaniment stem. Audio stays on the device.
+- Needs decisions first: a new dependency; a 40–150 MB model download (the app fetches it and passes it in, so `audio-analysis` stays network-free); an opt-in "more accurate, slower" mode, since a 4-minute song may take a minute or more.
+
+**Stage 3 (fallback): learned chord model**
+- [ ] A chord-recognition model trained on real songs, if one exists with a licence compatible with AGPL (the "swappable model" in the risk table).
+
+**Whatever the stage**
+- [ ] Review: fixing a chord offers to fix the same spot in every repeat of that section.
+
 ### M6: App flow (`apps/web`)
 - [x] Upload screen (drop zone, file picker, sample clip, limits) with Pick drop moment.
 - [x] Listening screen with metronome synced to detected BPM, live step list, progress. *(Detected BPM and meter shown live; the metronome swing itself follows in M8 with the Lottie file.)*
@@ -175,7 +198,7 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 
 | Risk | Mitigation |
 |---|---|
-| Chord detection accuracy on full mixes | Review step; eval script; swappable model in v3 |
+| Chord detection accuracy on full mixes | Review step; eval script on a local set of songs with vocals; staged fixes in M5b (signal tricks → vocal removal → learned model) |
 | Users expect a transcription | Clear copy on Upload and Sheet screens; melody tier in v2 |
 | Beat tracker misreads flamenco | v1 limits flamenco to rumba/tangos |
 | AGPL from essentia.js | AGPL repo; replacing the detector is the exit path |
