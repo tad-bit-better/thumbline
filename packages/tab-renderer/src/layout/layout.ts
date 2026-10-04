@@ -35,7 +35,8 @@ export type TechMark =
   | { kind: 'slur'; label: 'h' | 'p'; x1: number; x2: number; y: number }
   | { kind: 'accent'; x: number }
   | { kind: 'rasgueo'; direction: 'down' | 'up'; x: number; y1: number; y2: number }
-  | { kind: 'golpe'; x: number }
+  | { kind: 'golpe' | 'slap' | 'apagado'; x: number }
+  | { kind: 'palm-mute'; x: number }
   | { kind: 'pinch'; x: number; y1: number; y2: number }
   | { kind: 'apoyando'; x: number; y: number }
   | { kind: 'tremolo'; x: number; y: number };
@@ -142,12 +143,14 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
     if (!column.fingers.includes(e.finger)) column.fingers.push(e.finger);
 
     if (e.fret < 0) {
-      sys.techniques.push({ kind: 'golpe', x: pos.x });
+      sys.techniques.push({ kind: e.tech === 'slap' || e.tech === 'apagado' ? e.tech : 'golpe', x: pos.x });
       return;
     }
     // A thumb strum (alzapúa) is a stroke, not a bass note: no bass chip.
     const strum = e.tech === 'rasgueo-down' || e.tech === 'rasgueo-up';
-    sys.notes.push({ eventIndex: i, x: pos.x, y, text: String(e.fret), bass: e.finger === 'p' && !strum });
+    // A natural harmonic is written as its node fret in angle brackets: <12>.
+    const text = e.tech === 'harmonic' ? `<${e.fret}>` : String(e.fret);
+    sys.notes.push({ eventIndex: i, x: pos.x, y, text, bass: e.finger === 'p' && !strum });
 
     if (e.accent && !accented.has(`${e.tick}`)) {
       accented.add(`${e.tick}`);
@@ -164,6 +167,9 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
       case 'apoyando':
       case 'tremolo':
         sys.techniques.push({ kind: e.tech, x: pos.x, y });
+        break;
+      case 'palm-mute':
+        sys.techniques.push({ kind: 'palm-mute', x: pos.x });
         break;
       case 'rasgueo-down':
       case 'rasgueo-up':
@@ -195,7 +201,7 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
 
   // An accent on a golpe's beat sits just right of the golpe chip, not on top of it.
   for (const sys of systems) {
-    const golpes = new Set(sys.techniques.flatMap((t) => (t.kind === 'golpe' ? [t.x] : [])));
+    const golpes = new Set(sys.techniques.flatMap((t) => (t.kind === 'golpe' || t.kind === 'slap' || t.kind === 'apagado' ? [t.x] : [])));
     for (const t of sys.techniques) if (t.kind === 'accent' && golpes.has(t.x)) t.x += ACCENT_BESIDE_GOLPE;
   }
 

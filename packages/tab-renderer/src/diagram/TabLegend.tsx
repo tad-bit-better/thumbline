@@ -73,6 +73,54 @@ const ENTRIES: Entry[] = [
     text: 'Golpe: tap the top of the guitar',
   },
   {
+    key: 'slap',
+    when: (t) => t.has('slap'),
+    symbol: (
+      <g className={sheet['slap']}>
+        <rect x={6} y={2} width={16} height={16} rx={4} />
+        <text x={14} y={10} textAnchor="middle" dominantBaseline="central">
+          S
+        </text>
+      </g>
+    ),
+    text: 'Slap: bounce the side of the thumb off the bass strings',
+  },
+  {
+    key: 'apagado',
+    when: (t) => t.has('apagado'),
+    symbol: (
+      <g className={sheet['apagado']}>
+        <rect x={6} y={2} width={16} height={16} rx={4} />
+        <text x={14} y={10} textAnchor="middle" dominantBaseline="central">
+          ×
+        </text>
+      </g>
+    ),
+    text: 'Apagado: land the hand on the strings to stop the strum',
+  },
+  {
+    key: 'palm-mute',
+    when: (t) => t.has('palm-mute'),
+    symbol: (
+      <text className={sheet['techLabel']} x={14} y={10} textAnchor="middle" dominantBaseline="central">
+        PM
+      </text>
+    ),
+    text: 'Palm mute: rest the heel of the hand on the strings by the bridge',
+  },
+  {
+    key: 'harmonic',
+    when: (t) => t.has('harmonic'),
+    symbol: (
+      <g className={sheet['note']}>
+        <text x={14} y={10} textAnchor="middle" dominantBaseline="central">
+          &lt;12&gt;
+        </text>
+      </g>
+    ),
+    text: 'Harmonic: touch the string over the fret without pressing, pluck, then lift',
+  },
+  {
     key: 'pinch',
     when: (t) => t.has('pinch'),
     symbol: <path className={sheet['pinch']} d="M15 2H12V18H15" />,

@@ -156,6 +156,18 @@ describe('layoutSheet', () => {
       expect(sys.techniques.map((m) => m.kind)).toEqual(['golpe']);
     });
 
+    it('shows slap and apagado as chips, palm mute as PM and a harmonic as its node in brackets', () => {
+      const t = techniqueSheet([
+        { tick: 0, string: 0, fret: 3, finger: 'p', tech: 'palm-mute' },
+        { tick: 480, string: 0, fret: -1, tech: 'slap', finger: 'p' },
+        { tick: 960, string: 0, fret: -1, tech: 'apagado', finger: 'p' },
+        { tick: 1440, string: 5, fret: 12, tech: 'harmonic', finger: 'a' },
+      ]);
+      const sys = layoutSheet(t, 1200).systems[0];
+      expect(sys.techniques.map((m) => m.kind)).toEqual(['palm-mute', 'slap', 'apagado']);
+      expect(sys.notes.map((n) => n.text)).toEqual(['3', '<12>']);
+    });
+
     it('links pinched notes and marks apoyando and tremolo', () => {
       const t = techniqueSheet([
         { tick: 0, string: 0, fret: 0, finger: 'p', tech: 'pinch' },

@@ -94,6 +94,17 @@ const TECHNIQUES: Record<string, Arrangement> = {
     { tick: 960, string: 1, fret: 2, finger: 'p' },
     { tick: 960, string: 5, fret: 3, tech: 'tremolo', finger: 'a' },
   ]),
+  slapAndPalmMute: techniqueSheet([0, 480, 960, 1440].flatMap((tick, i) => [
+    { tick, string: 0, fret: 0, finger: 'p' as const, tech: 'palm-mute' as const },
+    ...(i % 2 ? [{ tick, string: 0, fret: -1, finger: 'p' as const, tech: 'slap' as const }] : []),
+    { tick: tick + 240, string: 4, fret: 0, finger: 'i' as const },
+  ])),
+  harmonicAndApagado: techniqueSheet([
+    { tick: 0, string: 5, fret: 12, tech: 'harmonic', finger: 'a' },
+    { tick: 0, string: 4, fret: 12, tech: 'harmonic', finger: 'm' },
+    ...strum(960, 'rasgueo-down'),
+    { tick: 1200, string: 0, fret: -1, tech: 'apagado', finger: 'p' },
+  ]),
   pinch: techniqueSheet([0, 960].flatMap((tick) => [
     { tick, string: 0, fret: 0, finger: 'p' as const, tech: 'pinch' as const },
     { tick, string: 5, fret: 0, finger: 'a' as const, tech: 'pinch' as const },
@@ -107,6 +118,8 @@ export const Accents: Story = { args: { arrangement: TECHNIQUES['accents'] } };
 export const Apoyando: Story = { args: { arrangement: TECHNIQUES['apoyando'] } };
 export const Tremolo: Story = { args: { arrangement: TECHNIQUES['tremolo'] } };
 export const Pinch: Story = { args: { arrangement: TECHNIQUES['pinch'] } };
+export const SlapAndPalmMute: Story = { args: { arrangement: TECHNIQUES['slapAndPalmMute'] } };
+export const HarmonicAndApagado: Story = { args: { arrangement: TECHNIQUES['harmonicAndApagado'] } };
 
 function Timed({ arrangement, width }: { arrangement: Arrangement; width: number }) {
   const start = useRef(performance.now());

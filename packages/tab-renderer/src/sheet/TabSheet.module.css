@@ -116,7 +116,25 @@
   fill: var(--color-rose-soft);
 }
 
-.golpe text {
+.slap rect {
+  fill: var(--color-orange-soft);
+}
+
+.apagado rect {
+  fill: var(--color-line);
+}
+
+.slap text {
+  fill: var(--color-orange-deep);
+}
+
+.apagado text {
+  fill: var(--color-ink-2);
+}
+
+.golpe text,
+.slap text,
+.apagado text {
   fill: var(--color-rose-deep);
   font-family: var(--font-ui);
   font-size: calc(var(--text-mono) * 0.85);

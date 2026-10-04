@@ -1,6 +1,9 @@
 import { GEOMETRY, type TechMark } from '../layout/layout';
 import styles from './TabSheet.module.css';
 
+/** Letters on the percussion chips: golpe, slap, apagado (a mute stroke). */
+const CHIP = { golpe: 'G', slap: 'S', apagado: '×' } as const;
+
 /** Centre line of the technique lane. */
 const LANE_Y = GEOMETRY.chordLane + GEOMETRY.techLane / 2;
 
@@ -33,13 +36,21 @@ export function Technique({ mark, colWidth }: { mark: TechMark; colWidth: number
       );
     }
     case 'golpe':
+    case 'slap':
+    case 'apagado':
       return (
-        <g data-tech="golpe" className={styles['golpe']}>
+        <g data-tech={mark.kind} className={styles[mark.kind]}>
           <rect x={mark.x - 8} y={LANE_Y - 8} width={16} height={16} rx={4} />
           <text x={mark.x} y={LANE_Y} textAnchor="middle" dominantBaseline="central">
-            G
+            {CHIP[mark.kind]}
           </text>
         </g>
+      );
+    case 'palm-mute':
+      return (
+        <text data-tech="palm-mute" className={styles['techLabel']} x={mark.x} y={LANE_Y} textAnchor="middle" dominantBaseline="central">
+          PM
+        </text>
       );
     case 'pinch': {
       // A bracket hugging the pinched notes, so it can't be mistaken for a bar line.
