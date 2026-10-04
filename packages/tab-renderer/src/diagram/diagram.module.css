@@ -1,0 +1,97 @@
+.diagram {
+  display: block;
+  overflow: visible;
+}
+
+.name {
+  fill: var(--color-ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  font-weight: 800;
+}
+
+.string,
+.fret {
+  stroke: var(--color-ink-3);
+  stroke-width: 1;
+}
+
+.nut {
+  stroke: var(--color-ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.marker {
+  fill: var(--color-ink-2);
+  font-family: var(--font-mono);
+  font-size: calc(var(--text-mono) * 0.8);
+}
+
+.open {
+  fill: none;
+  stroke: var(--color-ink-2);
+  stroke-width: 1.2;
+}
+
+.dot,
+.barre {
+  fill: var(--color-violet);
+}
+
+.dot[data-root] {
+  fill: var(--color-violet-deep);
+}
+
+.baseFret {
+  fill: var(--color-ink-2);
+  font-family: var(--font-mono);
+  font-size: calc(var(--text-mono) * 0.8);
+}
+
+.caption {
+  fill: var(--color-ink-2);
+  font-family: var(--font-ui);
+  font-size: calc(var(--text-mono) * 0.85);
+}
+
+.shapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shape {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-small);
+  color: var(--color-ink-2);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legend svg {
+  flex: none;
+}
+
+.legend strong {
+  color: var(--color-ink);
+}

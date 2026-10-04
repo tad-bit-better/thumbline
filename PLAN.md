@@ -114,7 +114,8 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - [x] Staff with wrapping systems, chord lane, technique lane, six strings, finger lane.
 - [x] Technique symbols: apoyando, rasgueado arrows, golpe, hammer/pull arcs, accents, tremolo.
 - [x] Notes reveal with `Reveal` on style/level change; playhead with glow.
-- [ ] Chord diagrams.
+- [x] Chord diagrams.
+- [ ] Music review: rasgueado arrows follow the Guitar Pro convention (a down stroke points up the tab, since high e is on top). Confirm with a guitarist before M7.
 - **Done when:** stories for each technique and style-level; 200 bars render in < 50 ms; reveal animation is skipped under reduced motion.
 
 ### M4: Playback
