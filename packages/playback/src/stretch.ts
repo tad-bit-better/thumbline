@@ -20,19 +20,30 @@ function params(sampleRate: number): Params {
   return { frame, hop: frame / 2, tolerance: Math.round(TOLERANCE_SEC * sampleRate), window };
 }
 
-function mixdown(channels: readonly Float32Array[]): Float32Array {
+/** Samples processed between yields while preparing (keeps long clips from blocking). */
+const PREP_CHUNK = 1 << 16;
+
+function* mixdown(channels: readonly Float32Array[]): Generator<void, Float32Array> {
   if (channels.length === 1) return channels[0];
   const out = new Float32Array(channels[0].length);
-  for (const ch of channels) for (let i = 0; i < out.length; i++) out[i] += ch[i] / channels.length;
+  for (let start = 0; start < out.length; start += PREP_CHUNK) {
+    const end = Math.min(out.length, start + PREP_CHUNK);
+    for (const ch of channels) for (let i = start; i < end; i++) out[i] += ch[i] / channels.length;
+    yield;
+  }
   return out;
 }
 
-function decimate(x: Float32Array): Float32Array {
+function* decimate(x: Float32Array): Generator<void, Float32Array> {
   const out = new Float32Array(Math.floor(x.length / DECIMATE));
-  for (let i = 0; i < out.length; i++) {
-    let s = 0;
-    for (let j = 0; j < DECIMATE; j++) s += x[i * DECIMATE + j];
-    out[i] = s / DECIMATE;
+  for (let start = 0; start < out.length; start += PREP_CHUNK) {
+    const end = Math.min(out.length, start + PREP_CHUNK);
+    for (let i = start; i < end; i++) {
+      let s = 0;
+      for (let j = 0; j < DECIMATE; j++) s += x[i * DECIMATE + j];
+      out[i] = s / DECIMATE;
+    }
+    yield;
   }
   return out;
 }
@@ -59,8 +70,8 @@ function* stretchSteps(channels: readonly Float32Array[], sampleRate: number, sp
     return outs;
   }
 
-  const mono = mixdown(channels);
-  const coarse = decimate(mono);
+  const mono: Float32Array = yield* mixdown(channels);
+  const coarse: Float32Array = yield* decimate(mono);
   const lastStart = input - frame;
   const overlap = frame - hop;
   let prev = 0;
