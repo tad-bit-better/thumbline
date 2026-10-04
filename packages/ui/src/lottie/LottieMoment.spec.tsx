@@ -2,13 +2,15 @@ import { act, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
 import { ReducedMotionProvider } from '../motion';
 import { axeViolations } from '../testing/axe';
-import { LottieMoment } from './LottieMoment';
+import { LottieMoment, setLottieWasmUrl } from './LottieMoment';
 
 const player = vi.hoisted(() => {
   const handlers = new Map<string, () => void>();
   const play = vi.fn();
   const pause = vi.fn();
+  const setWasmUrl = vi.fn();
   return {
+    setWasmUrl,
     props: null as Record<string, unknown> | null,
     handlers,
     play,
@@ -23,6 +25,7 @@ const player = vi.hoisted(() => {
 });
 
 vi.mock('@lottiefiles/dotlottie-react', () => ({
+  setWasmUrl: player.setWasmUrl,
   DotLottieReact: (props: Record<string, unknown> & { dotLottieRefCallback?: (i: unknown) => void }) => {
     player.props = props;
     const register = props.dotLottieRefCallback;
@@ -115,5 +118,48 @@ describe('LottieMoment', () => {
   it('has no axe violations', async () => {
     const { container } = render(<LottieMoment fallback={still} label="Listening" />);
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('loads the renderer from our own origin when told to', async () => {
+    setLottieWasmUrl('/lottie/dotlottie-player-test.wasm');
+    render(<LottieMoment src="/lottie/listening.lottie" fallback={still} loop />);
+    await screen.findByTestId('player');
+    expect(player.setWasmUrl).toHaveBeenCalledWith('/lottie/dotlottie-player-test.wasm');
+  });
+
+  it('completes a slow one-shot after the timeout, and only once', async () => {
+    vi.useFakeTimers();
+    try {
+      const onComplete = vi.fn();
+      render(<LottieMoment src="/lottie/pick-drop.lottie" fallback={still} onComplete={onComplete} timeoutMs={500} />);
+      await act(async () => vi.advanceTimersByTimeAsync(499));
+      expect(onComplete).not.toHaveBeenCalled();
+      await act(async () => vi.advanceTimersByTimeAsync(1));
+      expect(onComplete).toHaveBeenCalledOnce();
+      fire('complete'); // the real end arrives late
+      expect(onComplete).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never times out a loop', async () => {
+    vi.useFakeTimers();
+    try {
+      const onComplete = vi.fn();
+      render(<LottieMoment src="/lottie/listening.lottie" fallback={still} loop onComplete={onComplete} timeoutMs={100} />);
+      await act(async () => vi.advanceTimersByTimeAsync(1000));
+      expect(onComplete).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps the still frame until the first frame is drawn, then shows only the animation', async () => {
+    render(<LottieMoment src="/lottie/metronome.lottie" fallback={still} loop />);
+    await screen.findByTestId('player');
+    expect(screen.getByTestId('still')).toBeTruthy();
+    fire('load');
+    expect(screen.queryByTestId('still')).toBeNull();
   });
 });

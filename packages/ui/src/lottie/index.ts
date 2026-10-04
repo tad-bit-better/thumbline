@@ -1,1 +1,1 @@
-export { LottieMoment, type LottieMomentProps } from './LottieMoment';
+export { LottieMoment, type LottieMomentProps, preloadLottie, setLottieWasmUrl } from './LottieMoment';
