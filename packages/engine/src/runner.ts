@@ -65,7 +65,10 @@ function resolverFor(voicing: Voicing, alt: StringFret | null): Resolver {
       case 'all':
         return frets.map((_, s) => at(s)).filter((n) => n.fret >= 0);
       case 'scale':
-        // Resolved by the scale walker in runSegment.
+      case 'campanella':
+      case 'drone':
+      case 'pedal':
+        // Resolved in runSegment: they need the key, not just the shape.
         return [];
     }
   };
@@ -110,7 +113,8 @@ export function runSegment(pattern: PatternDef, span: ChordSpan, beatsPerBar: Be
 
   const notes: NoteEvent[] = [];
   const taken = new Set<string>();
-  const walk = scaleWalker(span);
+  const walk = scaleWalker(span, scaleNotes);
+  const bells = scaleWalker(span, campanellaNotes);
   for (const { tick, event } of events) {
     // Golpe, slap and apagado have no pitch and don't take a string's slot,
     // so they can land with a strum or a bass note (engine-spec §3: string 0, fret -1).
@@ -120,7 +124,16 @@ export function runSegment(pattern: PatternDef, span: ChordSpan, beatsPerBar: Be
       notes.push({ tick, dur: Math.min(event.dur, span.end - tick), string: 0, fret: -1, finger: event.finger, velocity: event.velocity ?? DEFAULT_VELOCITY, tech: event.tech, ...(event.accent ? { accent: true } : {}) });
       continue;
     }
-    const targets = event.target === 'scale' ? walk() : resolve(event.target);
+    const targets =
+      event.target === 'scale'
+        ? walk()
+        : event.target === 'campanella'
+          ? bells()
+          : event.target === 'drone'
+            ? drone(span, resolve)
+            : event.target === 'pedal'
+              ? pedal(span, resolve)
+              : resolve(event.target);
     for (const { string, fret } of targets) {
       const key = `${tick}:${string}`;
       if (taken.has(key)) continue;
@@ -288,13 +301,13 @@ export function scaleNotes(span: ChordSpan): StringFret[] {
   return [...byPitch.entries()].sort((a, b) => a[0] - b[0]).map(([, n]) => n);
 }
 
-function scaleWalker(span: ChordSpan): () => StringFret[] {
+function scaleWalker(span: ChordSpan, source: (span: ChordSpan) => StringFret[]): () => StringFret[] {
   let notes: StringFret[] | null = null;
   let i = 0;
   let step = 1;
   return () => {
     if (!notes) {
-      notes = scaleNotes(span);
+      notes = source(span);
       const root = notes.findIndex((n) => (OPEN_MIDI[n.string] + n.fret) % 12 === span.played.pc);
       i = Math.max(0, root);
     }
@@ -306,4 +319,71 @@ function scaleWalker(span: ChordSpan): () => StringFret[] {
     }
     return [note];
   };
+}
+
+/** Campanella stays on the top four strings so the bells sit above the bass. */
+const CAMPANELLA_STRINGS = [2, 3, 4, 5];
+
+/**
+ * engine-spec §4 campanella: the key's scale (as for picado) on strings 2–5,
+ * within the shape's hand position stretched by a fret (to fret 5 in first
+ * position) plus open strings. Each note goes on a different string from the
+ * one before when it can, preferring an open string, then the higher string,
+ * so neighbouring notes ring into each other like bells (B open, then C on the
+ * G string). Ascending; the walker turns back at either end.
+ */
+export function campanellaNotes(span: ChordSpan): StringFret[] {
+  const pcs = scalePcs(span);
+  const fretted = span.voicing.frets.filter((f) => f > 0);
+  const low = fretted.length && Math.min(...fretted) > SCALE_REACH ? Math.min(...fretted) : 0;
+  const high = low === 0 ? SCALE_REACH + 2 : low + SCALE_REACH + 1;
+  const byPitch = new Map<number, StringFret[]>();
+  for (const string of CAMPANELLA_STRINGS) {
+    for (const fret of [0, ...Array.from({ length: high - Math.max(1, low) + 1 }, (_, i) => Math.max(1, low) + i)]) {
+      const midi = OPEN_MIDI[string] + fret;
+      if (!pcs.has(midi % 12)) continue;
+      byPitch.set(midi, [...(byPitch.get(midi) ?? []), { string, fret }]);
+    }
+  }
+  const out: StringFret[] = [];
+  for (const midi of [...byPitch.keys()].sort((a, b) => a - b)) {
+    const prev = out.at(-1);
+    // A different string from the last note, open if possible, else the higher string (lower fret).
+    const pick = [...(byPitch.get(midi) ?? [])].sort(
+      (a, b) =>
+        Number(a.string === prev?.string) - Number(b.string === prev?.string) ||
+        Number(a.fret !== 0) - Number(b.fret !== 0) ||
+        b.string - a.string,
+    )[0];
+    out.push(pick);
+  }
+  return out;
+}
+
+/** An open string can ring when no barre covers it; a single finger can lift off it. */
+const canRingOpen = (voicing: Voicing, string: number) => !voicing.barre || voicing.frets[string] <= 0;
+
+/**
+ * engine-spec §4 drone: the open 1st string, else the open 2nd, when its note is
+ * in the key, ringing whatever the chord; otherwise the shape's top note.
+ */
+function drone(span: ChordSpan, resolve: Resolver): StringFret[] {
+  const pcs = scalePcs(span);
+  for (const string of [5, 4]) {
+    if (pcs.has(OPEN_MIDI[string] % 12) && canRingOpen(span.voicing, string)) return [{ string, fret: 0 }];
+  }
+  return resolve('t1');
+}
+
+/**
+ * engine-spec §4 pedal: the key's tonic, else its fifth, on an open bass string
+ * (E, A or D), held under every chord; otherwise the chord's bass.
+ */
+function pedal(span: ChordSpan, resolve: Resolver): StringFret[] {
+  const key = span.key ?? { pc: span.played.pc };
+  for (const pc of [key.pc, (key.pc + 7) % 12]) {
+    const string = [0, 1, 2].find((s) => OPEN_MIDI[s] % 12 === pc && canRingOpen(span.voicing, s));
+    if (string !== undefined) return [{ string, fret: 0 }];
+  }
+  return resolve('bass');
 }

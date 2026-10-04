@@ -52,6 +52,9 @@ type Target =
   | 't1' | 't2' | 't3'   // highest three sounded strings: t1 = 1st string
   | 't4'        // 4th string when it isn't the bass
   | 'scale'     // next note of a scale run (picado), resolved by the scale walker
+  | 'campanella' // next note of a campanella run: scale notes on alternating strings (§4)
+  | 'drone'     // an open top string that rings through every chord (§4)
+  | 'pedal'     // an open bass string on the key's tonic or fifth, held under every chord (§4)
   | 'all';      // all sounded strings (rasgueado, plucked chord)
 
 type Technique =
@@ -97,10 +100,10 @@ type PatternDef = {
 - `hammer`/`pull` need a previous note on the same string within one beat; otherwise the runner substitutes a normal stroke. A hammer-on needs that note lower and a pull-off needs it higher. When it sits on the same fret, the runner moves one end to where the string rests with the finger lifted, the barre or the open string (open only up to fret 2): a hammer-on starts there, a pull-off lands there (open only when that note is in the key's scale). An open chord tone may instead hammer up two frets to a scale note when a free finger can reach it (span and finger limits of §4).
 - A `golpe`, `slap` or `apagado` event becomes one pitchless note (string 0, fret -1, its tech) whatever its target, and doesn't take a string's slot, so it can land with a strum or a bass note on the same tick. The thumb may play `slap` and `apagado` on any target.
 - A `harmonic` event sounds its target string's natural harmonic at fret 12 (the open note an octave up) if that is a chord tone, else fret 7 (an octave and a fifth up); if neither is, the note is played normally without the tech. A harmonic is also dropped (the shape's fret comes back) when a fretted note sounds on the same tick, since the fretting hand must be off the strings. Harmonics are ignored by the playability check and the moving top line.
-- A `scale` target takes the next note from the scale walker (§4), one per event.
+- A `scale` target takes the next note from the scale walker (§4), one per event; `campanella` likewise from the campanella walker. `drone` and `pedal` resolve from the key (§4).
 - Flamenco patterns list their `palos`; `arrange` keeps to the requested palo (default `rumba`; v1 plays `rumba` and `tangos`, others throw), including when it falls back a level.
 
-**Moving top line (after the runner, Moderate and Advanced only):** plucked notes on the shape's top string (the `t1` string) may change fret, so the line moves instead of repeating one note. Within each chord, notes alternate between a chord tone and a neighbour, starting with the chord tone nearest the previous chord's last top note. The neighbour is the next chord tone up within 5 semitones; else a note of the song's key 2–3 semitones up; else the same downwards. Every fret stays within reach of the shape (fretted notes at most 3 frets apart, at most 4 fingers, no open string under a barre). Thumb notes, strums, golpes and chords with a hammer-on or pull-off on that string are left alone. Basic sheets keep the shape's own top note. `chordMarks[].voicing` still shows the base shape.
+**Moving top line (after the runner, Moderate and Advanced only, not flamenco):** plucked notes on the shape's top string (the `t1` string) may change fret, so the line moves instead of repeating one note. Within each chord, notes alternate between a chord tone and a neighbour, starting with the chord tone nearest the previous chord's last top note. The neighbour is the next chord tone up within 5 semitones; else a note of the song's key 2–3 semitones up; else the same downwards. Every fret stays within reach of the shape (fretted notes at most 3 frets apart, at most 4 fingers, no open string under a barre). Thumb notes, strums, golpes and chords with a hammer-on or pull-off on that string are left alone. Basic sheets keep the shape's own top note. `chordMarks[].voicing` still shows the base shape.
 
 ## 3. Arrangement (engine → renderer, playback)
 
@@ -156,7 +159,11 @@ function arrange(input: AnalysisResult, opts: {
 
 **Alt bass.** Root on string 0 → string 2 (else 1). Root on string 1 → string 2. Root on string ≥ 2 → an open lower string that's a chord tone (A for D chords), else root string + 1 if sounded.
 
-**Scale walker (picado, v1 flamenco).** Walk the scale of the current key/mode from the current chord's root in the voicing position, staying within a 4-fret span on strings 0–3; alternate i/m with `apoyando`. Chord tones replace a scale note a semitone away (G# for G over E in A minor). The walk goes up and turns back at either end of the position; without a key it uses the chord root's major or minor scale.
+**Scale walker (picado, v1 flamenco).** Walk the scale of the current key/mode from the current chord's root in the voicing position, staying within a 4-fret span on strings 0–3; alternate i/m with `apoyando`. Chord tones replace a scale note a semitone away (G# for G over E in A minor). The walk goes up and turns back at either end of the position; without a key it uses the chord root's major or minor scale. The thumb may walk it too, with rest strokes (pulgar).
+
+**Campanella.** The same scale on strings 2–5, within the hand position stretched by a fret (frets 1–5 in first position) plus open strings, ascending. Each note goes on a different string from the one before when it can, preferring an open string, then the higher string, so neighbouring notes overlap like bells (B open, then C on the G string's 5th fret). No scale note is skipped. Walked like picado.
+
+**Drone and pedal.** A `drone` is the open 1st string, else the open 2nd, when its note is in the key's scale (chord tones included), whatever the chord; otherwise the shape's top note. A `pedal` is the key's tonic, else its fifth, on an open E, A or D string; otherwise the chord's bass. Neither uses an open string a barre covers. The chord's own bass still sounds on each chord change. The moving top line doesn't apply to flamenco.
 
 **Playability check.** Reject a pattern for a chord if any simultaneous notes need a fret span > 4 or more than 4 fretted fingers; fall back to the next pattern at the same level, then the level below.
 

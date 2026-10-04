@@ -181,7 +181,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   });
 
   events.sort((a, b) => a.tick - b.tick || a.string - b.string);
-  moveTopLine(events, spans, opts.level, { ...input.key, pc: (input.key.pc - capo + 12) % 12 });
+  // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
+  if (opts.style !== 'flamenco') moveTopLine(events, spans, opts.level, { ...input.key, pc: (input.key.pc - capo + 12) % 12 });
 
   return {
     style: opts.style,

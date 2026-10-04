@@ -2,7 +2,7 @@ import { arrange, flamencoCapo, patternCandidates } from './arrange.js';
 import { bestCapo } from './capo.js';
 import { parseChord } from './chords.js';
 import { PALOS, patternsFor } from './patterns/index.js';
-import { type ChordSpan, runSegment, scaleNotes } from './runner.js';
+import { type ChordSpan, campanellaNotes, runSegment, scaleNotes } from './runner.js';
 import { asciiTab } from './testing/ascii-tab.js';
 import { progression } from './testing/progression.js';
 import type { AnalysisResult, ChordLabel, Level, PatternDef, Voicing } from './types.js';
@@ -153,5 +153,68 @@ describe('scale walker (picado)', () => {
     // Strings 0–3 all muted is still a position: the walker uses the open strings' scale notes, if any.
     const s = span([-1, -1, -1, -1, 1, 0], 4, 'C', { pc: 1, mode: 'major' });
     expect(() => runSegment(walkless, s, 4)).not.toThrow();
+  });
+});
+
+describe('drones, pedal tones and campanella', () => {
+  const E_SHAPE = voicing([0, 2, 2, 1, 0, 0], 0, 'E');
+  const F_SHAPE: Voicing = { ...voicing([1, 3, 3, 2, 1, 1], 0, 'F'), barre: true };
+  const D_SHAPE = voicing([-1, -1, 0, 2, 3, 2], 2, 'D');
+  const span = (v: Voicing, played: string, key = minor(9)): ChordSpan => ({ start: 0, end: 1920, voicing: v, played: label(played), key });
+  const one = (target: 'drone' | 'pedal' | 'campanella'): PatternDef => ({
+    id: 'test.one',
+    name: 'One',
+    hint: 'One.',
+    style: 'flamenco',
+    level: 'advanced',
+    meters: [4],
+    anchor: 'bar',
+    events: { 4: [{ tick: 0, dur: 480, finger: 'p', target: 'bass' }, { tick: 480, dur: 480, finger: target === 'pedal' ? 'p' : 'a', target }] },
+  });
+  const at480 = (notes: ReturnType<typeof runSegment>) => notes.filter((n) => n.tick === 480).map(({ string, fret }) => ({ string, fret }));
+
+  const G_SHAPE = voicing([3, 2, 0, 0, 0, 3], 0, 'G');
+
+  it('rings the open top string as a drone when it is in the key (the finger lifts)', () => {
+    // A minor: open E is in the scale, so it rings over G instead of the fretted G
+    expect(at480(runSegment(one('drone'), span(G_SHAPE, 'G'), 4))).toEqual([{ string: 5, fret: 0 }]);
+  });
+
+  it('falls back to the shape’s top note when neither open E nor B is in the key, or under a barre', () => {
+    // D over Db major: neither E nor B is in the scale or the chord
+    expect(at480(runSegment(one('drone'), span(D_SHAPE, 'D', { pc: 1, mode: 'major' }), 4))).toEqual([{ string: 5, fret: 2 }]);
+    // The barre covers the open strings
+    expect(at480(runSegment(one('drone'), span(F_SHAPE, 'F'), 4))).toEqual([{ string: 5, fret: 1 }]);
+  });
+
+  it('holds the key’s tonic, else its fifth, on an open bass string as a pedal', () => {
+    // A minor: open A (string 1)
+    expect(at480(runSegment(one('pedal'), span(E_SHAPE, 'E'), 4))).toEqual([{ string: 1, fret: 0 }]);
+    // D minor: open D (string 2)
+    expect(at480(runSegment(one('pedal'), span(G_SHAPE, 'G', minor(2)), 4))).toEqual([{ string: 2, fret: 0 }]);
+    // B minor: neither B nor F# is an open bass string, so the chord's own bass
+    expect(at480(runSegment(one('pedal'), span(E_SHAPE, 'E', minor(11)), 4))).toEqual([{ string: 0, fret: 0 }]);
+    // Under a barre: the chord's own bass
+    expect(at480(runSegment(one('pedal'), span(F_SHAPE, 'F'), 4))).toEqual([{ string: 0, fret: 1 }]);
+  });
+
+  it('spreads campanella scale notes over different strings, open strings ringing', () => {
+    const notes = campanellaNotes(span(voicing([-1, 0, 2, 2, 1, 0], 1, 'Am'), 'Am'));
+    const midi = notes.map((n) => OPEN_MIDI[n.string] + n.fret);
+    expect(midi).toEqual([...midi].sort((a, b) => a - b));
+    expect(notes.some((n) => n.fret === 0)).toBe(true);
+    expect(notes.every((n) => n.string >= 2 && n.fret <= 5)).toBe(true);
+    // Every note of the scale is there: no step skips more than a tone.
+    for (let i = 1; i < midi.length; i++) expect(midi[i] - midi[i - 1]).toBeLessThanOrEqual(2);
+    // The bell effect: a higher note on a lower string, so the one before keeps ringing.
+    expect(notes.some((n, i) => i > 0 && n.string < notes[i - 1].string)).toBe(true);
+  });
+});
+
+describe('flamenco tremolo', () => {
+  it('repeats one note: the top line does not move it', () => {
+    const a = arrange(ANDALUSIAN, { style: 'flamenco', level: 'advanced', patternId: 'flamenco.advanced.tremolo' });
+    const bar1 = a.events.filter((e) => e.tick < 1920 && e.tech === 'tremolo');
+    expect(new Set(bar1.map((e) => `${e.string}:${e.fret}`)).size).toBe(1);
   });
 });

@@ -62,6 +62,9 @@ export type Target =
   | 't3'
   | 't4'
   | 'scale'
+  | 'campanella'
+  | 'drone'
+  | 'pedal'
   | 'all';
 
 export type Technique =
