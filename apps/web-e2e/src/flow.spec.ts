@@ -36,13 +36,14 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
   await expectNoAxeViolations(page);
 
   // Pick an alternative for the first bar.
-  const first = page.getByRole('button', { name: /^Bar 1:/ });
+  // The block's name carries its section and time: "Section A starts. Bar 1 at 0:00: G".
+  const first = page.getByRole('button', { name: /\bBar 1 at \d+:\d\d: / });
   await first.click();
   const options = page.locator('[popover]:popover-open button');
   await expect(options.first()).toBeVisible();
   const alternative = String(await options.nth(1).getAttribute('aria-label'));
   await options.nth(1).click();
-  await expect(first).toHaveAttribute('aria-label', `Bar 1: ${alternative}, confirmed`);
+  await expect(first).toHaveAttribute('aria-label', new RegExp(`Bar 1 at \\d+:\\d\\d: ${alternative.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, confirmed$`));
 
   await page.getByRole('button', { name: 'Looks good, write my sheets' }).click();
   await expect(page).toHaveURL(/\/sheet$/);
