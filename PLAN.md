@@ -191,7 +191,7 @@ Sheets sound thin next to the recording: on a 70 bpm ballad (Hotel California) e
 - [ ] Slow songs get denser patterns (sixteenth fills). Choosing patterns by tempo needs a field on `PatternDef` (a contract change): waiting for a decision.
 
 **C1: a top line that moves**
-- [ ] The highest note of each pattern steps between chord tones (voice leading) so the sheet carries a tune. Not the song's melody.
+- [x] Moderate and Advanced: top-string notes alternate between a chord tone and a neighbour (next chord tone, or a key note 2–3 semitones away), each chord starting near where the line was (voice leading). Always within reach of the shape; Basic unchanged. Spec: `docs/engine-spec.md` §2 "Moving top line". Not the song's melody.
 
 **Later (v2):** the real melody on top (melody extraction), which is what makes it a lead part. Out of v1 scope (AGENTS.md rule 8).
 

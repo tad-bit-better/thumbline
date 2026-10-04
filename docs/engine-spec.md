@@ -92,6 +92,8 @@ type PatternDef = {
 - Two events on the same string at the same tick: keep the first.
 - `hammer`/`pull` need a previous note on the same string within one beat; otherwise the runner substitutes a normal stroke.
 
+**Moving top line (after the runner, Moderate and Advanced only):** plucked notes on the shape's top string (the `t1` string) may change fret, so the line moves instead of repeating one note. Within each chord, notes alternate between a chord tone and a neighbour, starting with the chord tone nearest the previous chord's last top note. The neighbour is the next chord tone up within 5 semitones; else a note of the song's key 2–3 semitones up; else the same downwards. Every fret stays within reach of the shape (fretted notes at most 3 frets apart, at most 4 fingers, no open string under a barre). Thumb notes, strums, golpes and chords with a hammer-on or pull-off on that string are left alone. Basic sheets keep the shape's own top note. `chordMarks[].voicing` still shows the base shape.
+
 ## 3. Arrangement (engine → renderer, playback)
 
 ```ts

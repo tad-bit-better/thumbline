@@ -3,6 +3,7 @@ import { chordName, transpose } from './chords.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import { LEVELS, getPattern, patternsFor } from './patterns/index.js';
 import { type ChordSpan, isPlayable, runSegment } from './runner.js';
+import { moveTopLine } from './topline.js';
 import type {
   AnalysisResult,
   ArrangeOptions,
@@ -111,6 +112,7 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   const warnings = new Warnings();
   const chordMarks: ChordMark[] = [];
   const events: NoteEvent[] = [];
+  const spans: ChordSpan[] = [];
 
   segments.forEach((segment, i) => {
     if (!segment.chord) return;
@@ -141,10 +143,12 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     }
 
     chordMarks.push({ tick: start, voicing, soundingName });
+    spans.push({ start, end, voicing, played });
     events.push(...renderSpan(candidates, { start, end, voicing, played }, beatsPerBar));
   });
 
   events.sort((a, b) => a.tick - b.tick || a.string - b.string);
+  moveTopLine(events, spans, opts.level, { ...input.key, pc: (input.key.pc - capo + 12) % 12 });
 
   return {
     style: opts.style,
