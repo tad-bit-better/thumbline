@@ -196,6 +196,8 @@ Sheets sound thin next to the recording: on a 70 bpm ballad (Hotel California) e
 **C1: a top line that moves**
 - [x] Moderate and Advanced: top-string notes alternate between a chord tone and a neighbour (next chord tone, or a key note 2–3 semitones away), each chord starting near where the line was (voice leading). Always within reach of the shape; Basic unchanged. Spec: `docs/engine-spec.md` §2 "Moving top line". Not the song's melody.
 
+**Feedback (2026-10-04):** B + A + C1 sound "a bit better"; the output needs another pass later. Candidates: tempo-aware patterns, a richer synth body, the real melody.
+
 **Later (v2):** the real melody on top (melody extraction), which is what makes it a lead part. Out of v1 scope (AGENTS.md rule 8).
 
 ### M7: Flamenco (rumba, tangos)
