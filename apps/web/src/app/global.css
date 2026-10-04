@@ -69,3 +69,23 @@ canvas {
     scroll-behavior: smooth;
   }
 }
+
+/* Screen transitions (View Transitions API via React <ViewTransition>). */
+::view-transition-group(*) {
+  animation-duration: var(--dur-glide);
+  animation-timing-function: var(--ease-glide);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Morphs become short fades. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 120ms;
+  }
+
+  ::view-transition-group(main-card),
+  ::view-transition-group(chords-card) {
+    animation-name: none;
+  }
+}
