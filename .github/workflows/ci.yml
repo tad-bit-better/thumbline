@@ -39,8 +39,6 @@ jobs:
     needs: main
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -51,11 +49,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - uses: nrwl/nx-set-shas@v4
-
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
 
-      - run: pnpm nx affected -t e2e
+      # Always run: there is one e2e project and it guards the whole app.
+      - run: pnpm nx run-many -t e2e
 
       - uses: actions/upload-artifact@v4
         if: failure()
