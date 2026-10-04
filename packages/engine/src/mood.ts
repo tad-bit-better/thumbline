@@ -44,14 +44,18 @@ export function applyTouch(events: NoteEvent[], mood: MoodLabel, beatsPerBar: Be
 
 /** Bars per phrase when reading the song's loudness: sections move in phrases, not bars. */
 const PHRASE_BARS = 4;
-/** Below this spread between the quiet and loud thirds of the song, it doesn't build: all normal. */
-const MIN_CONTRAST = 0.12;
+/** Below this spread between the song's quiet and loud levels, it doesn't build: all normal. */
+const MIN_CONTRAST = 0.08;
+/** The quietest and loudest quarter of that spread are soft and full. */
+const EDGE = 0.25;
 
 /**
  * engine-spec §4 sections: each bar's loudness (mean of its beats), averaged
- * over 4-bar phrases, then split at the song's thirds: the quiet third is soft
- * (if under 0.6 of the loudest), the loud third full (if over 0.75), the rest
- * normal. A song without that much contrast stays normal throughout.
+ * over 4-bar phrases, compared with the song's own quiet and loud levels (the
+ * 20th and 80th percentile of its phrases): phrases in the quietest quarter of
+ * that spread are soft, in the loudest quarter full, the rest normal. A song
+ * whose levels are less than 0.08 apart stays normal throughout. Relative, so
+ * a mastered pop verse that is only a little quieter than its chorus still reads.
  */
 export function sectionsOf(input: Pick<AnalysisResult, 'beatEnergy' | 'barStartBeat'>, beatsPerBar: BeatsPerBar, bars: number): SectionLevel[] {
   const energy = input.beatEnergy;
@@ -67,10 +71,11 @@ export function sectionsOf(input: Pick<AnalysisResult, 'beatEnergy' | 'barStartB
     return group.reduce((a, x) => a + x, 0) / group.length;
   });
   const sorted = [...phrase].sort((a, b) => a - b);
-  const low = sorted[Math.floor((sorted.length - 1) / 3)];
-  const high = sorted[Math.floor(((sorted.length - 1) * 2) / 3)];
-  if (high - low < MIN_CONTRAST) return phrase.map(() => 'normal');
-  return phrase.map((p) => (p <= low && p < 0.6 ? 'soft' : p >= high && p > 0.75 ? 'full' : 'normal'));
+  const quiet = sorted[Math.floor((sorted.length - 1) * 0.2)];
+  const loud = sorted[Math.floor((sorted.length - 1) * 0.8)];
+  const spread = loud - quiet;
+  if (spread < MIN_CONTRAST) return phrase.map(() => 'normal');
+  return phrase.map((p) => (p <= quiet + EDGE * spread ? 'soft' : p >= loud - EDGE * spread ? 'full' : 'normal'));
 }
 
 const SOFT_VELOCITY = 0.8;

@@ -191,7 +191,7 @@ function arrange(input: AnalysisResult, opts: {
 - *Pattern:* a level's patterns are listed with the ones whose `moods` include the mood first, otherwise in their usual order; the first is the default.
 - *Touch* (pattern notes only; the tune keeps its own): melancholic ×0.85 velocity, warm ×0.92, both keep only the accents on a bar's first beat; intense cuts thumb notes to an eighth; upbeat cuts all pattern notes to an eighth. Playback sets tone, room and strum speed from `Arrangement.mood` (§6).
 
-**Sections (M10).** From `beatEnergy`: each bar's loudness is the mean of its beats, averaged over 4-bar phrases from bar 0. If the song's quiet and loud thirds differ by less than 0.12, every bar is normal. Otherwise a phrase in the quiet third (and under 0.6) is soft, one in the loud third (and over 0.75) is full. Soft bars keep the tune, thumb notes, golpes and notes on a beat, at ×0.8 velocity; full bars play everything at ×1.1 with the bar's first beat accented.
+**Sections (M10).** From `beatEnergy`: each bar's loudness is the mean of its beats, averaged over 4-bar phrases from bar 0. The song's own quiet and loud levels are the 20th and 80th percentile of its phrases; if they are less than 0.08 apart, every bar is normal. Otherwise a phrase in the quietest quarter of that spread is soft and one in the loudest quarter is full (relative, so a mastered verse only a little quieter than its chorus still reads). Soft bars keep the tune, thumb notes, golpes and notes on a beat, at ×0.8 velocity; full bars play everything at ×1.1 with the bar's first beat accented.
 
 ## 5. Renderer inputs
 
