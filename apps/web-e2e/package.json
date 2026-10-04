@@ -1,0 +1,14 @@
+{
+  "name": "@thumbline/web-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@thumbline/web"
+    ],
+    "tags": [
+      "scope:web-e2e",
+      "type:e2e"
+    ]
+  }
+}

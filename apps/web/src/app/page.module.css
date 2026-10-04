@@ -1,0 +1,16 @@
+.page {
+  display: grid;
+  place-content: center;
+  gap: var(--space-4);
+  min-height: 100dvh;
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.title {
+  font-size: var(--text-display);
+}
+
+.lede {
+  color: var(--color-ink-2);
+}

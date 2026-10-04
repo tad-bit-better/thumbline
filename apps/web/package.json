@@ -1,0 +1,21 @@
+{
+  "name": "@thumbline/web",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "sourceRoot": "apps/web/src",
+    "tags": [
+      "scope:web",
+      "type:app"
+    ]
+  },
+  "dependencies": {
+    "@thumbline/ui": "workspace:*",
+    "idb-keyval": "^6.3.0",
+    "motion": "^14.0.0",
+    "next": "~16.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.15"
+  }
+}

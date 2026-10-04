@@ -43,3 +43,41 @@ Thumbs.db
 .nx/migrate-runs
 .claude/worktrees
 .claude/settings.local.json
+
+# Next.js
+.next
+out
+
+vite.config.*.timestamp*
+
+storybook-static
+test-output
+
+vitest.config.*.timestamp*
+
+# Secrets and local env (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Test and coverage output
+coverage
+playwright-report
+test-results
+blob-report
+*.lcov
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Deploy and build caches
+.vercel
+*.tsbuildinfo
+.turbo
+.eslintcache
+
+# Local audio scratch (only licensed fixtures belong in fixtures/audio)
+/scratch
