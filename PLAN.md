@@ -95,10 +95,11 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - **Done when:** a fresh clone passes `pnpm nx run-many -t lint test build`.
 
 ### M1: Engine core (port from prototype)
-- [ ] Chord parser and vocabulary (maj, m, 7, m7, maj7, sus2, sus4, dim, add9, 6, slash).
-- [ ] Voicing library, movable shapes, beginner substitutions.
-- [ ] Capo optimiser; bass and alt-bass selection.
-- [ ] Pattern DSL types and runner; Arpeggio and Fingerstyle patterns for all levels.
+- [x] Chord parser and vocabulary (maj, m, 7, m7, maj7, sus2, sus4, dim, add9, 6, slash).
+- [x] Voicing library, movable shapes, beginner substitutions.
+- [x] Capo optimiser; bass and alt-bass selection.
+- [x] Pattern DSL types and runner; Arpeggio and Fingerstyle patterns for all levels.
+- [ ] Music review of `MUSIC-REVIEW` notes in `packages/engine`: capo cost moves the capo far to avoid one barre (waltz in D → capo 7, C ballad → capo 5 and loses its Am/G bass line); slash-bass spelling ignores the key; five-string arpeggio repeats the D string.
 - **Done when:** unit tests cover parser, voicings, capo, alt-bass; snapshots for 5 progressions × 6 style-levels; ≥ 90% coverage.
 
 ### M2: UI kit (`packages/ui`)
