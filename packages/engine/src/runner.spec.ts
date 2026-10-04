@@ -155,9 +155,83 @@ describe('runSegment', () => {
       expect(notes[0].fret).toBe(3);
     });
 
-    it('needs a higher earlier fret for a pull-off', () => {
+    it('pulls off to the open string when the earlier note sits on the same fret', () => {
+      // Am t2 = string 4, fret 1: pluck C, pull off to the open B (in A minor)
       const notes = runSegment(pattern([ev(0, 'bass'), ev(240, 't2'), ev(480, 't2', { tech: 'pull' })]), span('Am'), 4);
-      expect(notes[2].tech).toBeUndefined();
+      expect(strip(notes).slice(1)).toEqual([
+        { tick: 240, string: 4, fret: 1 },
+        { tick: 480, string: 4, fret: 0, tech: 'pull' },
+      ]);
+    });
+
+    it('cannot pull off under a barre', () => {
+      // F barre: t1 = string 5, fret 1, the barre itself
+      const notes = runSegment(pattern([ev(0, 'bass'), ev(240, 't1'), ev(480, 't1', { tech: 'pull' })]), span('F'), 4);
+      expect(notes.find((n) => n.tick === 480)).toMatchObject({ fret: 1 });
+      expect(notes.find((n) => n.tick === 480)?.tech).toBeUndefined();
+    });
+
+    it('hammers from the barre onto a fretted note', () => {
+      // F barre [1,3,3,2,1,1]: t3 = string 3, fret 2; the earlier pluck sounds the barre (fret 1)
+      const notes = runSegment(pattern([ev(0, 'bass'), ev(240, 't3'), ev(480, 't3', { tech: 'hammer' })]), span('F'), 4);
+      expect(strip(notes).filter((n) => n.string === 3)).toEqual([
+        { tick: 240, string: 3, fret: 1 },
+        { tick: 480, string: 3, fret: 2, tech: 'hammer' },
+      ]);
+    });
+
+    it('hammers from an open chord tone up to a scale note two frets higher', () => {
+      // Em t1 = open E; F# is in E minor and a free finger can reach fret 2
+      const notes = runSegment(pattern([ev(0, 'bass'), ev(240, 't1'), ev(480, 't1', { tech: 'hammer' })]), span('Em'), 4);
+      expect(strip(notes).filter((n) => n.string === 5)).toEqual([
+        { tick: 240, string: 5, fret: 0 },
+        { tick: 480, string: 5, fret: 2, tech: 'hammer' },
+      ]);
+    });
+  });
+
+  describe('harmonics', () => {
+    it('sounds a chord tone at fret 12 when the open string is one', () => {
+      // C t1 = open E, a chord tone
+      const notes = runSegment(pattern([ev(0, 'bass'), ev(240, 't1', { tech: 'harmonic' })]), span('C'), 4);
+      expect(strip(notes)[1]).toEqual({ tick: 240, string: 5, fret: 12, tech: 'harmonic' });
+    });
+
+    it('uses fret 7 (a fifth up) when that is the chord tone', () => {
+      // G: E is not in G, but B (E + 7) is
+      const notes = runSegment(pattern([ev(0, 'bass'), ev(240, 't1', { tech: 'harmonic' })]), span('G'), 4);
+      expect(strip(notes)[1]).toEqual({ tick: 240, string: 5, fret: 7, tech: 'harmonic' });
+    });
+
+    it('plays the shape note when no harmonic on the string is a chord tone', () => {
+      const notes = runSegment(pattern([ev(0, 'bass'), ev(240, 't1', { tech: 'harmonic' })]), span('F'), 4);
+      expect(strip(notes)[1]).toEqual({ tick: 240, string: 5, fret: 1 });
+    });
+
+    it('drops the harmonic when a fretted note sounds with it', () => {
+      // C bass is fretted (string 1, fret 3) on the same tick
+      const notes = runSegment(pattern([ev(0, 'bass'), ev(0, 't1', { tech: 'harmonic' })]), span('C'), 4);
+      expect(strip(notes)).toContainEqual({ tick: 0, string: 5, fret: 0 });
+    });
+  });
+
+  describe('percussion and damping', () => {
+    it('turns a slap into one pitchless note that can sound with the bass', () => {
+      const notes = runSegment(pattern([ev(0, 'bass'), ev(480, 'bass'), ev(480, 'all', { finger: 'p', tech: 'slap' })]), span('Am'), 4);
+      expect(strip(notes).filter((n) => n.tick === 480)).toEqual([
+        { tick: 480, string: 0, fret: -1, tech: 'slap' },
+        { tick: 480, string: 1, fret: 0 },
+      ]);
+    });
+
+    it('turns an apagado into one pitchless note', () => {
+      const notes = runSegment(pattern([ev(0, 'all', { tech: 'rasgueo-down' }), ev(240, 'all', { tech: 'apagado' })]), span('Am'), 4);
+      expect(strip(notes).filter((n) => n.tick === 240)).toEqual([{ tick: 240, string: 0, fret: -1, tech: 'apagado' }]);
+    });
+
+    it('keeps palm-mute on a plucked note', () => {
+      const notes = runSegment(pattern([ev(0, 'bass', { tech: 'palm-mute' })]), span('Am'), 4);
+      expect(strip(notes)[0]).toEqual({ tick: 0, string: 1, fret: 0, tech: 'palm-mute' });
     });
   });
 });

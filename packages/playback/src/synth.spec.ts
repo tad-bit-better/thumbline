@@ -1,5 +1,5 @@
 import type { NoteEvent } from '@thumbline/engine';
-import { STRUM_STEP_MS, golpeBurst, midiOf, noteGain, nylonPluck, roomImpulse, strumOffsets } from './synth.js';
+import { STRUM_STEP_MS, apagadoChunk, golpeBurst, harmonicTone, midiOf, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 
 const SR = 44100;
 
@@ -125,6 +125,56 @@ describe('golpeBurst', () => {
     expect(x.length).toBeLessThan(SR * 0.25);
     expect(rms(x, 0, Math.floor(SR * 0.04))).toBeGreaterThan(total);
     expect(Math.max(...x.map(Math.abs))).toBeCloseTo(0.8, 2);
+  });
+});
+
+describe('palm-muted pluck', () => {
+  it('stays in tune but dies within half a second', () => {
+    const muted = nylonPluck(45, SR, { seed: 4, muted: true });
+    const open = nylonPluck(45, SR, { seed: 4 });
+    expect(Math.abs(cents(pitchHz(muted, 400, 4096), 45))).toBeLessThan(10);
+    const at = Math.floor(SR * 0.4);
+    expect(rms(muted, at, 2205) / rms(muted, 0, 2205)).toBeLessThan(0.05);
+    expect(rms(open, at, 2205) / rms(open, 0, 2205)).toBeGreaterThan(0.3);
+    expect(muted.length).toBeLessThan(SR);
+  });
+});
+
+describe('harmonicTone', () => {
+  it('is in tune and rings for seconds', () => {
+    const x = harmonicTone(76, SR);
+    expect(Math.abs(cents(pitchHz(x, 4000, 8192, 200, 1400), 76))).toBeLessThan(5);
+    expect(rms(x, Math.floor(SR * 1.5), 4410)).toBeGreaterThan(0.02);
+  });
+});
+
+describe('slap and apagado', () => {
+  it('are short percussive bursts, the apagado quieter and shorter', () => {
+    const slap = slapBurst(SR);
+    const chunk = apagadoChunk(SR);
+    expect(slap.length).toBeLessThan(SR * 0.2);
+    expect(chunk.length).toBeLessThan(slap.length);
+    expect(rms(slap, 0, Math.floor(SR * 0.03))).toBeGreaterThan(rms(slap, 0, slap.length));
+    expect(Math.max(...chunk.map(Math.abs))).toBeLessThan(Math.max(...slap.map(Math.abs)));
+  });
+});
+
+describe('soundOf', () => {
+  const note = (extra: Partial<NoteEvent>): NoteEvent => ({ tick: 0, dur: 240, string: 5, fret: 0, finger: 'i', velocity: 0.8, ...extra });
+
+  it('maps techniques to sounds', () => {
+    expect(soundOf(note({ fret: 3 }), 2)).toEqual({ kind: 'pluck', midi: 69 });
+    expect(soundOf(note({ string: 0, fret: 3, tech: 'palm-mute' }), 0)).toEqual({ kind: 'muted', midi: 43 });
+    expect(soundOf(note({ fret: 2, tech: 'hammer' }), 0)).toEqual({ kind: 'legato', midi: 66 });
+    expect(soundOf(note({ fret: -1, tech: 'golpe' }), 0)).toEqual({ kind: 'golpe' });
+    expect(soundOf(note({ fret: -1, tech: 'slap' }), 0)).toEqual({ kind: 'slap' });
+    expect(soundOf(note({ fret: -1, tech: 'apagado' }), 0)).toEqual({ kind: 'apagado' });
+  });
+
+  it('sounds a harmonic an octave (fret 12) or an octave and a fifth (fret 7) above the open string', () => {
+    expect(soundOf(note({ fret: 12, tech: 'harmonic' }), 0)).toEqual({ kind: 'harmonic', midi: 76 });
+    expect(soundOf(note({ fret: 7, tech: 'harmonic' }), 0)).toEqual({ kind: 'harmonic', midi: 83 });
+    expect(soundOf(note({ fret: 12, tech: 'harmonic' }), 3)).toEqual({ kind: 'harmonic', midi: 79 });
   });
 });
 

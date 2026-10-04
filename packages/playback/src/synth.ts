@@ -42,13 +42,22 @@ function t60(hz: number) {
 /** Loop gain ceiling: below 1, so a string always dies away. */
 const MAX_LOOP_GAIN = 0.99995;
 
-export type PluckOptions = { seconds?: number; seed?: number };
+export type PluckOptions = {
+  seconds?: number;
+  seed?: number;
+  /** Palm-muted: the heel of the hand damps the string, so it dies in a fraction of a second and sounds darker. */
+  muted?: boolean;
+};
+
+/** Ring time of a palm-muted note. */
+const MUTED_T60 = 0.22;
 
 /**
  * Nylon-string pluck by Karplus-Strong with a first-order allpass for
  * fractional delay, so high notes stay in tune (Jaffe & Smith).
  */
-export function nylonPluck(midi: number, sampleRate: number, { seconds = 4, seed = midi }: PluckOptions = {}): Float32Array {
+export function nylonPluck(midi: number, sampleRate: number, { seconds, seed = midi, muted = false }: PluckOptions = {}): Float32Array {
+  seconds ??= muted ? 0.6 : 4;
   const hz = hzOf(midi);
   const period = sampleRate / hz;
   // Loop delay = N (buffer) + 0.5 (averaging filter) + d (allpass), with d in (0.1, 1.1].
@@ -57,14 +66,17 @@ export function nylonPluck(midi: number, sampleRate: number, { seconds = 4, seed
   const c = (1 - d) / (1 + d);
   // Per-period loss for the target t60, less what the averaging filter already takes from
   // the fundamental (|cos(πf/fs)|, which shortens treble notes a lot); capped below 1 to stay stable.
-  const loss = Math.min(MAX_LOOP_GAIN, 1e-3 ** (1 / (t60(hz) * hz)) / Math.cos((Math.PI * hz) / sampleRate));
+  const ring = muted ? MUTED_T60 : t60(hz);
+  const loss = Math.min(MAX_LOOP_GAIN, 1e-3 ** (1 / (ring * hz)) / Math.cos((Math.PI * hz) / sampleRate));
+  // A damped string starts darker: less of the bright pick noise.
+  const warmth = muted ? 0.85 : 0.6;
 
   const rand = random(seed);
   const line = new Float32Array(n);
   let lp = 0;
   let mean = 0;
   for (let i = 0; i < n; i++) {
-    lp = lp * 0.6 + (rand() * 2 - 1) * 0.4; // warm (low-passed) excitation for nylon
+    lp = lp * warmth + (rand() * 2 - 1) * (1 - warmth); // warm (low-passed) excitation for nylon
     line[i] = lp;
     mean += lp / n;
   }
@@ -87,7 +99,7 @@ export function nylonPluck(midi: number, sampleRate: number, { seconds = 4, seed
     line[idx] = ap * loss;
     idx = idx + 1 === n ? 0 : idx + 1;
   }
-  const fade = Math.floor(sampleRate * 0.25);
+  const fade = Math.floor(sampleRate * Math.min(0.25, seconds / 4));
   for (let i = 0; i < fade; i++) out[length - fade + i] *= 1 - (i + 1) / fade;
   return normalise(out, 0.9);
 }
@@ -138,6 +150,77 @@ export function golpeBurst(sampleRate: number, seed = 1): Float32Array {
   return normalise(out, 0.8);
 }
 
+/**
+ * Natural harmonic: a bell-like, nearly pure tone that rings long, with a
+ * soft attack (the finger only touches the string at the node).
+ */
+export function harmonicTone(midi: number, sampleRate: number, { seconds = 4 } = {}): Float32Array {
+  const hz = hzOf(midi);
+  const length = Math.floor(sampleRate * seconds);
+  const out = new Float32Array(length);
+  const attack = 0.004;
+  for (let i = 0; i < length; i++) {
+    const t = i / sampleRate;
+    const env = Math.min(1, t / attack) * 10 ** ((-3 * t) / 4);
+    out[i] = env * (Math.sin(2 * Math.PI * hz * t) + 0.08 * Math.sin(4 * Math.PI * hz * t) * Math.exp(-t / 0.3));
+  }
+  const fade = Math.floor(sampleRate * 0.25);
+  for (let i = 0; i < fade; i++) out[length - fade + i] *= 1 - (i + 1) / fade;
+  return normalise(out, 0.7);
+}
+
+/**
+ * Slap: the thumb's side hits the bass strings against the frets — a low
+ * thud plus a bright snap of strings on metal.
+ */
+export function slapBurst(sampleRate: number, seed = 3): Float32Array {
+  const rand = random(seed);
+  const length = Math.floor(sampleRate * 0.14);
+  const out = new Float32Array(length);
+  let lp = 0;
+  let prev = 0;
+  for (let i = 0; i < length; i++) {
+    const t = i / sampleRate;
+    const thud = Math.sin(2 * Math.PI * 70 * t) * Math.exp(-t / 0.045);
+    lp = lp * 0.3 + (rand() * 2 - 1) * 0.7;
+    const snap = (lp - prev) * Math.exp(-t / 0.008); // high-passed: the metal snap
+    prev = lp;
+    out[i] = 0.9 * thud + 0.7 * snap;
+  }
+  return normalise(out, 0.85);
+}
+
+/** Apagado: the hand lands on the strings to stop a strum — a short, dull chunk. */
+export function apagadoChunk(sampleRate: number, seed = 5): Float32Array {
+  const rand = random(seed);
+  const length = Math.floor(sampleRate * 0.06);
+  const out = new Float32Array(length);
+  let lp = 0;
+  for (let i = 0; i < length; i++) {
+    const t = i / sampleRate;
+    lp = lp * 0.8 + (rand() * 2 - 1) * 0.2;
+    out[i] = lp * Math.exp(-t / 0.012);
+  }
+  return normalise(out, 0.5);
+}
+
+/** Semitones a natural harmonic sounds above the open string, by node fret. */
+const HARMONIC_INTERVAL: Record<number, number> = { 12: 12, 7: 19, 5: 24 };
+
+export type NoteSound =
+  | { kind: 'pluck' | 'muted' | 'harmonic' | 'legato'; midi: number }
+  | { kind: 'golpe' | 'slap' | 'apagado' };
+
+/** Which sound a note makes, and at what pitch (engine-spec §3 techniques). */
+export function soundOf(e: NoteEvent, capo: number): NoteSound {
+  if (e.fret < 0) return { kind: e.tech === 'slap' ? 'slap' : e.tech === 'apagado' ? 'apagado' : 'golpe' };
+  if (e.tech === 'harmonic') return { kind: 'harmonic', midi: midiOf(e.string, 0, capo) + (HARMONIC_INTERVAL[e.fret] ?? 12) };
+  const midi = midiOf(e.string, e.fret, capo);
+  if (e.tech === 'palm-mute') return { kind: 'muted', midi };
+  if (e.tech === 'hammer' || e.tech === 'pull') return { kind: 'legato', midi };
+  return { kind: 'pluck', midi };
+}
+
 /** Seconds to delay each strummed note, by event index (rasgueado only). */
 export function strumOffsets(events: readonly NoteEvent[]): Map<number, number> {
   const offsets = new Map<number, number>();
@@ -165,6 +248,7 @@ export function noteGain(e: NoteEvent): number {
   let g = e.velocity * 0.62;
   if (e.accent) g *= 1.25;
   if (e.tech === 'hammer' || e.tech === 'pull') g *= 0.7;
+  if (e.tech === 'apagado') g *= 0.8;
   if (e.string > 2) g *= 0.78;
   return Math.min(1, g);
 }

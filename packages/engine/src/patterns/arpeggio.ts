@@ -88,9 +88,10 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
   },
   {
     // M6b: a pinch on beats 1 and 3, then a roll over four strings (the thumb takes the 4th).
+    // M7b: the last roll ends on a hammer-on instead of the thumb, once a bar.
     id: 'arpeggio.moderate.pinch-roll',
     name: 'Pinch and roll',
-    hint: 'Thumb and ring together, then index, middle and the thumb on the 4th string; the bass moves halfway through the bar.',
+    hint: 'Thumb and ring together, then index, middle and the thumb on the 4th string; the bass moves halfway through the bar, and the bar ends on a hammer-on.',
     style: 'arpeggio',
     level: 'moderate',
     meters: [3, 4],
@@ -106,7 +107,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
         { tick: 960, dur: 960, finger: 'a', target: 't1', tech: 'pinch' },
         { tick: 1200, dur: 720, finger: 'i', target: 't3' },
         { tick: 1440, dur: 480, finger: 'm', target: 't2' },
-        { tick: 1680, dur: 240, finger: 'p', target: 't4' },
+        { tick: 1680, dur: 240, finger: 'i', target: 't3', tech: 'hammer' },
       ],
       3: [
         { tick: 0, dur: 960, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
@@ -182,7 +183,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
   {
     id: 'arpeggio.advanced.five-string',
     name: 'Five-string arpeggio',
-    hint: 'Sixteenth notes: the thumb plays the bass and the 4th string, then index, middle and ring roll up and back. The bass moves each half bar.',
+    hint: 'Sixteenth notes: the thumb plays the bass and the 4th string, then index, middle and ring roll up and back, with a pull-off and a hammer-on on the way down. The bass moves each half bar.',
     style: 'arpeggio',
     level: 'advanced',
     meters: [3, 4],
@@ -194,7 +195,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
         { tick: 240, dur: 120, finger: 'i', target: 't3' },
         { tick: 360, dur: 120, finger: 'm', target: 't2' },
         { tick: 480, dur: 240, finger: 'a', target: 't1' },
-        { tick: 600, dur: 120, finger: 'm', target: 't2' },
+        { tick: 600, dur: 120, finger: 'm', target: 't2', tech: 'pull' },
         { tick: 720, dur: 120, finger: 'i', target: 't3' },
         { tick: 840, dur: 120, finger: 'p', target: 't4' },
         { tick: 960, dur: 960, finger: 'p', target: 'altBass' },
@@ -202,7 +203,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
         { tick: 1200, dur: 120, finger: 'i', target: 't3' },
         { tick: 1320, dur: 120, finger: 'm', target: 't2' },
         { tick: 1440, dur: 240, finger: 'a', target: 't1' },
-        { tick: 1560, dur: 120, finger: 'm', target: 't2' },
+        { tick: 1560, dur: 120, finger: 'm', target: 't2', tech: 'hammer' },
         { tick: 1680, dur: 120, finger: 'i', target: 't3' },
         { tick: 1800, dur: 120, finger: 'p', target: 't4' },
       ],
@@ -212,7 +213,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
         { tick: 240, dur: 120, finger: 'i', target: 't3' },
         { tick: 360, dur: 120, finger: 'm', target: 't2' },
         { tick: 480, dur: 240, finger: 'a', target: 't1' },
-        { tick: 600, dur: 120, finger: 'm', target: 't2' },
+        { tick: 600, dur: 120, finger: 'm', target: 't2', tech: 'pull' },
         { tick: 720, dur: 720, finger: 'p', target: 'altBass' },
         { tick: 840, dur: 120, finger: 'p', target: 't4' },
         { tick: 960, dur: 120, finger: 'i', target: 't3' },

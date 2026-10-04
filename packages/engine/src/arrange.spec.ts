@@ -135,8 +135,9 @@ describe('arrange', () => {
         expect(isPlayable(atChord, mark.voicing)).toBe(true);
       }
       for (const e of a.events) {
-        // A golpe has no pitch: fret -1 (engine-spec §3).
-        expect(e.fret).toBeGreaterThanOrEqual(e.tech === 'golpe' ? -1 : 0);
+        // Golpe, slap and apagado have no pitch: fret -1 (engine-spec §3).
+        const pitchless = e.tech === 'golpe' || e.tech === 'slap' || e.tech === 'apagado';
+        expect(e.fret).toBeGreaterThanOrEqual(pitchless ? -1 : 0);
         expect(e.fret).toBeLessThanOrEqual(12);
       }
     });

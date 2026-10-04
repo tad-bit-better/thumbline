@@ -1,7 +1,7 @@
 import type { Arrangement } from '@thumbline/engine';
 import { type Scheduler, createScheduler } from './scheduler.js';
 import { timeStretchAsync } from './stretch.js';
-import { golpeBurst, midiOf, noteGain, nylonPluck, roomImpulse, strumOffsets } from './synth.js';
+import { type NoteSound, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 import { type Beats, TICKS_PER_BEAT, createTimeline } from './timeline.js';
 
 export type Mix = 'sheet' | 'original' | 'both';
@@ -45,6 +45,9 @@ const TICK_MS = 25;
 const START_DELAY_SEC = 0.06;
 /** How fast a string is damped when the next note on it starts. */
 const DAMP_SEC = 0.012;
+/** A hammer-on or pull-off starts past the pluck's noisy attack and swells in. */
+const LEGATO_SKIP_SEC = 0.02;
+const LEGATO_RISE_SEC = 0.004;
 /** How much of the sheet goes to the room reverb (the original has its own room). */
 const REVERB_SEND = 0.22;
 /** Stereo spread of the strings: low E this far left, high E as far right. */
@@ -107,20 +110,36 @@ export function createPlayer(options: PlayerOptions): Player {
   const eventSec = a.events.map((e) => timeline.tickToSec(e.tick));
   const strum = strumOffsets(a.events);
 
-  const plucks = new Map<number, AudioBuffer>();
-  let golpe: AudioBuffer | null = null;
+  const sounds = a.events.map((e) => soundOf(e, a.capo));
+  const buffers = new Map<string, AudioBuffer>();
+  const soundKey = (n: NoteSound) => ('midi' in n ? `${n.kind === 'legato' ? 'pluck' : n.kind}:${n.midi}` : n.kind);
   const toBuffer = (data: Float32Array) => {
     const b = ctx.createBuffer(1, data.length, ctx.sampleRate);
     b.copyToChannel(data as Float32Array<ArrayBuffer>, 0);
     return b;
   };
+  const render = (n: NoteSound): Float32Array => {
+    const sr = ctx.sampleRate;
+    switch (n.kind) {
+      case 'golpe':
+        return golpeBurst(sr);
+      case 'slap':
+        return slapBurst(sr);
+      case 'apagado':
+        return apagadoChunk(sr);
+      case 'harmonic':
+        return harmonicTone(n.midi, sr);
+      case 'muted':
+        return nylonPluck(n.midi, sr, { muted: true });
+      case 'pluck':
+      case 'legato':
+        return nylonPluck(n.midi, sr);
+    }
+  };
   const prepareSynth = () => {
-    for (const e of a.events) {
-      if (e.fret < 0) golpe ??= toBuffer(golpeBurst(ctx.sampleRate));
-      else {
-        const midi = midiOf(e.string, e.fret, a.capo);
-        if (!plucks.has(midi)) plucks.set(midi, toBuffer(nylonPluck(midi, ctx.sampleRate)));
-      }
+    for (const n of sounds) {
+      const key = soundKey(n);
+      if (!buffers.has(key)) buffers.set(key, toBuffer(render(n)));
     }
   };
 
@@ -214,18 +233,26 @@ export function createPlayer(options: PlayerOptions): Player {
     for (const { eventIndex, when } of r.notes) {
       const e = a.events[eventIndex];
       const at = when + (strum.get(eventIndex) ?? 0);
-      if (e.fret < 0) {
-        if (golpe) playSource(golpe, stringBus[e.string], at, noteGain(e));
-      } else {
-        const buffer = plucks.get(midiOf(e.string, e.fret, a.capo));
-        if (buffer) {
-          const prev = ringing[e.string];
-          if (prev) {
-            prev.gain.gain.setTargetAtTime(0, at, DAMP_SEC);
-            prev.src.stop(at + DAMP_SEC * 8);
-          }
-          ringing[e.string] = playSource(buffer, stringBus[e.string], at, noteGain(e));
-        }
+      const sound = sounds[eventIndex];
+      const buffer = buffers.get(soundKey(sound));
+      const damp = (s: number) => {
+        const prev = ringing[s];
+        if (!prev) return;
+        prev.gain.gain.setTargetAtTime(0, at, DAMP_SEC);
+        prev.src.stop(at + DAMP_SEC * 8);
+        ringing[s] = undefined;
+      };
+      if (!('midi' in sound)) {
+        // Apagado: the hand lands on every string and stops the strum.
+        if (sound.kind === 'apagado') ringing.forEach((_, s) => damp(s));
+        if (buffer) playSource(buffer, stringBus[e.string], at, noteGain(e));
+      } else if (buffer) {
+        damp(e.string);
+        // Legato: no new pluck — the finger lands on the ringing string, so skip the attack.
+        const legato = sound.kind === 'legato';
+        const voice = playSource(buffer, stringBus[e.string], at, legato ? 0 : noteGain(e), legato ? LEGATO_SKIP_SEC : 0);
+        if (legato) voice.gain.gain.setTargetAtTime(noteGain(e), at, LEGATO_RISE_SEC);
+        ringing[e.string] = voice;
       }
       queue.push({ eventIndex, when });
       onScheduled?.(eventIndex, when);

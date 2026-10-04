@@ -73,7 +73,11 @@ export type Technique =
   | 'tremolo'
   | 'hammer'
   | 'pull'
-  | 'pinch';
+  | 'pinch'
+  | 'palm-mute'
+  | 'slap'
+  | 'harmonic'
+  | 'apagado';
 
 export type PatternEvent = {
   /** start, relative to the start of the chord segment or bar (see anchor) */
@@ -125,7 +129,7 @@ export type NoteEvent = {
   tick: number;
   dur: number;
   string: number;
-  /** -1 for golpe (no pitch) */
+  /** -1 for golpe, slap and apagado (no pitch); 12, 7 or 5 for a harmonic */
   fret: number;
   finger: Finger;
   tech?: Technique;

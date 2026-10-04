@@ -57,6 +57,8 @@ describe('pattern library', () => {
             expect(e.finger).toBe('p');
           } else if (e.target === 'all' && (e.tech === 'rasgueo-down' || e.tech === 'rasgueo-up')) {
             // A strum: any finger, the thumb included (alzapúa).
+          } else if (e.tech === 'slap' || e.tech === 'apagado') {
+            // Pitchless: the side of the thumb or the palm lands on the strings.
           } else {
             expect(e.finger).not.toBe('p');
           }

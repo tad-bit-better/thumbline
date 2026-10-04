@@ -8,7 +8,11 @@ const BARS_PER_LINE = 2;
 const cell = (text: string, fill: string) => (text + fill.repeat(CELL)).slice(0, CELL);
 
 function noteText(n: NoteEvent): string {
+  if (n.tech === 'slap') return 'S';
+  if (n.tech === 'apagado') return '×';
   const fret = n.fret < 0 ? 'x' : String(n.fret);
+  if (n.tech === 'harmonic') return `<${fret}>`;
+  if (n.tech === 'palm-mute') return `m${fret}`;
   if (n.tech === 'hammer') return `h${fret}`;
   if (n.tech === 'pull') return `p${fret}`;
   return fret;

@@ -4,7 +4,7 @@ Contracts between packages. Change these only together with the code that uses t
 
 ## Conventions
 - **Strings:** index 0 = low E (6th string) … 5 = high e (1st string).
-- **Frets:** relative to the capo. `-1` = muted, `0` = open (or at the capo).
+- **Frets:** relative to the capo. `-1` = muted, `0` = open (or at the capo). A `harmonic` note's fret is its node (12 or 7, also relative to the capo).
 - **Pitch class (`pc`):** 0–11, C = 0.
 - **Time:** ticks, 480 per beat. A 4/4 bar = 1920 ticks.
 - **MIDI pitch** of a note = `OPEN_MIDI[string] + capo + fret`, with `OPEN_MIDI = [40, 45, 50, 55, 59, 64]`.
@@ -60,7 +60,11 @@ type Technique =
   | 'golpe'                         // tap on the top, no pitch
   | 'tremolo'                       // repeated note p-a-m-i
   | 'hammer' | 'pull'               // left-hand legato from the previous note on that string
-  | 'pinch';                        // simultaneous thumb + finger
+  | 'pinch'                         // simultaneous thumb + finger
+  | 'palm-mute'                     // heel of the hand damps the string: short and dark
+  | 'slap'                          // side of the thumb bounces off the bass strings, no pitch
+  | 'harmonic'                      // natural harmonic: finger touches the node (fret 12 or 7)
+  | 'apagado';                      // the hand lands on the strings and stops the strum, no pitch
 
 type PatternEvent = {
   tick: number;           // start, relative to the start of the chord segment or bar (see anchor)
@@ -90,8 +94,9 @@ type PatternDef = {
 - When a chord changes on a tick with no `bass` event, insert a `bass` event (finger `p`) at that tick and drop any `altBass` there.
 - Events whose target string is muted in the voicing are dropped.
 - Two events on the same string at the same tick: keep the first.
-- `hammer`/`pull` need a previous note on the same string within one beat; otherwise the runner substitutes a normal stroke.
-- A `golpe` event becomes one pitchless note (string 0, fret -1, tech `golpe`) whatever its target, and doesn't take a string's slot, so it can land with a strum on the same tick.
+- `hammer`/`pull` need a previous note on the same string within one beat; otherwise the runner substitutes a normal stroke. A hammer-on needs that note lower and a pull-off needs it higher. When it sits on the same fret, the runner moves one end to where the string rests with the finger lifted, the barre or the open string (open only up to fret 2): a hammer-on starts there, a pull-off lands there (open only when that note is in the key's scale). An open chord tone may instead hammer up two frets to a scale note when a free finger can reach it (span and finger limits of §4).
+- A `golpe`, `slap` or `apagado` event becomes one pitchless note (string 0, fret -1, its tech) whatever its target, and doesn't take a string's slot, so it can land with a strum or a bass note on the same tick. The thumb may play `slap` and `apagado` on any target.
+- A `harmonic` event sounds its target string's natural harmonic at fret 12 (the open note an octave up) if that is a chord tone, else fret 7 (an octave and a fifth up); if neither is, the note is played normally without the tech. A harmonic is also dropped (the shape's fret comes back) when a fretted note sounds on the same tick, since the fretting hand must be off the strings. Harmonics are ignored by the playability check and the moving top line.
 - A `scale` target takes the next note from the scale walker (§4), one per event.
 - Flamenco patterns list their `palos`; `arrange` keeps to the requested palo (default `rumba`; v1 plays `rumba` and `tangos`, others throw), including when it falls back a level.
 
@@ -112,7 +117,7 @@ type NoteEvent = {
   tick: number;           // absolute from song start
   dur: number;
   string: number;
-  fret: number;           // -1 for golpe (no pitch)
+  fret: number;           // -1 for golpe, slap, apagado (no pitch); the node (12, 7) for a harmonic
   finger: Finger;
   tech?: Technique;
   accent?: boolean;
@@ -157,7 +162,9 @@ function arrange(input: AnalysisResult, opts: {
 
 ## 5. Renderer inputs
 
-`<TabSheet arrangement={...} width={px} cursorIndex={n} showFingers showTechniques />`. Lanes from top: chord names, technique symbols, six strings (high e at the top), right-hand fingers. Wraps to 1–4 bars per system based on width.
+`<TabSheet arrangement={...} width={px} cursorIndex={n} showFingers showTechniques />`. Lanes from top: chord names, technique symbols, six strings (high e at the top), right-hand fingers. Wraps to 1–4 bars per system based on width. Technique marks: `h`/`p` slurs, accent, rasgueado arrows, pinch bracket, apoyando and tremolo marks, `PM` (palm mute), and chips for golpe `G`, slap `S` and apagado `×`. A harmonic's fret is written in angle brackets: `<12>`.
+
+Playback gives each technique its own sound: legato notes swell in without a pluck, palm-muted notes die in about 0.2 s, a harmonic is a soft, bell-like tone at its sounding pitch, a slap is a thud with a bright snap, and an apagado stops every ringing string with a short dull chunk.
 
 ## 6. Playback inputs
 

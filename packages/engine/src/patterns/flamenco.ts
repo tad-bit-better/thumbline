@@ -102,7 +102,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
   {
     id: 'flamenco.advanced.rumba-rasgueado',
     name: 'Four-finger rasgueado',
-    hint: 'Rumba strums with a golpe on 2, then on 4 flick the little, ring, middle and index fingers down one after another.',
+    hint: 'Rumba strums with a golpe on 2, choked straight away with the palm (apagado); on 4 flick the little, ring, middle and index fingers down one after another.',
     style: 'flamenco',
     level: 'advanced',
     meters: [4],
@@ -112,8 +112,9 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
       4: [
         { tick: 0, dur: 240, finger: 'p', target: 'bass', accent: true },
         { tick: 240, dur: 240, finger: 'i', target: 'all', tech: 'rasgueo-up' },
-        { tick: 480, dur: 240, finger: 'i', target: 'all', tech: 'rasgueo-down', accent: true },
+        { tick: 480, dur: 120, finger: 'i', target: 'all', tech: 'rasgueo-down', accent: true },
         { tick: 480, dur: 120, finger: 'a', target: 'all', tech: 'golpe' },
+        { tick: 600, dur: 120, finger: 'p', target: 'all', tech: 'apagado' },
         { tick: 720, dur: 240, finger: 'i', target: 'all', tech: 'rasgueo-up' },
         { tick: 960, dur: 240, finger: 'p', target: 'bass' },
         { tick: 1200, dur: 240, finger: 'i', target: 'all', tech: 'rasgueo-up' },

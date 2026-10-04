@@ -91,7 +91,7 @@ export function moveTopLine(events: NoteEvent[], spans: readonly ChordSpan[], le
     if (top === null) continue;
     // Plucked top-string notes only: not the thumb, not a strum, not a golpe.
     const notes = events.filter(
-      (e) => e.string === top && e.finger !== 'p' && e.fret >= 0 && !e.tech?.startsWith('rasgueo') && e.tick >= span.start && e.tick < span.end,
+      (e) => e.string === top && e.finger !== 'p' && e.fret >= 0 && !e.tech?.startsWith('rasgueo') && e.tech !== 'harmonic' && e.tick >= span.start && e.tick < span.end,
     );
     const legato = events.some((e) => e.string === top && e.tick >= span.start && e.tick < span.end && (e.tech === 'hammer' || e.tech === 'pull'));
     const options = topOptions(span);

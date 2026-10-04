@@ -29,6 +29,10 @@ const MAX_SPAN = 4;
 const MAX_FINGERS = 4;
 /** Highest fret a hammer-on from the open string may land on. */
 const MAX_HAMMER_FROM_OPEN = 2;
+/** How far an open chord tone hammers up to a scale note. */
+const LEGATO_STEP = 2;
+/** Techniques with no pitch: one note on string 0, fret -1. */
+const PITCHLESS: ReadonlySet<string> = new Set(['golpe', 'slap', 'apagado']);
 
 type Resolver = (target: Target) => StringFret[];
 
@@ -108,12 +112,12 @@ export function runSegment(pattern: PatternDef, span: ChordSpan, beatsPerBar: Be
   const taken = new Set<string>();
   const walk = scaleWalker(span);
   for (const { tick, event } of events) {
-    // A golpe is a tap on the top: no pitch, and it doesn't take a string's slot,
-    // so it can land with a strum (engine-spec §3: string 0, fret -1).
-    if (event.tech === 'golpe') {
-      if (taken.has(`${tick}:golpe`)) continue;
-      taken.add(`${tick}:golpe`);
-      notes.push({ tick, dur: Math.min(event.dur, span.end - tick), string: 0, fret: -1, finger: event.finger, velocity: event.velocity ?? DEFAULT_VELOCITY, tech: 'golpe', ...(event.accent ? { accent: true } : {}) });
+    // Golpe, slap and apagado have no pitch and don't take a string's slot,
+    // so they can land with a strum or a bass note (engine-spec §3: string 0, fret -1).
+    if (event.tech && PITCHLESS.has(event.tech)) {
+      if (taken.has(`${tick}:${event.tech}`)) continue;
+      taken.add(`${tick}:${event.tech}`);
+      notes.push({ tick, dur: Math.min(event.dur, span.end - tick), string: 0, fret: -1, finger: event.finger, velocity: event.velocity ?? DEFAULT_VELOCITY, tech: event.tech, ...(event.accent ? { accent: true } : {}) });
       continue;
     }
     const targets = event.target === 'scale' ? walk() : resolve(event.target);
@@ -131,15 +135,31 @@ export function runSegment(pattern: PatternDef, span: ChordSpan, beatsPerBar: Be
       };
       if (event.tech) note.tech = event.tech;
       if (event.accent) note.accent = true;
-      if (note.tech === 'hammer' || note.tech === 'pull') applyLegato(note, notes);
+      if (note.tech === 'hammer' || note.tech === 'pull') applyLegato(note, notes, span);
+      if (note.tech === 'harmonic') applyHarmonic(note, span);
       notes.push(note);
+    }
+  }
+  // A natural harmonic needs the fretting hand off the strings at that moment.
+  for (const n of notes) {
+    if (n.tech !== 'harmonic') continue;
+    if (notes.some((o) => o !== n && o.tick === n.tick && o.fret > 0 && o.tech !== 'harmonic')) {
+      n.fret = span.voicing.frets[n.string];
+      delete n.tech;
     }
   }
   return notes.sort((a, b) => a.tick - b.tick || a.string - b.string);
 }
 
-/** Keep a hammer-on/pull-off only if an earlier note on the string (within a beat) allows it. */
-function applyLegato(note: NoteEvent, earlier: NoteEvent[]): void {
+/**
+ * Keep a hammer-on/pull-off only where the left hand can play it (engine-spec §2):
+ * an earlier note on the string within a beat, lower for a hammer-on and higher
+ * for a pull-off. When the earlier note sits on the same fret the runner moves
+ * one end: a hammer-on starts from the barre or the open string; a pull-off
+ * lands on them; and an open chord tone may hammer up to a scale note two frets
+ * higher if a free finger can reach it.
+ */
+function applyLegato(note: NoteEvent, earlier: NoteEvent[], span: ChordSpan): void {
   let prev: NoteEvent | undefined;
   for (let i = earlier.length - 1; i >= 0; i--) {
     const n = earlier[i];
@@ -148,16 +168,68 @@ function applyLegato(note: NoteEvent, earlier: NoteEvent[]): void {
       break;
     }
   }
-  const inReach = prev !== undefined && note.tick - prev.tick <= TICKS_PER_BEAT;
-  if (prev && inReach && note.tech === 'hammer') {
-    if (prev.fret >= 0 && prev.fret < note.fret) return;
-    if (prev.fret === note.fret && note.fret > 0 && note.fret <= MAX_HAMMER_FROM_OPEN) {
-      prev.fret = 0;
+  if (!prev || prev.fret < 0 || prev.tech === 'harmonic' || note.tick - prev.tick > TICKS_PER_BEAT) {
+    delete note.tech;
+    return;
+  }
+  const { frets, barre } = span.voicing;
+  const barreFret = barre ? Math.min(...frets.filter((f) => f > 0)) : null;
+  // Where the string rests with its finger lifted: the barre, else open.
+  const rest = barreFret ?? 0;
+  const restOk = barreFret !== null || note.fret <= MAX_HAMMER_FROM_OPEN;
+
+  if (note.tech === 'hammer') {
+    if (prev.fret < note.fret) return;
+    if (prev.fret === note.fret && note.fret > rest && restOk) {
+      prev.fret = rest;
+      return;
+    }
+    if (prev.fret === note.fret && note.fret === 0 && barreFret === null) {
+      const up = LEGATO_STEP;
+      const pc = (OPEN_MIDI[note.string] + up) % 12;
+      const reach = frets.map((f, s) => (s === note.string ? up : f));
+      if (scalePcs(span).has(pc) && fretSpan(reach) < MAX_SPAN && reach.filter((f) => f > 0).length <= MAX_FINGERS) {
+        note.fret = up;
+        return;
+      }
+    }
+  }
+  if (note.tech === 'pull') {
+    if (prev.fret > note.fret) return;
+    const pc = (OPEN_MIDI[note.string] + rest) % 12;
+    if (prev.fret === note.fret && note.fret > rest && restOk && (barreFret !== null || scalePcs(span).has(pc))) {
+      note.fret = rest;
       return;
     }
   }
-  if (prev && inReach && note.tech === 'pull' && prev.fret > note.fret) return;
   delete note.tech;
+}
+
+/** Fret positions of the natural harmonics, by preference, and the interval each sounds above the open string. */
+const HARMONIC_NODES = [
+  { fret: 12, interval: 0 },
+  { fret: 7, interval: 7 },
+] as const;
+
+/** A natural harmonic on the note's string that sounds a chord tone, else a plain note. */
+function applyHarmonic(note: NoteEvent, span: ChordSpan): void {
+  const tones = chordTones(span.played);
+  const node = HARMONIC_NODES.find(({ interval }) => tones.has((OPEN_MIDI[note.string] + interval) % 12));
+  if (node) note.fret = node.fret;
+  else delete note.tech;
+}
+
+/** The key's scale with chord tones in place of a neighbour a semitone away (shape space). */
+function scalePcs(span: ChordSpan): Set<number> {
+  const key = span.key ?? { pc: span.played.pc, mode: ['m', 'm7', 'dim'].includes(span.played.quality) ? 'minor' : 'major' };
+  const pcs = new Set((key.mode === 'minor' ? MINOR_STEPS : MAJOR_STEPS).map((s) => (key.pc + s) % 12));
+  for (const t of chordTones(span.played)) {
+    if (pcs.has(t)) continue;
+    pcs.delete((t + 11) % 12);
+    pcs.delete((t + 1) % 12);
+    pcs.add(t);
+  }
+  return pcs;
 }
 
 /**
@@ -167,7 +239,7 @@ function applyLegato(note: NoteEvent, earlier: NoteEvent[]): void {
 export function isPlayable(notes: readonly NoteEvent[], voicing: Voicing): boolean {
   const byTick = new Map<number, number[]>();
   for (const n of notes) {
-    if (n.fret < 0) continue;
+    if (n.fret < 0 || n.tech === 'harmonic') continue;
     const list = byTick.get(n.tick) ?? [];
     list.push(n.fret);
     byTick.set(n.tick, list);
@@ -200,15 +272,7 @@ const SCALE_REACH = 3;
  * Without a key it uses the chord root's major or minor scale.
  */
 export function scaleNotes(span: ChordSpan): StringFret[] {
-  const key = span.key ?? { pc: span.played.pc, mode: ['m', 'm7', 'dim'].includes(span.played.quality) ? 'minor' : 'major' };
-  const pcs = new Set((key.mode === 'minor' ? MINOR_STEPS : MAJOR_STEPS).map((s) => (key.pc + s) % 12));
-  const tones = chordTones(span.played);
-  for (const t of tones) {
-    if (pcs.has(t)) continue;
-    pcs.delete((t + 11) % 12);
-    pcs.delete((t + 1) % 12);
-    pcs.add(t);
-  }
+  const pcs = scalePcs(span);
   const fretted = span.voicing.frets.filter((f) => f > 0);
   const low = fretted.length && Math.min(...fretted) > SCALE_REACH ? Math.min(...fretted) : 0;
   const high = low === 0 ? SCALE_REACH : low + SCALE_REACH;

@@ -15,7 +15,8 @@ function topNotes(a: Arrangement) {
     return {
       mark: m,
       top,
-      notes: a.events.filter((e) => e.tick >= m.tick && e.tick < end && e.string === top && e.finger !== 'p' && e.fret >= 0),
+      // Harmonics sit at a node (fret 12 or 7), outside the shape, and the top line leaves them alone.
+      notes: a.events.filter((e) => e.tick >= m.tick && e.tick < end && e.string === top && e.finger !== 'p' && e.fret >= 0 && e.tech !== 'harmonic'),
     };
   });
 }
