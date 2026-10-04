@@ -6,6 +6,7 @@ export {
   type SegmentedControlProps,
 } from './SegmentedControl/SegmentedControl';
 export { Card, type CardProps } from './Card/Card';
+export { ChordBlock, type ChordBlockProps, type ChordBlockStatus } from './ChordBlock/ChordBlock';
 export { Chip, type ChipProps, type ChipTone } from './Chip/Chip';
 export { ProgressBar, type ProgressBarProps } from './ProgressBar/ProgressBar';
 export { Stepper, type StepperProps } from './Stepper/Stepper';

@@ -1,0 +1,179 @@
+.wrap {
+  position: relative;
+  display: block;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 92px;
+  padding: var(--space-2) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  box-shadow: inset 0 -3px 0 var(--color-line);
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform var(--dur-snap) var(--ease-snap),
+    box-shadow var(--dur-snap) var(--ease-snap),
+    background-color var(--dur-snap) var(--ease-snap);
+}
+
+.block:hover,
+:global([data-force-state='hover']) .block {
+  transform: translateY(-3px);
+}
+
+.block:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+.number {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: calc(var(--text-mono) * 0.8);
+  color: var(--color-ink-3);
+}
+
+.name {
+  font-size: var(--text-h3);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.none {
+  color: var(--color-ink-3);
+}
+
+.wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 18px;
+}
+
+.wave span {
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-string);
+}
+
+/* Low confidence: orange ring, ping dot, gentle wiggle. */
+.low .block {
+  background: var(--color-orange-soft);
+  box-shadow: 0 0 0 2px var(--color-orange);
+  animation: wiggle var(--wiggle-period) var(--ease-glide) infinite;
+}
+
+.low .wave span {
+  background: var(--color-orange);
+  opacity: 0.55;
+}
+
+.ping {
+  position: absolute;
+  top: calc(-1 * var(--space-1));
+  right: calc(-1 * var(--space-1));
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-orange);
+  box-shadow: 0 0 0 3px var(--color-surface);
+  pointer-events: none;
+}
+
+/* Confirmed (#4): mint ring that bursts once, and a tick that pops in. */
+.confirmed .block {
+  box-shadow: 0 0 0 2px var(--color-mint);
+}
+
+.confirmed .block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 3px var(--color-mint);
+  opacity: 0;
+  animation: burst var(--dur-reveal) var(--ease-glide);
+  pointer-events: none;
+}
+
+.tick {
+  position: absolute;
+  top: calc(-1.5 * var(--space-1));
+  right: calc(-1.5 * var(--space-1));
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--color-mint);
+  color: var(--color-surface);
+  box-shadow: 0 0 0 3px var(--color-surface), inset 0 -2px 0 var(--color-mint-deep);
+  animation: pop var(--dur-bounce) var(--ease-bounce) both;
+  pointer-events: none;
+}
+
+.tick svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 3.6;
+}
+
+.open .block {
+  background: var(--color-violet-soft);
+  box-shadow: 0 0 0 3px var(--color-violet);
+  animation: none;
+}
+
+.block[data-reduced-motion],
+.block[data-reduced-motion]::after,
+.wrap[data-reduced-motion] .tick {
+  animation: none;
+  transition: none;
+}
+
+@keyframes wiggle {
+  0%,
+  70%,
+  100% {
+    transform: rotate(0);
+  }
+  80% {
+    transform: rotate(-2deg);
+  }
+  90% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes burst {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0) rotate(-30deg);
+  }
+  70% {
+    transform: scale(1.25) rotate(8deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

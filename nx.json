@@ -110,6 +110,12 @@
       "dependsOn": [
         "^build"
       ]
+    },
+    "build-storybook": {
+      "inputs": [
+        "default",
+        "^production"
+      ]
     }
   },
   "generators": {
