@@ -75,9 +75,10 @@ describe('runSegment', () => {
     expect(notes).toHaveLength(1);
   });
 
-  it('drops `scale` targets until the scale walker lands (M7)', () => {
+  it('resolves a `scale` target to one note of the scale walker (picado)', () => {
     const notes = runSegment(pattern([ev(0, 'bass'), ev(480, 'scale')]), span('Am'), 4);
-    expect(notes).toHaveLength(1);
+    expect(notes).toHaveLength(2);
+    expect(notes[1].string).toBeLessThanOrEqual(3);
   });
 
   it('keeps the first of two events on the same string and tick', () => {

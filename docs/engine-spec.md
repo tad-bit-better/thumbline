@@ -91,6 +91,9 @@ type PatternDef = {
 - Events whose target string is muted in the voicing are dropped.
 - Two events on the same string at the same tick: keep the first.
 - `hammer`/`pull` need a previous note on the same string within one beat; otherwise the runner substitutes a normal stroke.
+- A `golpe` event becomes one pitchless note (string 0, fret -1, tech `golpe`) whatever its target, and doesn't take a string's slot, so it can land with a strum on the same tick.
+- A `scale` target takes the next note from the scale walker (§4), one per event.
+- Flamenco patterns list their `palos`; `arrange` keeps to the requested palo (default `rumba`; v1 plays `rumba` and `tangos`, others throw), including when it falls back a level.
 
 **Moving top line (after the runner, Moderate and Advanced only):** plucked notes on the shape's top string (the `t1` string) may change fret, so the line moves instead of repeating one note. Within each chord, notes alternate between a chord tone and a neighbour, starting with the chord tone nearest the previous chord's last top note. The neighbour is the next chord tone up within 5 semitones; else a note of the song's key 2–3 semitones up; else the same downwards. Every fret stays within reach of the shape (fretted notes at most 3 frets apart, at most 4 fingers, no open string under a barre). Thumb notes, strums, golpes and chords with a hammer-on or pull-off on that string are left alone. Basic sheets keep the shape's own top note. `chordMarks[].voicing` still shows the base shape.
 
@@ -140,7 +143,7 @@ function arrange(input: AnalysisResult, opts: {
 
 ## 4. Algorithms (v1)
 
-**Capo choice.** For capo 0–7, transpose every chord to shape space; cost = Σ per chord (0 if an open, non-barre voicing exists; 3 if only a barre exists) + 0.2 × capo. Choose the lowest. Basic level then applies beginner substitutions (F→Fmaj7, Bm→Bm7, B→B7, …). For flamenco in Phrygian/Andalusian keys, prefer capo positions that give E–F–G–Am shapes.
+**Capo choice.** For capo 0–7, transpose every chord to shape space; cost = Σ per chord (0 if an open, non-barre voicing exists; 3 if only a barre exists) + 0.2 × capo. Choose the lowest. Basic level then applies beginner substitutions (F→Fmaj7, Bm→Bm7, B→B7, …). For flamenco in Phrygian/Andalusian keys, prefer capo positions that give E–F–G–Am shapes: the home chord is the commonest major chord with a major chord a semitone above it (E with F), else the dominant of a minor key (E in A minor); the capo puts it on the E shape, or on the A shape (A–Bb–C–Dm) when that would need a capo past 7. No home chord: the usual cost. An explicit `capo` wins.
 
 **Voicing lookup order.** Slash chord in library → plain chord in library → (Basic only) simpler quality in library without barre → movable E/A shape with the lowest root fret.
 
@@ -148,7 +151,7 @@ function arrange(input: AnalysisResult, opts: {
 
 **Alt bass.** Root on string 0 → string 2 (else 1). Root on string 1 → string 2. Root on string ≥ 2 → an open lower string that's a chord tone (A for D chords), else root string + 1 if sounded.
 
-**Scale walker (picado, v1 flamenco).** Walk the scale of the current key/mode from the current chord's root in the voicing position, staying within a 4-fret span on strings 0–3; alternate i/m with `apoyando`.
+**Scale walker (picado, v1 flamenco).** Walk the scale of the current key/mode from the current chord's root in the voicing position, staying within a 4-fret span on strings 0–3; alternate i/m with `apoyando`. Chord tones replace a scale note a semitone away (G# for G over E in A minor). The walk goes up and turns back at either end of the position; without a key it uses the chord root's major or minor scale.
 
 **Playability check.** Reject a pattern for a chord if any simultaneous notes need a fret span > 4 or more than 4 fretted fingers; fall back to the next pattern at the same level, then the level below.
 

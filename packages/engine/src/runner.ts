@@ -1,6 +1,7 @@
 import { altBass, type StringFret } from './bass.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import type {
+  AnalysisResult,
   BeatsPerBar,
   ChordLabel,
   NoteEvent,
@@ -9,6 +10,7 @@ import type {
   Target,
   Voicing,
 } from './types.js';
+import { chordTones } from './chords.js';
 import { fretSpan } from './voicings.js';
 
 /** One chord on the timeline, in absolute ticks, with its shape. */
@@ -18,6 +20,8 @@ export type ChordSpan = {
   voicing: Voicing;
   /** The chord the voicing sounds, in shape space. */
   played: ChordLabel;
+  /** The song's key in shape space (capo removed), for the scale walker. */
+  key?: AnalysisResult['key'];
 };
 
 const DEFAULT_VELOCITY = 0.8;
@@ -57,7 +61,7 @@ function resolverFor(voicing: Voicing, alt: StringFret | null): Resolver {
       case 'all':
         return frets.map((_, s) => at(s)).filter((n) => n.fret >= 0);
       case 'scale':
-        // The scale walker arrives with flamenco picado (M7).
+        // Resolved by the scale walker in runSegment.
         return [];
     }
   };
@@ -102,8 +106,18 @@ export function runSegment(pattern: PatternDef, span: ChordSpan, beatsPerBar: Be
 
   const notes: NoteEvent[] = [];
   const taken = new Set<string>();
+  const walk = scaleWalker(span);
   for (const { tick, event } of events) {
-    for (const { string, fret } of resolve(event.target)) {
+    // A golpe is a tap on the top: no pitch, and it doesn't take a string's slot,
+    // so it can land with a strum (engine-spec §3: string 0, fret -1).
+    if (event.tech === 'golpe') {
+      if (taken.has(`${tick}:golpe`)) continue;
+      taken.add(`${tick}:golpe`);
+      notes.push({ tick, dur: Math.min(event.dur, span.end - tick), string: 0, fret: -1, finger: event.finger, velocity: event.velocity ?? DEFAULT_VELOCITY, tech: 'golpe', ...(event.accent ? { accent: true } : {}) });
+      continue;
+    }
+    const targets = event.target === 'scale' ? walk() : resolve(event.target);
+    for (const { string, fret } of targets) {
       const key = `${tick}:${string}`;
       if (taken.has(key)) continue;
       taken.add(key);
@@ -169,4 +183,63 @@ export function isPlayable(notes: readonly NoteEvent[], voicing: Voicing): boole
     if (fingers > MAX_FINGERS) return false;
   }
   return true;
+}
+
+const OPEN_MIDI = [40, 45, 50, 55, 59, 64] as const;
+const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
+const MINOR_STEPS = [0, 2, 3, 5, 7, 8, 10];
+/** Picado stays on the lower four strings, within one hand position. */
+const SCALE_STRINGS = [0, 1, 2, 3];
+const SCALE_REACH = 3;
+
+/**
+ * engine-spec §4 scale walker (picado): notes of the key's scale on strings
+ * 0–3 within the shape's hand position, chord tones taking the place of a
+ * scale note a semitone away (G# over E in A minor: the flamenco sound).
+ * Starts on the chord's root and walks up, turning back at either end.
+ * Without a key it uses the chord root's major or minor scale.
+ */
+export function scaleNotes(span: ChordSpan): StringFret[] {
+  const key = span.key ?? { pc: span.played.pc, mode: ['m', 'm7', 'dim'].includes(span.played.quality) ? 'minor' : 'major' };
+  const pcs = new Set((key.mode === 'minor' ? MINOR_STEPS : MAJOR_STEPS).map((s) => (key.pc + s) % 12));
+  const tones = chordTones(span.played);
+  for (const t of tones) {
+    if (pcs.has(t)) continue;
+    pcs.delete((t + 11) % 12);
+    pcs.delete((t + 1) % 12);
+    pcs.add(t);
+  }
+  const fretted = span.voicing.frets.filter((f) => f > 0);
+  const low = fretted.length && Math.min(...fretted) > SCALE_REACH ? Math.min(...fretted) : 0;
+  const high = low === 0 ? SCALE_REACH : low + SCALE_REACH;
+  const byPitch = new Map<number, StringFret>();
+  for (const string of SCALE_STRINGS) {
+    for (let fret = low; fret <= high; fret++) {
+      const midi = OPEN_MIDI[string] + fret;
+      if (pcs.has(midi % 12) && !byPitch.has(midi)) byPitch.set(midi, { string, fret });
+    }
+    // An open string in a high position is still in reach.
+    if (low > 0 && pcs.has(OPEN_MIDI[string] % 12) && !byPitch.has(OPEN_MIDI[string])) byPitch.set(OPEN_MIDI[string], { string, fret: 0 });
+  }
+  return [...byPitch.entries()].sort((a, b) => a[0] - b[0]).map(([, n]) => n);
+}
+
+function scaleWalker(span: ChordSpan): () => StringFret[] {
+  let notes: StringFret[] | null = null;
+  let i = 0;
+  let step = 1;
+  return () => {
+    if (!notes) {
+      notes = scaleNotes(span);
+      const root = notes.findIndex((n) => (OPEN_MIDI[n.string] + n.fret) % 12 === span.played.pc);
+      i = Math.max(0, root);
+    }
+    if (!notes.length) return [];
+    const note = notes[i];
+    if (notes.length > 1) {
+      if (i + step < 0 || i + step >= notes.length) step = -step;
+      i += step;
+    }
+    return [note];
+  };
 }

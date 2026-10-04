@@ -135,7 +135,8 @@ describe('arrange', () => {
         expect(isPlayable(atChord, mark.voicing)).toBe(true);
       }
       for (const e of a.events) {
-        expect(e.fret).toBeGreaterThanOrEqual(0);
+        // A golpe has no pitch: fret -1 (engine-spec §3).
+        expect(e.fret).toBeGreaterThanOrEqual(e.tech === 'golpe' ? -1 : 0);
         expect(e.fret).toBeLessThanOrEqual(12);
       }
     });
@@ -168,7 +169,8 @@ describe('patternCandidates', () => {
   });
 
   it('fails clearly for styles and meters without patterns yet', () => {
-    expect(() => patternCandidates('flamenco', 'basic', 4)).toThrow(/No flamenco basic pattern/);
+    // Rumba and tangos are in 4/4: no flamenco for waltzes yet.
+    expect(() => patternCandidates('flamenco', 'basic', 3)).toThrow(/No flamenco basic pattern for 3-beat bars/);
     expect(() => patternCandidates('arpeggio', 'basic', 12)).toThrow(/12-beat/);
   });
 });

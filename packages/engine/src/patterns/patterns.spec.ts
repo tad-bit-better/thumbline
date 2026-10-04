@@ -2,7 +2,7 @@ import { TICKS_PER_BEAT } from '../constants.js';
 import type { Level, Style } from '../types.js';
 import { LEVELS, PATTERNS, getPattern, patternsFor } from './index.js';
 
-const STYLES: Style[] = ['arpeggio', 'fingerstyle'];
+const STYLES: Style[] = ['arpeggio', 'fingerstyle', 'flamenco'];
 
 describe('pattern library', () => {
   it('has unique ids of the form style.level.name', () => {
@@ -55,11 +55,18 @@ describe('pattern library', () => {
         for (const e of events ?? []) {
           if (e.target === 'bass' || e.target === 'altBass' || e.target === 't4') {
             expect(e.finger).toBe('p');
+          } else if (e.target === 'all' && (e.tech === 'rasgueo-down' || e.tech === 'rasgueo-up')) {
+            // A strum: any finger, the thumb included (alzapúa).
           } else {
             expect(e.finger).not.toBe('p');
           }
         }
       }
+    });
+
+    it('names its palos when it is flamenco', () => {
+      if (p.style === 'flamenco') expect(p.palos?.length).toBeGreaterThan(0);
+      else expect(p.palos).toBeUndefined();
     });
   });
 });

@@ -1,7 +1,7 @@
-import { bestCapo } from './capo.js';
+import { MAX_CAPO, bestCapo } from './capo.js';
 import { chordName, transpose } from './chords.js';
 import { TICKS_PER_BEAT } from './constants.js';
-import { LEVELS, getPattern, patternsFor } from './patterns/index.js';
+import { LEVELS, PALOS, getPattern, patternsFor } from './patterns/index.js';
 import { type ChordSpan, isPlayable, runSegment } from './runner.js';
 import { moveTopLine } from './topline.js';
 import type {
@@ -13,6 +13,7 @@ import type {
   ChordMark,
   Level,
   NoteEvent,
+  Palo,
   PatternDef,
   Style,
   Voicing,
@@ -29,8 +30,9 @@ export function patternCandidates(
   level: Level,
   beatsPerBar: BeatsPerBar,
   patternId?: string,
+  palo?: Palo,
 ): PatternDef[] {
-  const sameLevel = patternsFor(style, level, beatsPerBar);
+  const sameLevel = patternsFor(style, level, beatsPerBar, palo);
   let first = sameLevel[0];
   if (patternId !== undefined) {
     const requested = getPattern(patternId);
@@ -47,7 +49,7 @@ export function patternCandidates(
 
   const lower = LEVELS.slice(0, LEVELS.indexOf(level))
     .reverse()
-    .flatMap((l) => patternsFor(style, l, beatsPerBar));
+    .flatMap((l) => patternsFor(style, l, beatsPerBar, palo));
   return [first, ...sameLevel.filter((p) => p !== first), ...lower];
 }
 
@@ -87,6 +89,34 @@ class Warnings {
   }
 }
 
+/** Flamenco needs a palo (default rumba); other styles ignore it. */
+function resolvePalo(opts: ArrangeOptions): Palo | undefined {
+  if (opts.style !== 'flamenco') return undefined;
+  if (opts.palo === undefined) return 'rumba';
+  if (!(PALOS as readonly string[]).includes(opts.palo)) throw new Error(`Unknown palo "${opts.palo}"; v1 plays ${PALOS.join(' and ')}`);
+  return opts.palo as Palo;
+}
+
+/**
+ * engine-spec §4, flamenco: put the Phrygian home chord on the E shape (E–F–G–Am),
+ * else on the A shape if that needs a capo past 7. The home chord is a major chord
+ * with another major chord a semitone above it (E with F), the commonest such;
+ * failing that, the dominant of a minor key (E in A minor: the Andalusian cadence's
+ * last chord). No home chord: the usual capo choice.
+ */
+export function flamencoCapo(chords: readonly ChordLabel[], key: AnalysisResult['key']): number {
+  const major = (c: ChordLabel) => c.quality === 'maj' || c.quality === '7';
+  const majors = new Set(chords.filter(major).map((c) => c.pc));
+  const counts = new Map<number, number>();
+  for (const c of chords) if (major(c) && majors.has((c.pc + 1) % 12)) counts.set(c.pc, (counts.get(c.pc) ?? 0) + 1);
+  let home: number | undefined = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (home === undefined && key.mode === 'minor') home = (key.pc + 7) % 12;
+  if (home === undefined) return bestCapo(chords);
+  const onE = (home - 4 + 12) % 12;
+  if (onE <= MAX_CAPO) return onE;
+  return (home - 9 + 12) % 12; // A shape: A–Bb–C–Dm
+}
+
 function resolveCapo(capo: ArrangeOptions['capo'], chords: ChordLabel[]): number {
   if (capo === undefined || capo === 'auto') return bestCapo(chords);
   if (!Number.isInteger(capo) || capo < 0 || capo > 12) {
@@ -99,7 +129,8 @@ function resolveCapo(capo: ArrangeOptions['capo'], chords: ChordLabel[]): number
 export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangement {
   const { beatsPerBar } = input.meter;
   const barTicks = beatsPerBar * TICKS_PER_BEAT;
-  const candidates = patternCandidates(opts.style, opts.level, beatsPerBar, opts.patternId);
+  const palo = resolvePalo(opts);
+  const candidates = patternCandidates(opts.style, opts.level, beatsPerBar, opts.patternId, palo);
 
   const segments = input.chords;
   const bars = segments.length ? segments[segments.length - 1].bar + 1 : 0;
@@ -107,7 +138,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   const tickOf = (s: { bar: number; beat: number }) => s.bar * barTicks + s.beat * TICKS_PER_BEAT;
 
   const chords = segments.flatMap((s) => (s.chord ? [s.chord] : []));
-  const capo = resolveCapo(opts.capo, chords);
+  const capo = opts.style === 'flamenco' && (opts.capo === undefined || opts.capo === 'auto') ? flamencoCapo(chords, input.key) : resolveCapo(opts.capo, chords);
+  const shapeKey = { ...input.key, pc: (input.key.pc - capo + 12) % 12 };
 
   const warnings = new Warnings();
   const chordMarks: ChordMark[] = [];
@@ -143,8 +175,9 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     }
 
     chordMarks.push({ tick: start, voicing, soundingName });
-    spans.push({ start, end, voicing, played });
-    events.push(...renderSpan(candidates, { start, end, voicing, played }, beatsPerBar));
+    const span = { start, end, voicing, played, key: shapeKey };
+    spans.push(span);
+    events.push(...renderSpan(candidates, span, beatsPerBar));
   });
 
   events.sort((a, b) => a.tick - b.tick || a.string - b.string);

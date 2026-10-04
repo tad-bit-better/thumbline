@@ -201,9 +201,11 @@ Sheets sound thin next to the recording: on a 70 bpm ballad (Hotel California) e
 **Later (v2):** the real melody on top (melody extraction), which is what makes it a lead part. Out of v1 scope (AGENTS.md rule 8).
 
 ### M7: Flamenco (rumba, tangos)
-- [ ] Phrygian and Andalusian-cadence voicing and capo handling.
-- [ ] Flamenco patterns for all levels (rasgueado, alzapúa, picado, golpe, tremolo).
-- **Done when:** snapshot tests per level; signed off by a flamenco player.
+- [x] Phrygian and Andalusian-cadence voicing and capo handling: the Phrygian home chord (a major chord with one a semitone above, else a minor key's dominant) goes on the E shape, or the A shape past capo 7. Bm–A–G–F# plays Am–G–F–E shapes at capo 2.
+- [x] Flamenco patterns for all levels (rasgueado, alzapúa, picado, golpe, tremolo), by palo: Rumba (strum with golpe; eighths with golpe; four-finger rasgueado) and Tangos (strum; alzapúa; picado run), plus tremolo at Advanced for both. Golpe and the scale walker (picado) in the runner. App: Flamenco card with the palo as its sub-label, a Rumba/Tangos control, 4/4 only ("Needs 4/4" otherwise).
+- **Done when:** snapshot tests per level; signed off by a flamenco player. _(Snapshots per palo and level are in `flamenco.spec.ts`. Sign-off still needed: every pattern carries a `MUSIC-REVIEW` note, as does the barre F at Moderate/Advanced, where flamenco players often play 1-3-3-2-0-0.)_
+- [ ] Flamenco player sign-off of the patterns, accents and levels.
+- [ ] Flamenco in 3/4 (soleá, bulerías, alegrías): the palos are in the type; no patterns yet.
 
 ### M8: Polish and launch
 - [ ] Final dotLottie files for the 8 moments replace CSS placeholders.
