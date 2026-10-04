@@ -3,6 +3,8 @@
 // patterns, put the cleaned melody on top, and render offline with the app's synth plus
 // groove (small human timing, loudness that follows the song), a guitar body, stereo and
 // vibrato on held notes. Writes fixtures/local/melody-spike/<name>.full.<style>-<level>.m4a.
+// With --app: render what the app itself produces (the engine places the tune; M9), as
+// <name>.app.<style>-<level>.m4a, instead of the spike's own melody overlay.
 // Run after building: pnpm nx run-many -t build -p @thumbline/engine @thumbline/playback @thumbline/audio-analysis
 //   node tools/melody-spike/melody-full.mjs
 import { execFileSync } from 'node:child_process';
@@ -24,6 +26,7 @@ import {
 import { analyzeSamples } from '../../packages/audio-analysis/dist/index.js';
 import { OUT, ROOT, SR, beatsAndKey, clean, e, melodyOf, onePerBeat, room } from './melody-spike.mjs';
 
+const APP = process.argv.includes('--app');
 const RENDERS = [
   ['fingerstyle', 'basic'],
   ['fingerstyle', 'moderate'],
@@ -152,7 +155,7 @@ function renderFull(analysis, line, mono, capo0) {
   const bus = [new Float32Array(length), new Float32Array(length)];
   const loud = dynamics(mono);
   const rand = rng(11);
-  return ({ style, level }) => {
+  const fn = ({ style, level }) => {
     const a = arrange(analysis, { style, level });
     const tl = createTimeline(a, { beatTimesSec: analysis.beatTimesSec, barStartBeat: analysis.barStartBeat });
     const strum = strumOffsets(a.events);
@@ -165,7 +168,7 @@ function renderFull(analysis, line, mono, capo0) {
     const mids = line.map((n) => n.midi).sort((x, y) => x - y);
     const med = mids[Math.floor(mids.length / 2)] ?? 69;
     const shift = 12 * Math.round((top + 5 - med) / 12);
-    const tune = line.map((n) => ({ ...n, midi: Math.min(86, Math.max(55, n.midi + shift)) }));
+    const tune = APP ? [] : line.map((n) => ({ ...n, midi: Math.min(86, Math.max(55, n.midi + shift)) }));
     const melodyAt = (sec) => tune.find((n) => n.t <= sec && sec < n.t + n.dur);
 
     // Accompaniment: voices per string, each stops when the next note on that string starts.
@@ -196,7 +199,16 @@ function renderFull(analysis, line, mono, capo0) {
       const m = melodyAt(sec);
       if (n.finger !== 'p' && m && s.midi >= m.midi - 2) return;
       if (ringing[n.string]) ringing[n.string].end = start;
-      const v = { buf: bufOf(s), start, gain: noteGain(n) * 0.55, pan: (n.string - 2.5) * 0.1, skip: s.kind === 'legato' ? Math.floor(0.02 * SR) : 0, rise: s.kind === 'legato' ? Math.floor(0.006 * SR) : 1 };
+      const held = tl.tickToSec(n.tick + n.dur) - sec;
+      const v = {
+        buf: bufOf(s),
+        start,
+        gain: noteGain(n) * 0.55,
+        pan: n.melody ? 0.08 : (n.string - 2.5) * 0.1,
+        skip: s.kind === 'legato' ? Math.floor(0.02 * SR) : 0,
+        rise: s.kind === 'legato' ? Math.floor(0.006 * SR) : 1,
+        vibrato: n.melody === true && held > 0.45,
+      };
       ringing[n.string] = v;
       voices.push(v);
     });
@@ -231,8 +243,10 @@ function renderFull(analysis, line, mono, capo0) {
     let max = 0;
     for (const ch of out) for (const v of ch) max = Math.max(max, Math.abs(v));
     for (const ch of out) for (let i = 0; i < ch.length; i++) ch[i] *= 0.89 / (max || 1);
+    fn.tuneCount = a.events.filter((n) => n.melody).length;
     return { pattern: a.patternId, capo: a.capo, out };
   };
+  return fn;
 }
 
 const clips = ['fixtures/audio', 'fixtures/local']
@@ -249,7 +263,7 @@ for (const clip of clips) {
   const side = l.map((v, i) => (v - r[i]) / 2);
   console.log(name);
   const analysis = await analyzeSamples(mono, SR, { essentia: e, side });
-  console.log(`  ${analysis.bpm.toFixed(0)} bpm, ${analysis.meter.beatsPerBar}/4, ${analysis.chords.length} chord segments`);
+  console.log(`  ${analysis.bpm.toFixed(0)} bpm, ${analysis.meter.beatsPerBar}/4, ${analysis.chords.length} chord segments, ${analysis.melody?.length ?? 0} melody notes`);
   const { notes } = melodyOf(mono);
   const { beats, scale } = beatsAndKey(mono);
   const line = clean(notes, beats, scale, mono.length / SR);
@@ -259,11 +273,11 @@ for (const clip of clips) {
     const render = renderFull(analysis, level === 'basic' ? basicLine : line, mono);
     const { pattern, capo, out } = render({ style, level });
     const tmp = join(OUT, `${name}.full.tmp.wav`);
-    const m4a = join(OUT, `${name}.full.${style}-${level}.m4a`);
+    const m4a = join(OUT, `${name}.${APP ? 'app' : 'full'}.${style}-${level}.m4a`);
     writeStereoWav(tmp, out[0], out[1]);
     execFileSync('afconvert', ['-f', 'm4af', '-d', 'aac', '-b', '192000', tmp, m4a]);
     rmSync(tmp);
-    console.log(`  ${style} ${level}: ${pattern}, capo ${capo}`);
+    console.log(`  ${style} ${level}: ${pattern}, capo ${capo}${APP ? `, ${render.tuneCount} tune notes` : ''}`);
   }
 }
 console.log(`\nWrote ${OUT}`);
