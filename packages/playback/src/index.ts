@@ -1,1 +1,2 @@
-export * from './lib/playback.js';
+export * from './timeline.js';
+export * from './scheduler.js';
