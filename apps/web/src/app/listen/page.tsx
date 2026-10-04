@@ -40,14 +40,17 @@ const STEP_NAMES = [
   'Decoding the audio',
   'Finding the beat',
   'Hearing the chords',
+  'Following the tune',
   'Writing your sheets',
 ] as const;
+const DONE_STEP = STEP_NAMES.length - 1;
 const STEP_OF: Record<Progress['step'], number> = {
   decode: 0,
   beats: 1,
   key: 1,
   chords: 2,
-  done: 3,
+  melody: 3,
+  done: DONE_STEP,
 };
 
 type Live = {
@@ -102,7 +105,7 @@ export default function Listen() {
       (result: AnalysisResult) => {
         setLive((prev) => ({
           ...prev,
-          step: 3,
+          step: DONE_STEP,
           fraction: 1,
           bpm: result.bpm,
           beatsPerBar: result.meter.beatsPerBar,
@@ -143,8 +146,9 @@ export default function Listen() {
       ? `bar ${live.bar} of ${live.bars}`
       : undefined,
     undefined,
+    undefined,
   ];
-  const valueText = `${STEP_NAMES[Math.min(live.step, 3)]}${details[live.step] ? `, ${details[live.step]}` : ''}`;
+  const valueText = `${STEP_NAMES[Math.min(live.step, DONE_STEP)]}${details[live.step] ? `, ${details[live.step]}` : ''}`;
 
   return (
     <AppShell actions={<Stepper steps={STEPS} current={1} align="end" />}>

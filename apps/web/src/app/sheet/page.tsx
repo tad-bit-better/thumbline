@@ -313,6 +313,30 @@ export default function SheetPage() {
           )}
         </div>
 
+        {analysis && !analysis.melody && file && (
+          // Songs read before M9 have chords but no tune: one more listen adds it.
+          <Card padding="sm" className={styles.pattern}>
+            <div>
+              <b>Add the tune</b>
+              <p>
+                This song was read before Thumbline could follow the melody.
+                Listen again to put the tune on top. Your chord changes will be
+                cleared.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                player.stop();
+                songStore.getState().relisten();
+                router.push('/listen');
+              }}
+            >
+              Listen again
+            </Button>
+          </Card>
+        )}
+
         {arrangement && arrangement.warnings.length > 0 && (
           <ul className={styles.notes}>
             {arrangement.warnings.map((w) => (

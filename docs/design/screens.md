@@ -14,7 +14,7 @@ All screens: max content width 1200–1240px, fluid down to 360px; nav with logo
 - Stepper at "Listen".
 - Centered card: 3D metronome (#3, tempo-synced after the beat is found), title "Listening to your song", "Everything runs on your device", file chip (name, duration).
 - Waveform bars (#2), progress bar with shimmer.
-- Step list: Decoding the audio → Finding the beat (shows "92 bpm, 4/4") → Hearing the chords (shows "bar 23 of 48") → Writing your sheets.
+- Step list: Decoding the audio → Finding the beat (shows "92 bpm, 4/4") → Hearing the chords (shows "bar 23 of 48") → Following the tune (M9) → Writing your sheets.
 - Cancel button returns to Upload. Auto-advance to Review when done.
 
 ## 3. Review (`/review`)

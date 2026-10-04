@@ -44,6 +44,8 @@ export type SongState = Saved & {
   setUploadError: (message: string | null) => void;
   startSong: (file: File) => void;
   setAnalysis: (analysis: AnalysisResult) => void;
+  /** Forget the analysis (and its chord edits) so the clip is listened to again. */
+  relisten: () => void;
   setChord: (segment: number, chord: ChordLabel | null) => void;
   setMeter: (beatsPerBar: 3 | 4) => void;
   setStyle: (style: Style) => void;
@@ -112,6 +114,7 @@ export function createSongStore(storage: Storage) {
         update({ meta: { name: file.name, type: file.type, size: file.size }, file, analysis: null, edits: EMPTY_EDITS, uploadError: null });
       },
       setAnalysis: (analysis) => update({ analysis, edits: EMPTY_EDITS }),
+      relisten: () => update({ analysis: null, edits: EMPTY_EDITS }),
       setChord: (segment, chord) => {
         const { edits } = getState();
         update({
