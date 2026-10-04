@@ -29,6 +29,8 @@ export type NoteLayout = {
   text: string;
   /** Thumb notes sit on a violet-soft chip. */
   bass: boolean;
+  /** Notes of the tune stand out (orange chip, bold). */
+  melody: boolean;
 };
 
 export type TechMark =
@@ -150,7 +152,7 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
     const strum = e.tech === 'rasgueo-down' || e.tech === 'rasgueo-up';
     // A natural harmonic is written as its node fret in angle brackets: <12>.
     const text = e.tech === 'harmonic' ? `<${e.fret}>` : String(e.fret);
-    sys.notes.push({ eventIndex: i, x: pos.x, y, text, bass: e.finger === 'p' && !strum });
+    sys.notes.push({ eventIndex: i, x: pos.x, y, text, bass: e.finger === 'p' && !strum, melody: e.melody === true });
 
     if (e.accent && !accented.has(`${e.tick}`)) {
       accented.add(`${e.tick}`);

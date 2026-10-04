@@ -79,6 +79,16 @@
   fill: var(--color-violet-deep);
 }
 
+/* DESIGN-REVIEW: the tune (M9) isn't in design-system.md; it borrows the orange pair so it reads apart from the violet bass. */
+.note[data-melody] .chip {
+  fill: var(--color-orange-soft);
+}
+
+.note[data-melody] text {
+  fill: var(--color-orange-deep);
+  font-weight: 800;
+}
+
 .finger {
   fill: var(--color-ink-2);
   font-family: var(--font-mono);

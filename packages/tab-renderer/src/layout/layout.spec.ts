@@ -168,6 +168,14 @@ describe('layoutSheet', () => {
       expect(sys.notes.map((n) => n.text)).toEqual(['3', '<12>']);
     });
 
+    it('marks notes of the tune', () => {
+      const t = techniqueSheet([
+        { tick: 0, string: 0, fret: 3, finger: 'p' },
+        { tick: 0, string: 5, fret: 3, finger: 'a', melody: true },
+      ]);
+      expect(layoutSheet(t, 1200).systems[0].notes.map((n) => n.melody)).toEqual([false, true]);
+    });
+
     it('links pinched notes and marks apoyando and tremolo', () => {
       const t = techniqueSheet([
         { tick: 0, string: 0, fret: 0, finger: 'p', tech: 'pinch' },

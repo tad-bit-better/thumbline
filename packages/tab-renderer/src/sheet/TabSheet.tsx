@@ -69,6 +69,7 @@ const SystemView = memo(function SystemView({
         className={styles['note']}
         data-note=""
         data-bass={n.bass ? '' : undefined}
+        data-melody={n.melody ? '' : undefined}
         data-active={active ? '' : undefined}
       >
         <rect className={styles['chip']} x={n.x - w / 2} y={n.y - 8} width={w} height={16} rx={n.bass ? 5 : 2} />

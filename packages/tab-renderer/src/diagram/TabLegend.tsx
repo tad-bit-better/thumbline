@@ -9,7 +9,7 @@ const Symbol = ({ children }: { children: ReactNode }) => (
   </svg>
 );
 
-type Entry = { key: string; when: (techs: Set<Technique | 'accent'>) => boolean; symbol: ReactNode; text: ReactNode };
+type Entry = { key: string; when: (techs: Set<Technique | 'accent' | 'melody'>) => boolean; symbol: ReactNode; text: ReactNode };
 
 const ENTRIES: Entry[] = [
   {
@@ -24,6 +24,19 @@ const ENTRIES: Entry[] = [
       </g>
     ),
     text: 'Bass note, played with the thumb',
+  },
+  {
+    key: 'melody',
+    when: (t) => t.has('melody'),
+    symbol: (
+      <g className={sheet['note']} data-melody="">
+        <rect className={sheet['chip']} x={8} y={2} width={14} height={16} rx={2} />
+        <text x={15} y={10} textAnchor="middle" dominantBaseline="central">
+          3
+        </text>
+      </g>
+    ),
+    text: 'The tune: the song’s melody, a little louder than the rest',
   },
   {
     key: 'hammer',
@@ -142,10 +155,11 @@ const ENTRIES: Entry[] = [
 
 /** Explains the symbols used in this sheet, plus the finger letters. */
 export function TabLegend({ arrangement, className }: { arrangement: Arrangement; className?: string }) {
-  const used = new Set<Technique | 'accent'>();
+  const used = new Set<Technique | 'accent' | 'melody'>();
   for (const e of arrangement.events) {
     if (e.tech) used.add(e.tech);
     if (e.accent) used.add('accent');
+    if (e.melody) used.add('melody');
   }
   return (
     <ul aria-label="Legend" className={[styles['legend'], className].filter(Boolean).join(' ')}>
