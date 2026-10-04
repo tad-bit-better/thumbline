@@ -29,11 +29,18 @@ function normalise(x: Float32Array, peak: number) {
   return x;
 }
 
-/** Ring time to −60 dB: about 3.2 s on the low E down to 1 s high up the neck. */
+/**
+ * Ring time to −60 dB: about 4.5 s on the low E down to 2.2 s high up the
+ * neck. Long enough for an arpeggio to build into a chord (M6b; it was
+ * 3.2 → 1 s, and the treble died before the next note).
+ */
 function t60(hz: number) {
   const pos = Math.min(1, Math.max(0, Math.log2(hz / 82) / Math.log2(1300 / 82)));
-  return 3.2 + (1 - 3.2) * pos;
+  return 4.5 + (2.2 - 4.5) * pos;
 }
+
+/** Loop gain ceiling: below 1, so a string always dies away. */
+const MAX_LOOP_GAIN = 0.99995;
 
 export type PluckOptions = { seconds?: number; seed?: number };
 
@@ -41,14 +48,16 @@ export type PluckOptions = { seconds?: number; seed?: number };
  * Nylon-string pluck by Karplus-Strong with a first-order allpass for
  * fractional delay, so high notes stay in tune (Jaffe & Smith).
  */
-export function nylonPluck(midi: number, sampleRate: number, { seconds = 2.6, seed = midi }: PluckOptions = {}): Float32Array {
+export function nylonPluck(midi: number, sampleRate: number, { seconds = 4, seed = midi }: PluckOptions = {}): Float32Array {
   const hz = hzOf(midi);
   const period = sampleRate / hz;
   // Loop delay = N (buffer) + 0.5 (averaging filter) + d (allpass), with d in (0.1, 1.1].
   const n = Math.floor(period - 0.6);
   const d = period - 0.5 - n;
   const c = (1 - d) / (1 + d);
-  const loss = 1e-3 ** (1 / (t60(hz) * hz));
+  // Per-period loss for the target t60, less what the averaging filter already takes from
+  // the fundamental (|cos(πf/fs)|, which shortens treble notes a lot); capped below 1 to stay stable.
+  const loss = Math.min(MAX_LOOP_GAIN, 1e-3 ** (1 / (t60(hz) * hz)) / Math.cos((Math.PI * hz) / sampleRate));
 
   const rand = random(seed);
   const line = new Float32Array(n);
@@ -81,6 +90,36 @@ export function nylonPluck(midi: number, sampleRate: number, { seconds = 2.6, se
   const fade = Math.floor(sampleRate * 0.25);
   for (let i = 0; i < fade; i++) out[length - fade + i] *= 1 - (i + 1) / fade;
   return normalise(out, 0.9);
+}
+
+/**
+ * A small room's impulse response, one array per channel: a few early
+ * reflections, then a decaying noise tail that darkens as it fades.
+ * Channels use different noise so the sheet gains width.
+ */
+export function roomImpulse(sampleRate: number, { seconds = 1.8, decay = 1.4, seed = 7 } = {}): [Float32Array, Float32Array] {
+  const length = Math.floor(sampleRate * seconds);
+  const reflections = [
+    [0.011, 0.5],
+    [0.019, 0.35],
+    [0.027, 0.3],
+    [0.041, 0.22],
+  ] as const;
+  const channel = (seed: number, skew: number) => {
+    const rand = random(seed);
+    const out = new Float32Array(length);
+    let lp = 0;
+    for (let i = 0; i < length; i++) {
+      const t = i / sampleRate;
+      // Low-pass that closes over time: a damped tail sounds like a room, not a hiss.
+      const k = Math.min(0.95, 0.2 + t / seconds);
+      lp = k * lp + (1 - k) * (rand() * 2 - 1);
+      out[i] = lp * 10 ** ((-3 * t) / decay) * Math.min(1, t / 0.008);
+    }
+    for (const [at, g] of reflections) out[Math.floor((at + skew) * sampleRate)] += g * (rand() < 0.5 ? -1 : 1);
+    return normalise(out, 0.5);
+  };
+  return [channel(seed, 0), channel(seed + 1, 0.003)];
 }
 
 /** Golpe: a knuckle tap on the top — a low thump plus a short click. */

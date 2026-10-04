@@ -156,6 +156,35 @@ describe('createPlayer', () => {
     player.setLoop(null);
   });
 
+  it('spreads strings across the stereo field, low left and high right', async () => {
+    const a = arrangement([
+      { tick: 0, string: 0, fret: 0 },
+      { tick: 480, string: 5, fret: 0 },
+    ]);
+    const { ctx, player, run } = setup(a);
+    await player.play();
+    await run(1.2);
+    const [low, high] = notes(ctx).map((s) => s.connected[0] as { connected: unknown[] }); // source → note gain
+    const panOf = (gain: { connected: unknown[] }) => ctx.panners.find((p) => gain.connected.includes(p));
+    expect(panOf(low)?.pan.value).toBeLessThan(0);
+    expect(panOf(high)?.pan.value).toBeGreaterThan(0);
+    const [, sheetBus] = ctx.gains;
+    expect(ctx.panners.every((p) => p.connected.includes(sheetBus))).toBe(true);
+  });
+
+  it('sends the sheet, not the original, through a small room', () => {
+    const { ctx } = setup(quarters(1), { original: clickTrack(1) });
+    const [master, sheetBus, originalBus] = ctx.gains;
+    const [room] = ctx.convolvers;
+    const send = ctx.gains.find((g) => g.connected.includes(room));
+    expect(room.buffer?.numberOfChannels).toBe(2);
+    expect(sheetBus.connected).toContain(send);
+    expect(originalBus.connected).not.toContain(send);
+    expect(room.connected).toContain(master);
+    expect(send?.gain.value).toBeGreaterThan(0);
+    expect(send?.gain.value).toBeLessThan(0.5);
+  });
+
   describe('with the original recording', () => {
     it('starts the recording on the same clock, aligned to the beats', async () => {
       const original = clickTrack(4);

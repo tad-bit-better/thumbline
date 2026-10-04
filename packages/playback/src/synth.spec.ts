@@ -1,5 +1,5 @@
 import type { NoteEvent } from '@thumbline/engine';
-import { STRUM_STEP_MS, golpeBurst, midiOf, noteGain, nylonPluck, strumOffsets } from './synth.js';
+import { STRUM_STEP_MS, golpeBurst, midiOf, noteGain, nylonPluck, roomImpulse, strumOffsets } from './synth.js';
 
 const SR = 44100;
 
@@ -73,6 +73,48 @@ describe('nylonPluck', () => {
   it('is deterministic for a seed', () => {
     expect(nylonPluck(60, SR, { seed: 5 })).toEqual(nylonPluck(60, SR, { seed: 5 }));
     expect(nylonPluck(60, SR, { seed: 5 })).not.toEqual(nylonPluck(60, SR, { seed: 6 }));
+  });
+});
+
+const energyDb = (x: Float32Array, fromSec: number, toSec: number, sr = SR) => {
+  let s = 0;
+  for (let i = Math.floor(fromSec * sr); i < Math.floor(toSec * sr); i++) s += x[i] * x[i];
+  return 10 * Math.log10(s / ((toSec - fromSec) * sr) + 1e-12);
+};
+
+describe('sustain', () => {
+  it('lets treble notes ring past the next beat of a slow song', () => {
+    // E5 on the top string: a second later it must still be clearly there (it was ~40 dB down).
+    const x = nylonPluck(76, SR);
+    expect(energyDb(x, 1, 1.2) - energyDb(x, 0, 0.2)).toBeGreaterThan(-28);
+  });
+
+  it('keeps bass notes ringing longer than treble', () => {
+    const drop = (midi: number) => {
+      const x = nylonPluck(midi, SR);
+      return energyDb(x, 1.5, 1.7) - energyDb(x, 0, 0.2);
+    };
+    expect(drop(40)).toBeGreaterThan(drop(76));
+  });
+});
+
+describe('roomImpulse', () => {
+  const [l, r] = roomImpulse(SR);
+
+  it('decays to near silence', () => {
+    expect(energyDb(l, 1.6, 1.8) - energyDb(l, 0, 0.2)).toBeLessThan(-30);
+  });
+
+  it('differs between channels, for width', () => {
+    let lr = 0;
+    let ll = 0;
+    let rr = 0;
+    for (let i = 0; i < l.length; i++) {
+      lr += l[i] * r[i];
+      ll += l[i] * l[i];
+      rr += r[i] * r[i];
+    }
+    expect(Math.abs(lr / Math.sqrt(ll * rr))).toBeLessThan(0.3);
   });
 });
 

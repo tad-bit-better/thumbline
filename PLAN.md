@@ -175,6 +175,25 @@ Real mixes break chord detection: on a commercial track with vocals, half the ch
 - [ ] Review popover shows ranked alternatives without percentages: `ChordSegment.alternatives` has no scores. Adding them is a contract change in `docs/engine-spec.md`. `DESIGN-REVIEW`
 - [ ] Accuracy: the sample clip (G Em C D) reads Em as E7 in some bars; add to the M5 eval set.
 
+### M6b: Fuller sheets
+Sheets sound thin next to the recording: on a 70 bpm ballad (Hotel California) every pattern averages about 1.8 notes audibly ringing at once, and arpeggios never strike two notes together. Measured cause, biggest first: patterns pick one note at a time over the same 3 treble strings (each re-strike cuts the last note); slow tempos expose the gaps; the synth is dry. Longer synth decay alone only lifts it to about 2.3. Order agreed: B, then A, then C1.
+
+**B: a warmer sound (playback)**
+- [x] Longer sustain, treble strings most: t60 4.5 s (low E) → 2.2 s (top), and t60 now holds for the fundamental (the Karplus-Strong averaging filter's own loss is divided out). E5 one second after the pluck: −49 dB before, −25 dB now.
+- [x] Soft room reverb on the sheet only (ConvolverNode, generated 1.8 s impulse, 22% send after the mix gain; no dependency, no network).
+- [x] Strings spread across the stereo field (low E 25% left, high E 25% right).
+- Synthetic eval fixtures use this synth: regenerating them (`--force`) changes their audio, so re-run the eval baseline when you do.
+
+**A: fuller patterns (engine data)**
+- [ ] Pinches: bass and a treble note together on strong beats.
+- [ ] Rolls across more strings, so notes ring into each other instead of re-striking the same three.
+- [ ] Slow songs get denser patterns (sixteenth fills). Choosing patterns by tempo may touch `PatternDef`: ask before changing the contract.
+
+**C1: a top line that moves**
+- [ ] The highest note of each pattern steps between chord tones (voice leading) so the sheet carries a tune. Not the song's melody.
+
+**Later (v2):** the real melody on top (melody extraction), which is what makes it a lead part. Out of v1 scope (AGENTS.md rule 8).
+
 ### M7: Flamenco (rumba, tangos)
 - [ ] Phrygian and Andalusian-cadence voicing and capo handling.
 - [ ] Flamenco patterns for all levels (rasgueado, alzapúa, picado, golpe, tremolo).

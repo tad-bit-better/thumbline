@@ -1,7 +1,7 @@
 import type { Arrangement } from '@thumbline/engine';
 import { type Scheduler, createScheduler } from './scheduler.js';
 import { timeStretchAsync } from './stretch.js';
-import { golpeBurst, midiOf, noteGain, nylonPluck, strumOffsets } from './synth.js';
+import { golpeBurst, midiOf, noteGain, nylonPluck, roomImpulse, strumOffsets } from './synth.js';
 import { type Beats, createTimeline } from './timeline.js';
 
 export type Mix = 'sheet' | 'original' | 'both';
@@ -42,6 +42,10 @@ const TICK_MS = 25;
 const START_DELAY_SEC = 0.06;
 /** How fast a string is damped when the next note on it starts. */
 const DAMP_SEC = 0.012;
+/** How much of the sheet goes to the room reverb (the original has its own room). */
+const REVERB_SEND = 0.22;
+/** Stereo spread of the strings: low E this far left, high E as far right. */
+const STRING_PAN = 0.25;
 const ORIGINAL_LEVEL_BOTH = 0.8;
 const MIX_GLIDE_SEC = 0.02;
 const MIN_RATIO = 0.5;
@@ -73,6 +77,28 @@ export function createPlayer(options: PlayerOptions): Player {
   originalBus.connect(master);
   master.connect(compressor);
   compressor.connect(ctx.destination);
+
+  // Sheet only: strings spread across the stereo field, and a small room after the mix gain,
+  // so muting the sheet mutes its reverb too.
+  const stringBus: AudioNode[] = Array.from({ length: 6 }, (_, s) => {
+    if (typeof ctx.createStereoPanner !== 'function') return sheetBus;
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = STRING_PAN * ((2 * s) / 5 - 1);
+    pan.connect(sheetBus);
+    return pan;
+  });
+  if (typeof ctx.createConvolver === 'function') {
+    const send = ctx.createGain();
+    send.gain.value = REVERB_SEND;
+    const room = ctx.createConvolver();
+    const ir = roomImpulse(ctx.sampleRate);
+    const buffer = ctx.createBuffer(2, ir[0].length, ctx.sampleRate);
+    ir.forEach((x, c) => buffer.copyToChannel(x as Float32Array<ArrayBuffer>, c));
+    room.buffer = buffer;
+    sheetBus.connect(send);
+    send.connect(room);
+    room.connect(master);
+  }
 
   const timeline = createTimeline(a, beats);
   const eventSec = a.events.map((e) => timeline.tickToSec(e.tick));
@@ -186,7 +212,7 @@ export function createPlayer(options: PlayerOptions): Player {
       const e = a.events[eventIndex];
       const at = when + (strum.get(eventIndex) ?? 0);
       if (e.fret < 0) {
-        if (golpe) playSource(golpe, sheetBus, at, noteGain(e));
+        if (golpe) playSource(golpe, stringBus[e.string], at, noteGain(e));
       } else {
         const buffer = plucks.get(midiOf(e.string, e.fret, a.capo));
         if (buffer) {
@@ -195,7 +221,7 @@ export function createPlayer(options: PlayerOptions): Player {
             prev.gain.gain.setTargetAtTime(0, at, DAMP_SEC);
             prev.src.stop(at + DAMP_SEC * 8);
           }
-          ringing[e.string] = playSource(buffer, sheetBus, at, noteGain(e));
+          ringing[e.string] = playSource(buffer, stringBus[e.string], at, noteGain(e));
         }
       }
       queue.push({ eventIndex, when });

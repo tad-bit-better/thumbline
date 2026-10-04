@@ -33,6 +33,14 @@ export class FakeGain extends FakeNode {
   gain = new FakeParam(1);
 }
 
+export class FakePanner extends FakeNode {
+  pan = new FakeParam(0);
+}
+
+export class FakeConvolver extends FakeNode {
+  buffer: FakeBuffer | null = null;
+}
+
 export class FakeBuffer {
   private data: Float32Array[];
   constructor(
@@ -75,6 +83,8 @@ export class FakeAudioContext {
   destination = new FakeNode();
   sources: FakeSource[] = [];
   gains: FakeGain[] = [];
+  panners: FakePanner[] = [];
+  convolvers: FakeConvolver[] = [];
   constructor(sampleRate = 8000) {
     this.sampleRate = sampleRate;
   }
@@ -85,6 +95,16 @@ export class FakeAudioContext {
   }
   createDynamicsCompressor() {
     return new FakeNode();
+  }
+  createStereoPanner() {
+    const p = new FakePanner();
+    this.panners.push(p);
+    return p;
+  }
+  createConvolver() {
+    const c = new FakeConvolver();
+    this.convolvers.push(c);
+    return c;
   }
   createBuffer(channels: number, length: number, sampleRate: number) {
     return new FakeBuffer(channels, length, sampleRate);
