@@ -5,6 +5,37 @@ import type { PatternDef } from '../types.js';
 
 export const ARPEGGIO_PATTERNS: PatternDef[] = [
   {
+    // M6b: each string is struck once per half bar, so the chord builds and rings
+    // instead of re-striking (and cutting off) the same strings.
+    id: 'arpeggio.basic.let-ring',
+    name: 'Let it ring',
+    hint: 'Thumb on the bass, then index, middle and ring up the strings once; let every note ring. The bass moves halfway through the bar.',
+    style: 'arpeggio',
+    level: 'basic',
+    meters: [3, 4],
+    anchor: 'bar',
+    events: {
+      4: [
+        { tick: 0, dur: 960, finger: 'p', target: 'bass', accent: true },
+        { tick: 240, dur: 720, finger: 'i', target: 't3' },
+        { tick: 480, dur: 480, finger: 'm', target: 't2' },
+        { tick: 720, dur: 240, finger: 'a', target: 't1' },
+        { tick: 960, dur: 960, finger: 'p', target: 'altBass' },
+        { tick: 1200, dur: 720, finger: 'i', target: 't3' },
+        { tick: 1440, dur: 480, finger: 'm', target: 't2' },
+        { tick: 1680, dur: 240, finger: 'a', target: 't1' },
+      ],
+      3: [
+        { tick: 0, dur: 1440, finger: 'p', target: 'bass', accent: true },
+        { tick: 240, dur: 1200, finger: 'i', target: 't3' },
+        { tick: 480, dur: 960, finger: 'm', target: 't2' },
+        { tick: 720, dur: 720, finger: 'a', target: 't1' },
+        { tick: 960, dur: 480, finger: 'p', target: 'altBass' },
+        { tick: 1200, dur: 240, finger: 'm', target: 't2' },
+      ],
+    },
+  },
+  {
     id: 'arpeggio.basic.roll',
     name: 'Simple roll',
     hint: 'One bass note, then the fingers roll up and back down the top three strings.',
@@ -52,6 +83,39 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
         { tick: 0, dur: 1440, finger: 'p', target: 'bass' },
         { tick: 480, dur: 960, finger: 'i', target: 't3' },
         { tick: 960, dur: 480, finger: 'm', target: 't2' },
+      ],
+    },
+  },
+  {
+    // M6b: a pinch on beats 1 and 3, then a roll over four strings (the thumb takes the 4th).
+    id: 'arpeggio.moderate.pinch-roll',
+    name: 'Pinch and roll',
+    hint: 'Thumb and ring together, then index, middle and the thumb on the 4th string; the bass moves halfway through the bar.',
+    style: 'arpeggio',
+    level: 'moderate',
+    meters: [3, 4],
+    anchor: 'bar',
+    events: {
+      4: [
+        { tick: 0, dur: 960, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
+        { tick: 0, dur: 960, finger: 'a', target: 't1', tech: 'pinch', accent: true },
+        { tick: 240, dur: 720, finger: 'i', target: 't3' },
+        { tick: 480, dur: 480, finger: 'm', target: 't2' },
+        { tick: 720, dur: 240, finger: 'p', target: 't4' },
+        { tick: 960, dur: 960, finger: 'p', target: 'altBass', tech: 'pinch' },
+        { tick: 960, dur: 960, finger: 'a', target: 't1', tech: 'pinch' },
+        { tick: 1200, dur: 720, finger: 'i', target: 't3' },
+        { tick: 1440, dur: 480, finger: 'm', target: 't2' },
+        { tick: 1680, dur: 240, finger: 'p', target: 't4' },
+      ],
+      3: [
+        { tick: 0, dur: 960, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
+        { tick: 0, dur: 1440, finger: 'a', target: 't1', tech: 'pinch', accent: true },
+        { tick: 240, dur: 1200, finger: 'i', target: 't3' },
+        { tick: 480, dur: 960, finger: 'm', target: 't2' },
+        { tick: 720, dur: 240, finger: 'p', target: 't4' },
+        { tick: 960, dur: 480, finger: 'p', target: 'altBass' },
+        { tick: 1200, dur: 240, finger: 'i', target: 't3' },
       ],
     },
   },

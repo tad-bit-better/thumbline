@@ -23,7 +23,7 @@ describe('arrange', () => {
     expect(a).toMatchObject({
       style: 'arpeggio',
       level: 'basic',
-      patternId: 'arpeggio.basic.roll',
+      patternId: 'arpeggio.basic.let-ring',
       capo: 0,
       meter: { beatsPerBar: 4 },
       bpm: 84,
@@ -147,6 +147,7 @@ describe('patternCandidates', () => {
     expect(patternCandidates('fingerstyle', 'advanced', 4, 'fingerstyle.advanced.syncopated').map((p) => p.id)).toEqual([
       'fingerstyle.advanced.syncopated',
       'fingerstyle.advanced.travis-hammer',
+      'fingerstyle.moderate.travis-pinch',
       'fingerstyle.moderate.travis',
       'fingerstyle.moderate.boom-chick',
       'fingerstyle.basic.thumb-pluck',
@@ -155,7 +156,7 @@ describe('patternCandidates', () => {
   });
 
   it('defaults to the first pattern of the level', () => {
-    expect(patternCandidates('arpeggio', 'basic', 3)[0].id).toBe('arpeggio.basic.roll');
+    expect(patternCandidates('arpeggio', 'basic', 3)[0].id).toBe('arpeggio.basic.let-ring');
   });
 
   it('rejects unknown or mismatched patterns', () => {

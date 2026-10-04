@@ -93,18 +93,18 @@ describe('Sheet screen', () => {
 
   it('switches style and level, and describes the pattern', () => {
     render(<Sheet />);
-    expect(screen.getByText('Simple roll')).toBeTruthy();
+    expect(screen.getByText('Let it ring')).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'Fingerstyle' }));
     expect(songStore.getState().prefs.style).toBe('fingerstyle');
     expect(screen.getByText('Thumb and pluck')).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'Moderate' }));
-    expect(screen.getByText('Travis picking')).toBeTruthy();
+    expect(screen.getByText('Travis with pinches')).toBeTruthy();
   });
 
   it('offers another pattern at the same level', () => {
     render(<Sheet />);
     fireEvent.click(screen.getByRole('button', { name: 'Try another pattern' }));
-    expect(screen.getByText('Slow roll')).toBeTruthy();
+    expect(screen.getByText('Simple roll')).toBeTruthy();
   });
 
   it('keeps flamenco for later', () => {

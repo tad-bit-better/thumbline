@@ -60,6 +60,47 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
     },
   },
   {
+    // M6b: Travis picking with a treble note on every thumb stroke, so it never thins to one note.
+    // MUSIC-REVIEW: 13 notes a bar, with a three-note pinch on beat 3, is busier than the other
+    // moderate patterns. Check it's still moderate, not advanced, for a learner.
+    id: 'fingerstyle.moderate.travis-pinch',
+    name: 'Travis with pinches',
+    hint: 'The thumb alternates bass strings on every beat and a finger plays with it each time; the other fingers fill the off-beats.',
+    style: 'fingerstyle',
+    level: 'moderate',
+    meters: [3, 4],
+    anchor: 'bar',
+    events: {
+      4: [
+        { tick: 0, dur: 480, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
+        { tick: 0, dur: 480, finger: 'm', target: 't1', tech: 'pinch', accent: true },
+        { tick: 240, dur: 480, finger: 'i', target: 't2' },
+        { tick: 480, dur: 480, finger: 'p', target: 'altBass', tech: 'pinch' },
+        { tick: 480, dur: 480, finger: 'i', target: 't3', tech: 'pinch' },
+        { tick: 720, dur: 240, finger: 'm', target: 't1' },
+        { tick: 960, dur: 480, finger: 'p', target: 'bass', tech: 'pinch' },
+        { tick: 960, dur: 480, finger: 'm', target: 't2', tech: 'pinch' },
+        { tick: 960, dur: 480, finger: 'a', target: 't1', tech: 'pinch' },
+        { tick: 1200, dur: 240, finger: 'i', target: 't3' },
+        { tick: 1440, dur: 480, finger: 'p', target: 'altBass', tech: 'pinch' },
+        { tick: 1440, dur: 240, finger: 'm', target: 't2', tech: 'pinch' },
+        { tick: 1680, dur: 240, finger: 'a', target: 't1' },
+      ],
+      3: [
+        { tick: 0, dur: 480, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
+        { tick: 0, dur: 480, finger: 'm', target: 't1', tech: 'pinch', accent: true },
+        { tick: 240, dur: 480, finger: 'i', target: 't2' },
+        { tick: 480, dur: 480, finger: 'p', target: 'altBass', tech: 'pinch' },
+        { tick: 480, dur: 480, finger: 'i', target: 't3', tech: 'pinch' },
+        { tick: 720, dur: 240, finger: 'm', target: 't1' },
+        { tick: 960, dur: 480, finger: 'p', target: 'bass', tech: 'pinch' },
+        { tick: 960, dur: 480, finger: 'm', target: 't2', tech: 'pinch' },
+        { tick: 960, dur: 480, finger: 'a', target: 't1', tech: 'pinch' },
+        { tick: 1200, dur: 240, finger: 'i', target: 't3' },
+      ],
+    },
+  },
+  {
     id: 'fingerstyle.moderate.travis',
     name: 'Travis picking',
     hint: 'The thumb alternates between two bass strings on every beat while the fingers fill the gaps.',

@@ -55,7 +55,7 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
   // Click the visible segment, as a person would (the radio input itself is transparent).
   await page.getByRole('radiogroup', { name: 'Level' }).getByText('Moderate', { exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Moderate' })).toBeChecked();
-  await expect(page.getByText('p-i-m-a-m-i')).toBeVisible();
+  await expect(page.getByText('Pinch and roll')).toBeVisible();
 
   await page.getByRole('button', { name: 'Play' }).click();
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });

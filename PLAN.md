@@ -185,9 +185,10 @@ Sheets sound thin next to the recording: on a 70 bpm ballad (Hotel California) e
 - Synthetic eval fixtures use this synth: regenerating them (`--force`) changes their audio, so re-run the eval baseline when you do.
 
 **A: fuller patterns (engine data)**
-- [ ] Pinches: bass and a treble note together on strong beats.
-- [ ] Rolls across more strings, so notes ring into each other instead of re-striking the same three.
-- [ ] Slow songs get denser patterns (sixteenth fills). Choosing patterns by tempo may touch `PatternDef`: ask before changing the contract.
+- [x] Pinches: bass and a treble note together on strong beats. New default `fingerstyle.moderate.travis-pinch` (a treble note on every thumb stroke).
+- [x] Rolls across more strings, so notes ring into each other instead of re-striking the same three. New defaults `arpeggio.basic.let-ring` (each string once per half bar) and `arpeggio.moderate.pinch-roll` (pinch, then four strings). Old patterns stay under "Try another pattern".
+- _Notes ringing at once on the Hotel California verse (70 bpm), before B → after B + A:_ Arpeggio Basic 1.8 → 2.7, Arpeggio Moderate 1.8 → 3.0, Fingerstyle Moderate 1.8 → 4.0.
+- [ ] Slow songs get denser patterns (sixteenth fills). Choosing patterns by tempo needs a field on `PatternDef` (a contract change): waiting for a decision.
 
 **C1: a top line that moves**
 - [ ] The highest note of each pattern steps between chord tones (voice leading) so the sheet carries a tune. Not the song's melody.
