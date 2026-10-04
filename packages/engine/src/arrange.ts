@@ -4,6 +4,7 @@ import { TICKS_PER_BEAT } from './constants.js';
 import { LEVELS, PALOS, getPattern, patternsFor } from './patterns/index.js';
 import { type ChordSpan, isPlayable, runSegment } from './runner.js';
 import { mergeMelody, placeMelody, quantiseMelody } from './melody.js';
+import { applySections, applyTouch, moodLabelOf, sectionsOf } from './mood.js';
 import { moveTopLine } from './topline.js';
 import type {
   AnalysisResult,
@@ -14,6 +15,7 @@ import type {
   ChordMark,
   Level,
   NoteEvent,
+  MoodLabel,
   Palo,
   PatternDef,
   Style,
@@ -32,8 +34,9 @@ export function patternCandidates(
   beatsPerBar: BeatsPerBar,
   patternId?: string,
   palo?: Palo,
+  mood?: MoodLabel,
 ): PatternDef[] {
-  const sameLevel = patternsFor(style, level, beatsPerBar, palo);
+  const sameLevel = patternsFor(style, level, beatsPerBar, palo, mood);
   let first = sameLevel[0];
   if (patternId !== undefined) {
     const requested = getPattern(patternId);
@@ -50,7 +53,7 @@ export function patternCandidates(
 
   const lower = LEVELS.slice(0, LEVELS.indexOf(level))
     .reverse()
-    .flatMap((l) => patternsFor(style, l, beatsPerBar, palo));
+    .flatMap((l) => patternsFor(style, l, beatsPerBar, palo, mood));
   return [first, ...sameLevel.filter((p) => p !== first), ...lower];
 }
 
@@ -131,7 +134,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   const { beatsPerBar } = input.meter;
   const barTicks = beatsPerBar * TICKS_PER_BEAT;
   const palo = resolvePalo(opts);
-  const candidates = patternCandidates(opts.style, opts.level, beatsPerBar, opts.patternId, palo);
+  const mood = opts.mood ?? (input.mood ? moodLabelOf(input.mood) : undefined);
+  const candidates = patternCandidates(opts.style, opts.level, beatsPerBar, opts.patternId, palo, mood);
 
   const segments = input.chords;
   const bars = segments.length ? segments[segments.length - 1].bar + 1 : 0;
@@ -189,6 +193,11 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
   else if (opts.style !== 'flamenco') moveTopLine(events, spans, opts.level, { ...input.key, pc: (input.key.pc - capo + 12) % 12 });
 
+  // The vibe (M10): the mood's touch, then sections that build and breathe with the song.
+  if (mood) applyTouch(notes, mood, beatsPerBar);
+  const sections = input.beatEnergy?.length ? sectionsOf(input, beatsPerBar, bars) : undefined;
+  if (sections) notes = applySections(notes, sections, beatsPerBar);
+
   return {
     style: opts.style,
     level: opts.level,
@@ -200,5 +209,7 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     chordMarks,
     events: notes,
     warnings: warnings.list,
+    ...(mood ? { mood } : {}),
+    ...(sections ? { sections } : {}),
   };
 }

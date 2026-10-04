@@ -12,6 +12,7 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
     level: 'basic',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['melancholic', 'warm'],
     events: {
       4: [
         { tick: 0, dur: 960, finger: 'p', target: 'bass' },
@@ -42,6 +43,7 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
     level: 'basic',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['upbeat', 'intense'],
     events: {
       4: [
         { tick: 0, dur: 480, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
@@ -72,6 +74,7 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['upbeat', 'intense'],
     events: {
       4: [
         { tick: 0, dur: 480, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
@@ -110,6 +113,7 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['upbeat', 'warm'],
     events: {
       4: [
         { tick: 0, dur: 480, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
@@ -139,6 +143,7 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['upbeat'],
     events: {
       4: [
         { tick: 0, dur: 480, finger: 'p', target: 'bass', accent: true },
@@ -160,6 +165,40 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
     },
   },
   {
+    // M10: a calm fingerstyle for slow, dark songs: rolls that ring, one hammer-on, no palm mute.
+    // MUSIC-REVIEW: tagged melancholic/warm; check it reads as a ballad, not as an arpeggio exercise.
+    id: 'fingerstyle.moderate.ballad',
+    name: 'Ballad roll',
+    hint: 'Thumb and ring together, then index, middle and index roll gently; the thumb moves on beat 3, and the middle finger hammers on near the end.',
+    style: 'fingerstyle',
+    level: 'moderate',
+    meters: [3, 4],
+    anchor: 'bar',
+    moods: ['melancholic', 'warm'],
+    events: {
+      4: [
+        { tick: 0, dur: 960, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
+        { tick: 0, dur: 960, finger: 'a', target: 't1', tech: 'pinch', accent: true },
+        { tick: 240, dur: 720, finger: 'i', target: 't3' },
+        { tick: 480, dur: 480, finger: 'm', target: 't2' },
+        { tick: 720, dur: 240, finger: 'i', target: 't3' },
+        { tick: 960, dur: 960, finger: 'p', target: 'altBass' },
+        { tick: 1200, dur: 480, finger: 'm', target: 't2' },
+        { tick: 1440, dur: 480, finger: 'a', target: 't1' },
+        { tick: 1680, dur: 240, finger: 'm', target: 't2', tech: 'hammer' },
+      ],
+      3: [
+        { tick: 0, dur: 960, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
+        { tick: 0, dur: 1440, finger: 'a', target: 't1', tech: 'pinch', accent: true },
+        { tick: 240, dur: 1200, finger: 'i', target: 't3' },
+        { tick: 480, dur: 960, finger: 'm', target: 't2' },
+        { tick: 720, dur: 240, finger: 'a', target: 't1' },
+        { tick: 960, dur: 480, finger: 'p', target: 'altBass' },
+        { tick: 1200, dur: 240, finger: 'm', target: 't2' },
+      ],
+    },
+  },
+  {
     // M7b: percussive Travis. The thumb slaps on 2 and 4 instead of plucking, the index
     // hammers on and pulls off, and the bar ends on a bell-like harmonic.
     // MUSIC-REVIEW: the harmonic on the last eighth needs the fretting hand to lift for a
@@ -172,6 +211,7 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [3, 4],
     anchor: 'chord',
+    moods: ['upbeat', 'intense'],
     events: {
       4: [
         { tick: 0, dur: 480, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
@@ -208,6 +248,7 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [3, 4],
     anchor: 'chord',
+    moods: ['upbeat'],
     events: {
       4: [
         { tick: 0, dur: 480, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
@@ -233,6 +274,44 @@ export const FINGERSTYLE_PATTERNS: PatternDef[] = [
         { tick: 720, dur: 480, finger: 'm', target: 't1', accent: true },
         { tick: 960, dur: 480, finger: 'p', target: 'altBass', tech: 'palm-mute' },
         { tick: 1200, dur: 240, finger: 'm', target: 't1', accent: true },
+      ],
+    },
+  },
+  {
+    // M10: the calm Advanced fingerstyle: sixteenth rolls with ligados and a harmonic, no slaps.
+    // MUSIC-REVIEW: same harmonic caveat as Percussive Travis.
+    id: 'fingerstyle.advanced.ballad',
+    name: 'Ballad with ligados',
+    hint: 'Gentle sixteenth rolls over a thumb on 1 and 3, a hammer-on and a pull-off in each half, and a harmonic to end the bar.',
+    style: 'fingerstyle',
+    level: 'advanced',
+    meters: [3, 4],
+    anchor: 'bar',
+    moods: ['melancholic', 'warm'],
+    events: {
+      4: [
+        { tick: 0, dur: 960, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
+        { tick: 0, dur: 480, finger: 'a', target: 't1', tech: 'pinch', accent: true },
+        { tick: 240, dur: 240, finger: 'i', target: 't3' },
+        { tick: 360, dur: 240, finger: 'm', target: 't2' },
+        { tick: 480, dur: 240, finger: 'i', target: 't3', tech: 'hammer' },
+        { tick: 720, dur: 240, finger: 'm', target: 't2' },
+        { tick: 960, dur: 960, finger: 'p', target: 'altBass', tech: 'pinch' },
+        { tick: 960, dur: 240, finger: 'm', target: 't2', tech: 'pinch' },
+        { tick: 1200, dur: 240, finger: 'i', target: 't3' },
+        { tick: 1320, dur: 120, finger: 'm', target: 't2', tech: 'pull' },
+        { tick: 1440, dur: 240, finger: 'a', target: 't1' },
+        { tick: 1680, dur: 240, finger: 'a', target: 't1', tech: 'harmonic' },
+      ],
+      3: [
+        { tick: 0, dur: 960, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
+        { tick: 0, dur: 480, finger: 'a', target: 't1', tech: 'pinch', accent: true },
+        { tick: 240, dur: 240, finger: 'i', target: 't3' },
+        { tick: 360, dur: 240, finger: 'm', target: 't2' },
+        { tick: 480, dur: 240, finger: 'i', target: 't3', tech: 'hammer' },
+        { tick: 720, dur: 240, finger: 'm', target: 't2' },
+        { tick: 960, dur: 480, finger: 'p', target: 'altBass' },
+        { tick: 1200, dur: 240, finger: 'a', target: 't1', tech: 'harmonic' },
       ],
     },
   },

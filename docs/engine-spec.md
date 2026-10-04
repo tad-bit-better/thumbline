@@ -34,7 +34,11 @@ type AnalysisResult = {
   key: { pc: number; mode: 'major' | 'minor' | 'phrygian' };
   chords: ChordSegment[];      // sorted by (bar, beat)
   melody?: MelodyNote[];       // the tune; absent for clips analysed before M9
+  mood?: Mood;                 // how the song feels; absent before M10
+  beatEnergy?: number[];       // loudness per beat (as beatTimesSec), 0..1, the loud end of the song = 1
 };
+
+type Mood = { energy: number; valence: number }; // 0..1: calm → driving, dark → bright
 
 type MelodyNote = {
   startSec: number;            // seconds into the recording
@@ -43,6 +47,8 @@ type MelodyNote = {
   confidence: number;          // 0..1
 };
 ```
+
+**Mood (M10).** energy = 40% tempo (60→140 bpm), 30% onset rate (1.5→5 per s), 30% danceability (0.8→2); valence = 55% a major key, 25% the share of major chords (maj, 7, maj7, 6, add9), 20% brightness (spectral centroid 1200→3000 Hz). Each part is clamped to 0..1. `beatEnergy` is each beat's RMS over the 95th percentile, clamped to 1.
 
 **Melody (M9).** The worker tracks the lead voice (essentia `PredominantPitchMelodia`, then `PitchContourSegmentation`) and cleans it: notes under 90 ms are dropped, a note 9+ semitones from the median of its six neighbours moves an octave toward them, a held note split in two (same pitch, gap under 120 ms) is merged, and a short (under 350 ms) note outside the key moves a semitone into it. Notes stay in seconds; the engine quantises them.
 
@@ -100,6 +106,7 @@ type PatternDef = {
   events: Partial<Record<3 | 4 | 12, PatternEvent[]>>; // one list per meter in `meters`
   requires?: { openTreble?: boolean; maxFret?: number }; // when the pattern can be used
   palos?: Array<'rumba' | 'tangos' | 'solea' | 'bulerias' | 'alegrias'>; // flamenco only
+  moods?: Array<'melancholic' | 'warm' | 'intense' | 'upbeat'>;       // moods it suits; listed first for them
 };
 ```
 
@@ -152,6 +159,8 @@ type Arrangement = {
   chordMarks: ChordMark[];
   events: NoteEvent[];    // sorted by tick, then string
   warnings: Array<{ code: 'simplified' | 'barre' | 'unsupported-chord' | 'slash-dropped'; message: string }>;
+  mood?: 'melancholic' | 'warm' | 'intense' | 'upbeat'; // what it was arranged for (detected, or chosen by the user)
+  sections?: Array<'soft' | 'normal' | 'full'>;          // per bar, how much it plays
 };
 
 // Main entry
@@ -177,6 +186,12 @@ function arrange(input: AnalysisResult, opts: {
 **Drone and pedal.** A `drone` is the open 1st string, else the open 2nd, when its note is in the key's scale (chord tones included), whatever the chord; otherwise the shape's top note. A `pedal` is the key's tonic, else its fifth, on an open E, A or D string; otherwise the chord's bass. Neither uses an open string a barre covers. The chord's own bass still sounds on each chord change. The moving top line doesn't apply to flamenco.
 
 **Playability check.** Reject a pattern for a chord if any simultaneous notes need a fret span > 4 or more than 4 fretted fingers; fall back to the next pattern at the same level, then the level below.
+
+**Mood (M10).** The label is the quadrant of `AnalysisResult.mood` split at 0.5: melancholic (calm, dark), warm (calm, bright), intense (driving, dark), upbeat (driving, bright). `ArrangeOptions.mood` overrides it. Without a mood (clips analysed before M10) nothing below applies.
+- *Pattern:* a level's patterns are listed with the ones whose `moods` include the mood first, otherwise in their usual order; the first is the default.
+- *Touch* (pattern notes only; the tune keeps its own): melancholic ×0.85 velocity, warm ×0.92, both keep only the accents on a bar's first beat; intense cuts thumb notes to an eighth; upbeat cuts all pattern notes to an eighth. Playback sets tone, room and strum speed from `Arrangement.mood` (§6).
+
+**Sections (M10).** From `beatEnergy`: each bar's loudness is the mean of its beats, averaged over 4-bar phrases from bar 0. If the song's quiet and loud thirds differ by less than 0.12, every bar is normal. Otherwise a phrase in the quiet third (and under 0.6) is soft, one in the loud third (and over 0.75) is full. Soft bars keep the tune, thumb notes, golpes and notes on a beat, at ×0.8 velocity; full bars play everything at ×1.1 with the bar's first beat accented.
 
 ## 5. Renderer inputs
 

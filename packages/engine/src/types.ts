@@ -48,7 +48,14 @@ export type AnalysisResult = {
   chords: ChordSegment[];
   /** The tune (lead voice), cleaned but not quantised; absent for clips analysed before M9 */
   melody?: MelodyNote[];
+  /** How the song feels; absent for clips analysed before M10 */
+  mood?: Mood;
+  /** Loudness per beat (index as beatTimesSec), 0..1 with the loud end of the song at 1 */
+  beatEnergy?: number[];
 };
+
+/** 0..1 each: energy calm → driving, valence dark → bright. */
+export type Mood = { energy: number; valence: number };
 
 /** One note of the tune, in sounding pitch and seconds into the recording. */
 export type MelodyNote = {
@@ -109,6 +116,12 @@ export type PatternEvent = {
 
 export type Palo = 'rumba' | 'tangos' | 'solea' | 'bulerias' | 'alegrias';
 
+/** engine-spec §4 mood, the quadrant of AnalysisResult.mood. */
+export type MoodLabel = 'melancholic' | 'warm' | 'intense' | 'upbeat';
+
+/** How much a bar plays, from the song's loudness (engine-spec §4 sections). */
+export type SectionLevel = 'soft' | 'normal' | 'full';
+
 export type PatternDef = {
   /** e.g. 'arpeggio.moderate.pami' */
   id: string;
@@ -123,6 +136,8 @@ export type PatternDef = {
   events: Partial<Record<BeatsPerBar, PatternEvent[]>>;
   requires?: { openTreble?: boolean; maxFret?: number };
   palos?: Palo[];
+  /** moods the pattern suits; they come first for that mood */
+  moods?: MoodLabel[];
 };
 
 // §3 Arrangement (engine → renderer, playback)
@@ -176,6 +191,10 @@ export type Arrangement = {
   /** sorted by tick, then string */
   events: NoteEvent[];
   warnings: Array<{ code: WarningCode; message: string }>;
+  /** the mood it was arranged for, when known (playback sets tone, room and strum speed from it) */
+  mood?: MoodLabel;
+  /** per bar, how much it plays */
+  sections?: SectionLevel[];
 };
 
 export type ArrangeOptions = {
@@ -186,4 +205,6 @@ export type ArrangeOptions = {
   palo?: string;
   /** Put the tune on top when the analysis has one (default true). */
   melody?: boolean;
+  /** Override the detected mood. */
+  mood?: MoodLabel;
 };

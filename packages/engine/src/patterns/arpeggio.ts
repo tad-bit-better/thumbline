@@ -14,6 +14,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
     level: 'basic',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['melancholic', 'warm'],
     events: {
       4: [
         { tick: 0, dur: 960, finger: 'p', target: 'bass', accent: true },
@@ -43,6 +44,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
     level: 'basic',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['warm', 'upbeat', 'intense'],
     events: {
       4: [
         { tick: 0, dur: 960, finger: 'p', target: 'bass' },
@@ -72,6 +74,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
     level: 'basic',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['melancholic', 'warm'],
     events: {
       4: [
         { tick: 0, dur: 1920, finger: 'p', target: 'bass' },
@@ -96,6 +99,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['warm', 'intense'],
     events: {
       4: [
         { tick: 0, dur: 960, finger: 'p', target: 'bass', tech: 'pinch', accent: true },
@@ -128,6 +132,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['melancholic', 'warm'],
     events: {
       4: [
         { tick: 0, dur: 960, finger: 'p', target: 'bass' },
@@ -157,6 +162,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['upbeat', 'intense'],
     events: {
       4: [
         { tick: 0, dur: 960, finger: 'p', target: 'bass' },
@@ -188,6 +194,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['intense', 'upbeat'],
     events: {
       4: [
         { tick: 0, dur: 960, finger: 'p', target: 'bass', accent: true },
@@ -231,6 +238,7 @@ export const ARPEGGIO_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [3, 4],
     anchor: 'bar',
+    moods: ['warm', 'upbeat', 'melancholic'],
     events: {
       4: [
         { tick: 0, dur: 960, finger: 'p', target: 'bass', tech: 'pinch', accent: true },

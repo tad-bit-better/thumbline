@@ -149,12 +149,22 @@ describe('patternCandidates', () => {
     expect(patternCandidates('fingerstyle', 'advanced', 4, 'fingerstyle.advanced.syncopated').map((p) => p.id)).toEqual([
       'fingerstyle.advanced.syncopated',
       'fingerstyle.advanced.travis-hammer',
+      'fingerstyle.advanced.ballad',
       'fingerstyle.moderate.travis-pinch',
       'fingerstyle.moderate.travis',
       'fingerstyle.moderate.boom-chick',
+      'fingerstyle.moderate.ballad',
       'fingerstyle.basic.thumb-pluck',
       'fingerstyle.basic.thumb-pinch',
     ]);
+  });
+
+  it('puts the patterns that suit the mood first, keeping their order', () => {
+    expect(patternCandidates('fingerstyle', 'moderate', 4, undefined, undefined, 'melancholic').map((p) => p.id).slice(0, 2)).toEqual([
+      'fingerstyle.moderate.ballad',
+      'fingerstyle.moderate.travis-pinch',
+    ]);
+    expect(patternCandidates('fingerstyle', 'moderate', 4, undefined, undefined, 'upbeat')[0].id).toBe('fingerstyle.moderate.travis-pinch');
   });
 
   it('defaults to the first pattern of the level', () => {

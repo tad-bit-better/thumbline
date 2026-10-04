@@ -17,6 +17,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'basic',
     meters: [4],
     anchor: 'bar',
+    moods: ['upbeat', 'warm'],
     palos: ['rumba'],
     events: {
       4: [
@@ -39,6 +40,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'basic',
     meters: [4],
     anchor: 'bar',
+    moods: ['intense', 'melancholic'],
     palos: ['tangos'],
     events: {
       4: [
@@ -59,6 +61,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [4],
     anchor: 'bar',
+    moods: ['upbeat', 'intense'],
     palos: ['rumba'],
     events: {
       4: [
@@ -83,6 +86,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [4],
     anchor: 'bar',
+    moods: ['intense'],
     palos: ['tangos'],
     events: {
       4: [
@@ -107,6 +111,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [4],
     anchor: 'bar',
+    moods: ['intense', 'upbeat'],
     palos: ['rumba'],
     events: {
       4: [
@@ -133,6 +138,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [4],
     anchor: 'bar',
+    moods: ['intense'],
     palos: ['tangos'],
     events: {
       4: [
@@ -161,6 +167,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [4],
     anchor: 'bar',
+    moods: ['melancholic', 'warm'],
     palos: ['rumba', 'tangos'],
     events: {
       4: [0, 1, 2, 3].flatMap((beat) => {
@@ -183,6 +190,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [4],
     anchor: 'bar',
+    moods: ['upbeat', 'intense'],
     palos: ['rumba'],
     events: {
       4: [
@@ -210,6 +218,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [4],
     anchor: 'bar',
+    moods: ['melancholic'],
     palos: ['tangos'],
     events: {
       4: [
@@ -235,6 +244,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'moderate',
     meters: [4],
     anchor: 'bar',
+    moods: ['melancholic', 'warm'],
     palos: ['rumba', 'tangos'],
     events: {
       4: [
@@ -258,6 +268,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [4],
     anchor: 'bar',
+    moods: ['upbeat'],
     palos: ['rumba'],
     events: {
       4: [
@@ -284,6 +295,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [4],
     anchor: 'bar',
+    moods: ['intense'],
     palos: ['rumba'],
     events: {
       4: [
@@ -313,6 +325,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [4],
     anchor: 'bar',
+    moods: ['intense'],
     palos: ['tangos'],
     events: {
       4: [
@@ -337,6 +350,7 @@ export const FLAMENCO_PATTERNS: PatternDef[] = [
     level: 'advanced',
     meters: [4],
     anchor: 'bar',
+    moods: ['melancholic', 'warm'],
     palos: ['tangos'],
     events: {
       4: [
