@@ -24,7 +24,7 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: 'Thumbline',
-  description: 'Turn any song into a right-hand guitar sheet. Your audio never leaves this device.',
+  description: 'Turn any song into a right-hand guitar sheet.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

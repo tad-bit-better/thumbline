@@ -11,10 +11,6 @@
   min-width: 0;
 }
 
-.badge {
-  margin: 0 0 var(--space-5);
-}
-
 .title {
   font-size: var(--text-display);
   line-height: 0.98;
@@ -279,21 +275,3 @@
   font-size: var(--text-small);
 }
 
-.navLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--color-ink);
-  font-weight: 600;
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-}
-
-.navLink:hover {
-  color: var(--color-violet-deep);
-}
-
-.navLink:focus-visible {
-  outline: none;
-  box-shadow: var(--ring-focus);
-}

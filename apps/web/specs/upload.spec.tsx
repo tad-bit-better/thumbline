@@ -18,7 +18,6 @@ describe('Upload screen', () => {
   it('sets expectations and reassures about privacy', () => {
     render(<Upload />);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Turn any song into a right-hand sheet.');
-    expect(screen.getByText('Your audio never leaves this device')).toBeTruthy();
     expect(screen.getByText(/We hear the chords and write a part for you to play/)).toBeTruthy();
     expect(screen.getByText('MP3, WAV or M4A, up to 8 minutes')).toBeTruthy();
   });

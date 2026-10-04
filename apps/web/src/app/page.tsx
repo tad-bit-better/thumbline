@@ -3,7 +3,6 @@
 import { MAX_SECONDS, isSupportedFile } from '@thumbline/audio-analysis';
 import {
   Button,
-  Chip,
   LOOP_MS,
   LottieMoment,
   Pick,
@@ -57,20 +56,6 @@ const STEPS = [
   ['Play along', 'Your sheet plays with the original, at any speed.'],
 ] as const;
 
-const LockGlyph = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2.4}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="5" y="11" width="14" height="10" rx="2" />
-    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-  </svg>
-);
-
 export default function Upload() {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -113,32 +98,10 @@ export default function Upload() {
   } as CSSProperties;
 
   return (
-    <AppShell
-      actions={
-        <>
-          <a className={styles.navLink} href="#how">
-            How it works
-          </a>
-          <a className={styles.navLink} href="#styles">
-            Styles
-          </a>
-          <a
-            className={styles.navLink}
-            href="https://github.com/tad-bit-better/thumbline"
-          >
-            GitHub
-          </a>
-        </>
-      }
-    >
+    <AppShell>
       <main>
         <section className={styles.hero}>
           <div className={styles.intro}>
-            <div className={styles.badge}>
-              <Chip tone="mint" icon={<LockGlyph />}>
-                Your audio never leaves this device
-              </Chip>
-            </div>
             <h1 className={styles.title}>
               Turn any song into a{' '}
               <span className={styles.accent}>right-hand</span> sheet.
@@ -268,7 +231,7 @@ export default function Upload() {
       <footer className={styles.footer}>
         <span>Open source under AGPL-3.0</span>
         <span>
-          Made for guitarists who never know what the right hand should do
+          Made for anyone with a guitar and a song stuck in their head.
         </span>
       </footer>
     </AppShell>

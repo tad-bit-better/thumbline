@@ -28,7 +28,6 @@ async function toReview(page: Page) {
 test('a clip goes from upload to a playable sheet', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Turn any song into a right-hand sheet.');
-  await expect(page.getByText('Your audio never leaves this device')).toBeVisible();
   await expectNoAxeViolations(page);
 
   await toReview(page);
