@@ -91,7 +91,7 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - [x] Generate app and packages (README), module boundary tags, lint rules.
 - [x] CI: `nx affected -t lint test build` on GitHub Actions.
 - [x] Fonts, `tokens.css` and global styles wired into `apps/web`.
-- [ ] Follow-ups: install Playwright browsers locally (`pnpm exec playwright install`) and add `e2e` to CI once M6 has real flows; add a `LICENSE` file (M8).
+- [x] Follow-ups: `e2e` job in CI (Chromium, Firefox, WebKit); `LICENSE` (AGPL-3.0).
 - **Done when:** a fresh clone passes `pnpm nx run-many -t lint test build`.
 
 ### M1: Engine core (port from prototype)
@@ -145,7 +145,7 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - [ ] Final dotLottie files for the 8 moments replace CSS placeholders.
 - [ ] Accessibility pass: keyboard play/stop/loop, tab screen-reader summary, focus order, reduced motion.
 - [ ] Performance: first-load JS < 200 KB gzipped; essentia WASM and Lottie files lazy-loaded; LCP < 2 s.
-- [ ] Offline (service worker), deploy (Vercel), LICENSE (AGPL-3.0), CONTRIBUTING with "add a pattern" guide.
+- [ ] Offline (service worker), deploy (Vercel), CONTRIBUTING with "add a pattern" guide.
 
 ## 6. Design references
 - Visual language: `docs/design/design-system.md`
