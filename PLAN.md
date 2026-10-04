@@ -132,13 +132,20 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - [ ] Known miss: slow 3/4 (66 bpm) solo picking is read at double tempo by every estimator tried.
 
 ### M6: App flow (`apps/web`)
-- [ ] Upload screen (drop zone, file picker, sample clip, limits) with Pick drop moment.
-- [ ] Listening screen with metronome synced to detected BPM, live step list, progress.
-- [ ] Review screen: chord grid, confidence highlighting, alternatives popover, confirm tick, meter toggle.
-- [ ] Sheet screen: style cards, level pill, pattern card, chord shapes, tab, sticky player bar.
-- [ ] Screen transitions (View Transitions API): drop zone → listening card; chord blocks → sheet.
-- [ ] IndexedDB persistence of the current song.
-- **Done when:** end-to-end Playwright test with a fixture clip on Chromium, WebKit, Firefox; matches `docs/design/screens.md`.
+- [x] Upload screen (drop zone, file picker, sample clip, limits) with Pick drop moment.
+- [x] Listening screen with metronome synced to detected BPM, live step list, progress. *(Detected BPM and meter shown live; the metronome swing itself follows in M8 with the Lottie file.)*
+- [x] Review screen: chord grid, confidence highlighting, alternatives popover, confirm tick, meter toggle.
+- [x] Sheet screen: style cards, level pill, pattern card, chord shapes, tab, sticky player bar.
+- [x] Screen transitions (View Transitions API): drop zone → listening card; chord blocks → sheet.
+- [x] IndexedDB persistence of the current song.
+- **Done when:** end-to-end Playwright test with a fixture clip on Chromium, WebKit, Firefox; matches `docs/design/screens.md`. *(Passes on Chromium locally; WebKit and Firefox run in CI.)*
+
+**M6 follow-ups**
+- [ ] Metronome swings at the detected BPM on the Listening screen (with the M8 Lottie).
+- [ ] Listening → Review view transition (only drop zone → listening and chord grid → tab exist).
+- [ ] Loop a bar range by drag-selecting bars on the sheet; today Loop repeats the whole song.
+- [ ] Review popover shows ranked alternatives without percentages: `ChordSegment.alternatives` has no scores. Adding them is a contract change in `docs/engine-spec.md`. `DESIGN-REVIEW`
+- [ ] Accuracy: the sample clip (G Em C D) reads Em as E7 in some bars; add to the M5 eval set.
 
 ### M7: Flamenco (rumba, tangos)
 - [ ] Phrygian and Andalusian-cadence voicing and capo handling.
