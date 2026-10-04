@@ -24,7 +24,13 @@ export const PauseGlyph = (p: GlyphProps) => (
   </svg>
 );
 
-export const LoopGlyph = (p: GlyphProps) => (
+export const StopGlyph = (p: GlyphProps) => (
+  <svg {...base} {...p}>
+    <rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+export const LoopGlyph =(p: GlyphProps) => (
   <svg {...base} {...p}>
     <path d="M17 3l3 3-3 3" />
     <path d="M4 12V10a4 4 0 0 1 4-4h12" />

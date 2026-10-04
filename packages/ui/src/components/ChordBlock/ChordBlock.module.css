@@ -34,11 +34,135 @@
   box-shadow: var(--ring-focus);
 }
 
-.number {
-  align-self: flex-start;
+/* Top row: section letter, bar number, start time. */
+.top {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: var(--space-1);
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: calc(var(--text-mono) * 0.8);
+  line-height: 1;
   color: var(--color-ink-3);
+}
+
+.number {
+  white-space: nowrap;
+}
+
+.time {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* DESIGN-REVIEW: section letters aren't in design-system.md; styled like a number chip
+   (violet pill, inset bottom shadow). */
+.section {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--color-violet);
+  box-shadow: inset 0 -2px 0 var(--color-violet-deep);
+  color: var(--color-surface);
+  font-family: var(--font-ui);
+  font-weight: 800;
+}
+
+/* With a play button in the bottom-right corner, the waveform moves left. */
+.wrap[data-playable] .wave {
+  align-self: flex-start;
+}
+
+/* Listen to the bar: a 28px disc with a 44px hit area. */
+.play {
+  position: absolute;
+  right: var(--space-1);
+  bottom: var(--space-1);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  box-shadow: inset 0 -2px 0 var(--color-line);
+  color: var(--color-violet-deep);
+  cursor: pointer;
+  transition:
+    transform var(--dur-snap) var(--ease-snap),
+    background-color var(--dur-snap) var(--ease-snap);
+}
+
+.play::before {
+  content: '';
+  position: absolute;
+  inset: calc(-2 * var(--space-1));
+}
+
+.block:hover:not(:disabled) ~ .play,
+:global([data-force-state='hover']) .play {
+  transform: translateY(-3px);
+}
+
+.play:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.08);
+}
+
+.play:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+.play:disabled {
+  color: var(--color-ink-3);
+  cursor: default;
+}
+
+.playGlyph {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+}
+
+.playGlyph > svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* DESIGN-REVIEW: a playing bar isn't in screens.md; it borrows the open state's violet
+   and makes the mini waveform bounce. */
+.wrap.playing .block {
+  background: var(--color-violet-soft);
+  box-shadow: 0 0 0 2px var(--color-violet);
+  animation: none;
+}
+
+.wrap.playing .play {
+  background: var(--color-violet);
+  box-shadow: inset 0 -2px 0 var(--color-violet-deep);
+  color: var(--color-surface);
+}
+
+.wrap.playing .wave span {
+  background: var(--color-violet);
+  opacity: 1;
+  transform-origin: bottom;
+  animation: bounce var(--dur-reveal) var(--ease-glide) infinite alternate;
+}
+
+.wrap.playing .wave span:nth-child(2n) {
+  animation-delay: calc(-1 * var(--dur-glide));
+}
+
+.wrap.playing .wave span:nth-child(3n) {
+  animation-delay: calc(-1 * var(--dur-snap));
 }
 
 .name {
@@ -144,9 +268,20 @@
 
 .block[data-reduced-motion],
 .block[data-reduced-motion]::after,
-.wrap[data-reduced-motion] .tick {
+.wrap[data-reduced-motion] .tick,
+.wrap[data-reduced-motion] .wave span,
+.play[data-reduced-motion] {
   animation: none;
   transition: none;
+}
+
+@keyframes bounce {
+  from {
+    transform: scaleY(0.4);
+  }
+  to {
+    transform: scaleY(1);
+  }
 }
 
 @keyframes wiggle {
