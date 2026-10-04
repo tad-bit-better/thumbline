@@ -1,0 +1,49 @@
+.pulse {
+  display: inline-block;
+  position: relative;
+}
+
+.breathe {
+  animation: breathe var(--pulse-period) var(--ease-glide) infinite;
+}
+
+.ping::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: ping var(--pulse-period) var(--ease-glide) infinite;
+}
+
+.pulse[data-paused],
+.pulse[data-paused]::after {
+  animation-play-state: paused;
+}
+
+.pulse[data-reduced-motion],
+.pulse[data-reduced-motion]::after {
+  animation: none;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes ping {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}

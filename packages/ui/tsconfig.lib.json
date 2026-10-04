@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "lib": ["es2022", "dom", "dom.iterable"],
     "outDir": "dist",
     "types": [
       "node",
@@ -15,6 +16,7 @@
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
   },
   "exclude": [
+    "src/testing/**",
     "out-tsc",
     "dist",
     "**/*.spec.ts",

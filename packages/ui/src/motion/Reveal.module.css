@@ -1,0 +1,25 @@
+.item {
+  animation: reveal-pop var(--dur-reveal) var(--ease-reveal) both;
+  animation-delay: calc(var(--stagger-reveal) * var(--reveal-index, 0));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.inline {
+  display: inline-block;
+}
+
+@keyframes reveal-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

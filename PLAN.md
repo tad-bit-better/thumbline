@@ -103,12 +103,12 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - **Done when:** unit tests cover parser, voicings, capo, alt-bass; snapshots for 5 progressions × 6 style-levels; ≥ 90% coverage.
 
 ### M2: UI kit (`packages/ui`)
-- [ ] Tokens (`tokens.css`) and a `Theme` story showing every token.
+- [x] Tokens (`tokens.css`) and a `Theme` story showing every token.
 - [ ] Components: Button (3D press), IconButton, SegmentedControl with sliding pill, Chip, Card, StyleCard, Stepper, ProgressBar (shimmer), Toast, Popover, Dialog.
 - [ ] 3D icon set (SVG): Pick, Metronome, Waveform tile, Arpeggio, Fingerstyle, Flamenco, Play sphere, Check badge.
-- [ ] Motion primitives: `Reveal` (staggered pop-in), `PressScale`, `Pulse`, `useReducedMotion` wrapper.
+- [x] Motion primitives: `Reveal` (staggered pop-in), `PressScale`, `Pulse`, `useReducedMotion` wrapper.
 - [ ] `LottieMoment` component wrapping dotLottie with a static fallback and reduced-motion handling.
-- **Done when:** every component has stories (default, hover, focus, disabled, reduced motion, dark), axe checks pass in Storybook, all interactive targets ≥ 44px.
+- **Done when:** every component has stories (default, hover, focus, disabled, reduced motion), axe checks pass in Storybook and unit tests, all interactive targets ≥ 44px. Dark stories come with the v1.1 dark theme (design-system.md).
 
 ### M3: Tab renderer
 - [ ] Staff with wrapping systems, chord lane, technique lane, six strings, finger lane.
