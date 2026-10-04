@@ -327,7 +327,7 @@ export default function Review() {
                 }
               />
             </div>
-            {mood && (
+            {mood ? (
               <div className={styles.time}>
                 <span id="mood-label">Mood</span>
                 <SegmentedControl
@@ -345,6 +345,24 @@ export default function Review() {
                       : `It sounded ${moodName(heard).toLowerCase()} to us.`}
                   </span>
                 )}
+              </div>
+            ) : (
+              // Songs read before moods and tunes (M9, M10): say so where the mood would be.
+              <div className={styles.time}>
+                <span>Mood</span>
+                <span className={styles.heardMood}>
+                  This song was read before Thumbline could hear its mood and
+                  follow its tune. Your chord changes will be cleared.
+                </span>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    songStore.getState().relisten();
+                    router.push('/listen');
+                  }}
+                >
+                  Listen again
+                </Button>
               </div>
             )}
           </Card>
