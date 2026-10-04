@@ -80,7 +80,7 @@ type PatternDef = {
   level: Level;
   meters: Array<3 | 4 | 12>;       // which meters this pattern supports
   anchor: 'bar' | 'chord';         // restart the pattern at each bar or at each chord change
-  events: Record<3 | 4 | 12, PatternEvent[]>; // per supported meter
+  events: Partial<Record<3 | 4 | 12, PatternEvent[]>>; // one list per meter in `meters`
   requires?: { openTreble?: boolean; maxFret?: number }; // when the pattern can be used
   palos?: Array<'rumba' | 'tangos' | 'solea' | 'bulerias' | 'alegrias'>; // flamenco only
 };

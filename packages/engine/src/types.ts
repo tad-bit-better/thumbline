@@ -1,0 +1,166 @@
+// Contracts from docs/engine-spec.md. Change them only together with the spec.
+
+// §1 AnalysisResult (audio-analysis → engine)
+
+export type Quality =
+  | 'maj'
+  | 'm'
+  | '7'
+  | 'm7'
+  | 'maj7'
+  | 'sus2'
+  | 'sus4'
+  | 'dim'
+  | 'add9'
+  | '6';
+
+/** `bassPc` is set for slash chords only. */
+export type ChordLabel = { pc: number; quality: Quality; bassPc?: number };
+
+export type ChordSegment = {
+  /** 0-based */
+  bar: number;
+  /** 0-based beat within the bar where the chord starts */
+  beat: number;
+  /** null = no chord / silence */
+  chord: ChordLabel | null;
+  /** 0..1 */
+  confidence: number;
+  /** up to 3, best first */
+  alternatives: ChordLabel[];
+};
+
+export type BeatsPerBar = 3 | 4 | 12;
+
+export type Meter = { beatsPerBar: BeatsPerBar; accents?: number[] };
+
+export type AnalysisResult = {
+  version: 1;
+  durationSec: number;
+  bpm: number;
+  /** every detected beat, for audio sync */
+  beatTimesSec: number[];
+  /** index into beatTimesSec of bar 0's downbeat */
+  barStartBeat: number;
+  meter: Meter;
+  key: { pc: number; mode: 'major' | 'minor' | 'phrygian' };
+  /** sorted by (bar, beat) */
+  chords: ChordSegment[];
+};
+
+// §2 Pattern DSL
+
+export type Style = 'arpeggio' | 'fingerstyle' | 'flamenco';
+export type Level = 'basic' | 'moderate' | 'advanced';
+export type Finger = 'p' | 'i' | 'm' | 'a' | 'c';
+
+export type Target =
+  | 'bass'
+  | 'altBass'
+  | 't1'
+  | 't2'
+  | 't3'
+  | 't4'
+  | 'scale'
+  | 'all';
+
+export type Technique =
+  | 'tirando'
+  | 'apoyando'
+  | 'rasgueo-down'
+  | 'rasgueo-up'
+  | 'golpe'
+  | 'tremolo'
+  | 'hammer'
+  | 'pull'
+  | 'pinch';
+
+export type PatternEvent = {
+  /** start, relative to the start of the chord segment or bar (see anchor) */
+  tick: number;
+  /** ticks */
+  dur: number;
+  finger: Finger;
+  target: Target;
+  tech?: Technique;
+  accent?: boolean;
+  /** 0..1, default 0.8 */
+  velocity?: number;
+};
+
+export type Palo = 'rumba' | 'tangos' | 'solea' | 'bulerias' | 'alegrias';
+
+export type PatternDef = {
+  /** e.g. 'arpeggio.moderate.pami' */
+  id: string;
+  /** user-facing */
+  name: string;
+  /** one-sentence how-to shown under the name */
+  hint: string;
+  style: Style;
+  level: Level;
+  meters: BeatsPerBar[];
+  anchor: 'bar' | 'chord';
+  events: Partial<Record<BeatsPerBar, PatternEvent[]>>;
+  requires?: { openTreble?: boolean; maxFret?: number };
+  palos?: Palo[];
+};
+
+// §3 Arrangement (engine → renderer, playback)
+
+export type Frets = [number, number, number, number, number, number];
+
+export type Voicing = {
+  /** shape name as played, e.g. 'Em' with capo 2 */
+  name: string;
+  frets: Frets;
+  rootString: number;
+  barre: boolean;
+  /** e.g. { from: 'F' } when Fmaj7 replaced F */
+  simplified?: { from: string };
+};
+
+export type NoteEvent = {
+  /** absolute from song start */
+  tick: number;
+  dur: number;
+  string: number;
+  /** -1 for golpe (no pitch) */
+  fret: number;
+  finger: Finger;
+  tech?: Technique;
+  accent?: boolean;
+  velocity: number;
+  /** rasgueado: stagger per string */
+  strumOffsetMs?: number;
+};
+
+export type ChordMark = { tick: number; voicing: Voicing; soundingName: string };
+
+export type WarningCode =
+  | 'simplified'
+  | 'barre'
+  | 'unsupported-chord'
+  | 'slash-dropped';
+
+export type Arrangement = {
+  style: Style;
+  level: Level;
+  patternId: string;
+  capo: number;
+  meter: Meter;
+  bpm: number;
+  bars: number;
+  chordMarks: ChordMark[];
+  /** sorted by tick, then string */
+  events: NoteEvent[];
+  warnings: Array<{ code: WarningCode; message: string }>;
+};
+
+export type ArrangeOptions = {
+  style: Style;
+  level: Level;
+  patternId?: string;
+  capo?: number | 'auto';
+  palo?: string;
+};
