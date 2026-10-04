@@ -15,17 +15,18 @@ import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, parse as parsePath } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { nylonPluck } from '../../playback/dist/index.js';
 
-const ROOT = new URL('../../../', import.meta.url).pathname;
-const OUT = join(ROOT, 'fixtures/local/melody-spike');
-const SR = 44100;
+export const ROOT = new URL('../../../', import.meta.url).pathname;
+export const OUT = join(ROOT, 'fixtures/local/melody-spike');
+export const SR = 44100;
 const require = createRequire(import.meta.url);
 const { EssentiaWASM, Essentia } = require('essentia.js');
-const e = new Essentia(EssentiaWASM);
+export const e = new Essentia(EssentiaWASM);
 
 /** 16-bit mono WAV at 44.1 kHz, as written by afconvert below. */
-function readMonoWav(path) {
+export function readMonoWav(path) {
   const b = readFileSync(path);
   let pos = 12;
   while (pos < b.length - 8) {
@@ -42,7 +43,7 @@ function readMonoWav(path) {
   throw new Error(`${path}: no data chunk`);
 }
 
-function writeWav(path, x) {
+export function writeWav(path, x) {
   const b = Buffer.alloc(44 + x.length * 2);
   b.write('RIFF', 0);
   b.writeUInt32LE(36 + x.length * 2, 4);
@@ -62,7 +63,7 @@ function writeWav(path, x) {
 
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-function beatsAndKey(signal) {
+export function beatsAndKey(signal) {
   const v = e.arrayToVector(signal);
   const beats = [...e.vectorToArray(e.RhythmExtractor2013(v, 208, 'degara', 40).ticks)];
   const k = e.KeyExtractor(v);
@@ -71,7 +72,7 @@ function beatsAndKey(signal) {
   return { beats, key: `${k.key} ${k.scale}`, scale: new Set(steps.map((x) => (pc + x) % 12)) };
 }
 
-function melodyOf(signal) {
+export function melodyOf(signal) {
   const eq = e.EqualLoudness(e.arrayToVector(signal));
   const { pitch, pitchConfidence } = e.PredominantPitchMelodia(eq.signal);
   const seg = e.PitchContourSegmentation(pitch, e.arrayToVector(signal));
@@ -84,7 +85,7 @@ function melodyOf(signal) {
 }
 
 /** Seconds of the 16th-note grid, following the beat times (tempo drift included). */
-function grid16(beats, end) {
+export function grid16(beats, end) {
   const out = [];
   const step = beats.length > 1 ? (beats.at(-1) - beats[0]) / (beats.length - 1) : 0.5;
   const all = [...beats];
@@ -102,7 +103,7 @@ function grid16(beats, end) {
  * (the longer wins); 6. each note lasts until the next one, up to a beat and a
  * half, so the line sings instead of ticking.
  */
-function clean(notes, beats, scale, end) {
+export function clean(notes, beats, scale, end) {
   let n = notes.filter((x) => x.dur >= 0.09).map((x) => ({ ...x }));
   for (let i = 0; i < n.length; i++) {
     const around = n.slice(Math.max(0, i - 3), i).concat(n.slice(i + 1, i + 4)).map((x) => x.midi).sort((a, b) => a - b);
@@ -143,7 +144,7 @@ function clean(notes, beats, scale, end) {
  * Basic: on each beat, the note sounding there (or starting within the next
  * 16th), held until the next beat's note; a repeat of the same pitch ties over.
  */
-function onePerBeat(line, beats) {
+export function onePerBeat(line, beats) {
   const out = [];
   const sixteenth = beats.length > 1 ? (beats.at(-1) - beats[0]) / (beats.length - 1) / 4 : 0.12;
   for (const b of beats) {
@@ -158,7 +159,7 @@ function onePerBeat(line, beats) {
 }
 
 /** A small room: a few feedback-comb filters into an allpass (Schroeder), mixed low. */
-function room(x, mix = 0.18) {
+export function room(x, mix = 0.18) {
   const combs = [1557, 1617, 1491, 1422].map((d) => ({ buf: new Float32Array(d), i: 0, fb: 0.78 }));
   const ap = { buf: new Float32Array(225), i: 0 };
   const out = new Float32Array(x.length);
@@ -185,7 +186,7 @@ function room(x, mix = 0.18) {
  * like a hammer-on or pull-off); notes on the beat are a little louder, short
  * off-beat notes softer.
  */
-function renderSung(line, length) {
+export function renderSung(line, length) {
   const out = new Float32Array(length);
   const cache = new Map();
   const tone = (m) => {
@@ -211,14 +212,14 @@ function renderSung(line, length) {
 }
 
 /** Shift by octaves so the line sits on the guitar's top strings (median near A4). */
-function toGuitarRange(notes) {
+export function toGuitarRange(notes) {
   const sorted = notes.map((n) => n.midi).sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)] ?? 69;
   const shift = 12 * Math.round((69 - median) / 12);
   return { shift, notes: notes.map((n) => ({ ...n, midi: Math.min(84, Math.max(52, n.midi + shift)) })) };
 }
 
-function render(notes, length) {
+export function render(notes, length) {
   const out = new Float32Array(length);
   const cache = new Map();
   for (const n of notes) {
@@ -235,41 +236,46 @@ function render(notes, length) {
   return out;
 }
 
-mkdirSync(OUT, { recursive: true });
-const clips = ['fixtures/audio', 'fixtures/local']
-  .flatMap((d) => (existsSync(join(ROOT, d)) ? readdirSync(join(ROOT, d)).map((f) => join(ROOT, d, f)) : []))
-  .filter((f) => /\.(mp3|m4a|wav|aac|flac)$/i.test(f));
+// Run only when called directly; melody-full.mjs imports the helpers above.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) main();
 
-for (const clip of clips) {
-  const name = parsePath(clip).name;
-  const wav = join(OUT, `${name}.source.wav`);
-  execFileSync('afconvert', ['-f', 'WAVE', '-d', `LEI16@${SR}`, '-c', '1', clip, wav]);
-  const signal = readMonoWav(wav);
-  const t0 = Date.now();
-  const { notes, voiced } = melodyOf(signal);
-  const ms = Date.now() - t0;
-  const { beats, key, scale } = beatsAndKey(signal);
-  const { shift, notes: placed } = toGuitarRange(notes);
-  const secs0 = signal.length / SR;
-  const line = clean(placed, beats, scale, secs0);
-  const basic = onePerBeat(line, beats);
-  const sung = renderSung(line, signal.length);
-  const mixClean = new Float32Array(signal.length);
-  for (let i = 0; i < mixClean.length; i++) mixClean[i] = sung[i] * 0.8 + signal[i] * 0.25;
-  writeWav(join(OUT, `${name}.clean.wav`), sung);
-  writeWav(join(OUT, `${name}.clean+original.wav`), mixClean);
-  writeWav(join(OUT, `${name}.basic.wav`), renderSung(basic, signal.length));
-  const melody = render(placed, signal.length);
-  const mix = new Float32Array(signal.length);
-  for (let i = 0; i < mix.length; i++) mix[i] = melody[i] * 0.8 + signal[i] * 0.25;
-  writeWav(join(OUT, `${name}.melody.wav`), melody);
-  writeWav(join(OUT, `${name}.melody+original.wav`), mix);
-  const secs = signal.length / SR;
-  console.log(
-    `${name}\n  ${secs.toFixed(0)} s, ${notes.length} notes (${(notes.length / secs).toFixed(1)}/s), voiced ${(voiced * 100).toFixed(0)}% of frames, ` +
-      `octave shift ${shift >= 0 ? '+' : ''}${shift}, analysis ${(ms / 1000).toFixed(1)} s\n` +
-      `  key ${key}, ${beats.length} beats; cleaned ${line.length} notes (${(line.length / secs).toFixed(1)}/s), ` +
-      `${(100 * line.filter((x) => scale.has(((x.midi % 12) + 12) % 12)).length / line.length).toFixed(0)}% in key; basic ${basic.length} notes`,
-  );
+function main() {
+  mkdirSync(OUT, { recursive: true });
+  const clips = ['fixtures/audio', 'fixtures/local']
+    .flatMap((d) => (existsSync(join(ROOT, d)) ? readdirSync(join(ROOT, d)).map((f) => join(ROOT, d, f)) : []))
+    .filter((f) => /\.(mp3|m4a|wav|aac|flac)$/i.test(f));
+
+  for (const clip of clips) {
+    const name = parsePath(clip).name;
+    const wav = join(OUT, `${name}.source.wav`);
+    execFileSync('afconvert', ['-f', 'WAVE', '-d', `LEI16@${SR}`, '-c', '1', clip, wav]);
+    const signal = readMonoWav(wav);
+    const t0 = Date.now();
+    const { notes, voiced } = melodyOf(signal);
+    const ms = Date.now() - t0;
+    const { beats, key, scale } = beatsAndKey(signal);
+    const { shift, notes: placed } = toGuitarRange(notes);
+    const secs0 = signal.length / SR;
+    const line = clean(placed, beats, scale, secs0);
+    const basic = onePerBeat(line, beats);
+    const sung = renderSung(line, signal.length);
+    const mixClean = new Float32Array(signal.length);
+    for (let i = 0; i < mixClean.length; i++) mixClean[i] = sung[i] * 0.8 + signal[i] * 0.25;
+    writeWav(join(OUT, `${name}.clean.wav`), sung);
+    writeWav(join(OUT, `${name}.clean+original.wav`), mixClean);
+    writeWav(join(OUT, `${name}.basic.wav`), renderSung(basic, signal.length));
+    const melody = render(placed, signal.length);
+    const mix = new Float32Array(signal.length);
+    for (let i = 0; i < mix.length; i++) mix[i] = melody[i] * 0.8 + signal[i] * 0.25;
+    writeWav(join(OUT, `${name}.melody.wav`), melody);
+    writeWav(join(OUT, `${name}.melody+original.wav`), mix);
+    const secs = signal.length / SR;
+    console.log(
+      `${name}\n  ${secs.toFixed(0)} s, ${notes.length} notes (${(notes.length / secs).toFixed(1)}/s), voiced ${(voiced * 100).toFixed(0)}% of frames, ` +
+        `octave shift ${shift >= 0 ? '+' : ''}${shift}, analysis ${(ms / 1000).toFixed(1)} s\n` +
+        `  key ${key}, ${beats.length} beats; cleaned ${line.length} notes (${(line.length / secs).toFixed(1)}/s), ` +
+        `${(100 * line.filter((x) => scale.has(((x.midi % 12) + 12) % 12)).length / line.length).toFixed(0)}% in key; basic ${basic.length} notes`,
+    );
+  }
+  console.log(`\nWrote ${OUT}`);
 }
-console.log(`\nWrote ${OUT}`);
