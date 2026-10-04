@@ -1,0 +1,131 @@
+.sheet {
+  display: grid;
+  gap: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: var(--radius-sm);
+}
+
+.sheet:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+.system {
+  display: block;
+  overflow: visible;
+  /* Long songs: let the browser skip off-screen systems. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 162px;
+}
+
+.system + .system {
+  margin-top: var(--space-6);
+}
+
+.barNumber {
+  fill: var(--color-ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+}
+
+.chord {
+  fill: var(--color-ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  font-weight: 800;
+}
+
+.sounding {
+  fill: var(--color-ink-3);
+  font-weight: 600;
+}
+
+.string {
+  stroke: var(--color-string);
+}
+
+.stringName {
+  fill: var(--color-ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+}
+
+.barline {
+  stroke: var(--color-ink-3);
+  stroke-width: 1;
+}
+
+.chip {
+  fill: var(--color-surface);
+}
+
+.note text {
+  fill: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  font-weight: 500;
+}
+
+.note[data-bass] .chip {
+  fill: var(--color-violet-soft);
+}
+
+.note[data-bass] text {
+  fill: var(--color-violet-deep);
+}
+
+.finger {
+  fill: var(--color-ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+}
+
+/* techniques */
+.slur {
+  fill: none;
+  stroke: var(--color-violet-deep);
+  stroke-width: 1.4;
+}
+
+.techLabel {
+  fill: var(--color-violet-deep);
+  font-family: var(--font-ui);
+  font-size: calc(var(--text-mono) * 0.85);
+  font-weight: 700;
+  font-style: italic;
+}
+
+.stroke {
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.head {
+  fill: var(--color-ink);
+}
+
+.golpe rect {
+  fill: var(--color-rose-soft);
+}
+
+.golpe text {
+  fill: var(--color-rose-deep);
+  font-family: var(--font-ui);
+  font-size: calc(var(--text-mono) * 0.85);
+  font-weight: 800;
+}
+
+.pinch {
+  fill: none;
+  stroke: var(--color-violet);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.apoyando {
+  fill: var(--color-violet-deep);
+}

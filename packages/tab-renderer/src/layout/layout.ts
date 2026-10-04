@@ -134,7 +134,8 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
       flushColumn();
       column = { tick: e.tick, system: pos.system, x: pos.x, fingers: [] };
     }
-    column.fingers.push(e.finger);
+    // A strum is one stroke: list each finger once per column.
+    if (!column.fingers.includes(e.finger)) column.fingers.push(e.finger);
 
     if (e.fret < 0) {
       sys.techniques.push({ kind: 'golpe', x: pos.x });

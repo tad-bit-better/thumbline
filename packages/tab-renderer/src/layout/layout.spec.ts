@@ -79,6 +79,11 @@ describe('layoutSheet', () => {
     expect(fingers.map((f) => f.text)).toEqual(['pa', 'i']);
   });
 
+  it('lists a strumming finger once per stroke', () => {
+    const t = techniqueSheet([0, 1, 2, 3, 4, 5].map((s) => ({ tick: 0, string: s, fret: 0, tech: 'rasgueo-down' as const, finger: 'i' as const })));
+    expect(layoutSheet(t, 1200).systems[0].fingers.map((f) => f.text)).toEqual(['i']);
+  });
+
   it('gives every event a playhead position', () => {
     const l = layoutSheet(pop, 700);
     expect(l.positions).toHaveLength(pop.events.length);
