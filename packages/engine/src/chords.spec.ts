@@ -110,6 +110,10 @@ describe('chordName', () => {
     [{ pc: 6, quality: 'm7' }, 'F#m7'],
     [{ pc: 3, quality: 'sus4' }, 'Ebsus4'],
     [{ pc: 2, quality: 'maj', bassPc: 6 }, 'D/F#'],
+    [{ pc: 4, quality: 'maj', bassPc: 8 }, 'E/G#'],
+    [{ pc: 10, quality: 'maj', bassPc: 2 }, 'Bb/D'],
+    [{ pc: 8, quality: 'maj', bassPc: 3 }, 'Ab/Eb'],
+    [{ pc: 0, quality: 'maj', bassPc: 10 }, 'C/Bb'],
     [{ pc: 1, quality: '7' }, 'C#7'],
     [{ pc: 8, quality: 'dim' }, 'Abdim'],
   ] as const)('%j → %s', (label, name) => {

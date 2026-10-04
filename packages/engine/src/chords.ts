@@ -12,6 +12,18 @@ const NATURAL_PC: Record<string, number> = {
 
 /** Display names per pitch class: sharps for C#/F#, flats elsewhere. */
 const DISPLAY = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const FLATS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+/** Roots from sharp keys (G D A E B F# C#) and flat keys (F Bb Eb Ab). */
+const SHARP_ROOTS = new Set([7, 2, 9, 4, 11, 6, 1]);
+const FLAT_ROOTS = new Set([5, 10, 3, 8]);
+
+// MUSIC-REVIEW: spelling follows the chord root, not the song's key.
+function bassSpelling(rootPc: number, bassPc: number): string {
+  if (SHARP_ROOTS.has(rootPc)) return SHARPS[bassPc];
+  if (FLAT_ROOTS.has(rootPc)) return FLATS[bassPc];
+  return DISPLAY[bassPc];
+}
 
 const SUFFIX: Record<Quality, string> = {
   maj: '',
@@ -101,7 +113,7 @@ export function parseChord(token: string): ParsedChord | null {
 }
 
 export function chordName(label: ChordLabel): string {
-  const bass = label.bassPc === undefined ? '' : `/${DISPLAY[label.bassPc]}`;
+  const bass = label.bassPc === undefined ? '' : `/${bassSpelling(label.pc, label.bassPc)}`;
   return DISPLAY[label.pc] + SUFFIX[label.quality] + bass;
 }
 
