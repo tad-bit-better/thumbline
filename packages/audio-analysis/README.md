@@ -22,8 +22,8 @@ Errors the UI should explain: `AnalysisError` with `code` `unsupported`, `too-lo
 |---|---|
 | `client.ts`, `decode.ts` | File checks, decode at 44.1 kHz, hand channels to the worker |
 | `worker.ts` | Loads essentia once (single-file ES build, WASM inlined) and runs the pipeline |
-| `pipeline.ts` | Tempo (Percival + Degara tracker, octave check), key, per-beat HPCP chroma |
-| `postprocess.ts` | Chord templates with overtones, meter and downbeat, bar snapping, confidence, alternatives |
+| `pipeline.ts` | Tempo (Percival + Degara tracker, octave check), key, per-beat chroma of the mix, its bass band and the stereo side signal |
+| `postprocess.ts` | Chord templates with overtones and a bass bonus, meter and downbeat, key-aware Viterbi over half bars, confidence, alternatives |
 
 ## Eval
 

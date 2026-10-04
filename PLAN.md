@@ -135,14 +135,17 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 Real mixes break chord detection: on a commercial track with vocals, half the chords came out low-confidence and half as sus/7/maj7, flipping every half bar. The voice and piano melody leak into the chroma (Fm with a Bb in the melody reads as Fsus4). Tempo, key and capo were fine. We go in stages, cheapest first, measure each one, and move to the next stage if the gate isn't met.
 
 **Measure first**
-- [ ] Local eval set: ≥ 5 songs with vocals in `fixtures/local/` (git-ignored; songs we own but can't redistribute), each with a hand-labelled `.chords.json`. Record baseline numbers before any change.
+- [x] Synthetic lead-vocal songs (5) in the eval: a loud, centre-panned singer with passing notes and suspensions over instruments spread left and right. They reproduce the real failure (major/minor 26% vs 81% on the other synthetic songs) with exact ground truth.
+- [ ] Local eval set: ≥ 5 songs with vocals in `fixtures/local/` (git-ignored; songs we own but can't redistribute), each with a hand-labelled `.chords.json`. Baseline = the numbers before stage 1 (run the eval at commit `7ed20bb`).
 
 **Stage 1: signal and music-theory fixes (no new dependencies)**
-- [ ] Bass chroma (below ~250 Hz, where there's almost never voice) picks the chord root.
-- [ ] Stereo side channel (L − R) for chord quality: lead vocals sit in the centre and cancel. Fall back to mono when the clip has no stereo width.
-- [ ] Key-aware smoothing across beats (Viterbi): prefer chords in the detected key, charge for a change, so passing melody notes are outvoted.
-- [ ] Triads by default; sus, 7 and maj7 only on strong evidence.
-- **Gate:** on the local set, major/minor accuracy ≥ 70% and fewer chord changes than bars. No regression on the synthetic set (root 89%, major/minor 81%). If the gate isn't met, go to stage 2.
+- [x] Bass chroma (40–180 Hz) favours chords with the bass note in them, the root most (an inversion like G/B still counts).
+- [x] Stereo side channel (L − R) blended into the harmony chroma: lead vocals sit in the centre and cancel. Mono, or almost-mono, clips skip it. Meter detection uses the same chroma.
+- [x] Key-aware smoothing (Viterbi over half bars): chords in the detected key get a small bonus, a change costs something (twice as much inside a bar), so passing melody notes are outvoted.
+- [x] Triads by default: sus, 7, maj7 and dim penalties raised 1.5× (sevenths kept where clearly present).
+- _Synthetic results (20 clips):_ lead-vocal songs root 42 → 83%, major/minor 26 → 71%, exact 14 → 54%, chord changes per bar 1.10 → 0.89 (truth 0.94). Other songs major/minor 81 → 84%. Meter 80 → 90%. Stereo 4.4-minute song in 9 s in Node.
+- _Real song (Tum Hi Ho, no labels yet):_ chord changes per bar 1.42 → 0.92, median confidence 0.12 → 0.29, low-confidence chords 50 → 21%, sus/7/maj7 51 → 23%; chords now mostly diatonic to F minor. Accuracy unknown until it's labelled.
+- **Gate:** on the local set (real songs, not synthetic), major/minor accuracy ≥ 70% and fewer chord changes than bars. No regression on the synthetic set (root 89%, major/minor 81%). If the gate isn't met, go to stage 2.
 
 **Stage 2 (fallback): on-device vocal removal**
 - [ ] Source separation (Demucs or Spleeter, MIT) via ONNX Runtime Web; chords from the accompaniment stem. Audio stays on the device.
@@ -153,6 +156,8 @@ Real mixes break chord detection: on a commercial track with vocals, half the ch
 
 **Whatever the stage**
 - [ ] Review: fixing a chord offers to fix the same spot in every repeat of that section.
+- [ ] Spell chords for the key: Db, not C#, in F minor (the analysis only has pitch classes; naming happens in the engine).
+- [ ] One lead-vocal synthetic song (`lead-minor-am`, drums, no keys) still misses the downbeat: meter detection could use the bass too.
 
 ### M6: App flow (`apps/web`)
 - [x] Upload screen (drop zone, file picker, sample clip, limits) with Pick drop moment.

@@ -28,6 +28,13 @@ export const SONGS = [
   { name: 'ballad-g-34', kind: 'voice and guitar', chart: 'G Em C D', style: 'fingerstyle', level: 'moderate', bpm: 66, meter: 3, voice: true },
   { name: 'fast-a-band', kind: 'full band', chart: 'A E F#m D', style: 'fingerstyle', level: 'advanced', bpm: 150, bass: true, drums: true },
   { name: 'flats-bb-voice', kind: 'voice and band', chart: 'Bb F Gm Eb', style: 'arpeggio', level: 'moderate', bpm: 92, bass: true, voice: true, drums: true },
+  // Lead-vocal mixes (M5b): a loud, centre-panned singer with passing notes and
+  // suspensions over instruments spread left and right, like a commercial track.
+  { name: 'lead-pop-c', kind: 'lead vocal', chart: 'C G Am F', style: 'fingerstyle', level: 'moderate', bpm: 100, bass: true, drums: true, lead: { pc: 0, minor: false }, pad: true },
+  { name: 'lead-ballad-fm', kind: 'lead vocal', chart: 'Fm Db Ab Eb Fm Bbm C7 Fm', style: 'arpeggio', level: 'moderate', bpm: 94, bass: true, lead: { pc: 5, minor: true }, pad: true },
+  { name: 'lead-waltz-g', kind: 'lead vocal', chart: 'G C D G Em C D D', style: 'arpeggio', level: 'basic', bpm: 84, meter: 3, bass: true, lead: { pc: 7, minor: false }, pad: true },
+  { name: 'lead-minor-am', kind: 'lead vocal', chart: 'Am Dm G C F Dm E E', style: 'fingerstyle', level: 'basic', bpm: 88, bass: true, drums: true, lead: { pc: 9, minor: true } },
+  { name: 'lead-band-d', kind: 'lead vocal', chart: 'D Bm G A', style: 'fingerstyle', level: 'moderate', bpm: 120, bass: true, drums: true, steel: true, lead: { pc: 2, minor: false }, pad: true },
 ];
 
 function random(seed) {
@@ -65,11 +72,19 @@ export function render(song, seed, BARS = DEFAULT_BARS) {
   );
 
   const end = beatTimes[BARS * bpb] + 2.5;
-  const mix = new Float32Array(Math.ceil(end * SR));
-  const add = (buf, at, gain, length = buf.length) => {
+  const left = new Float32Array(Math.ceil(end * SR));
+  const right = new Float32Array(left.length);
+  // pan -1 (left) … 1 (right); 0 puts the same signal in both channels.
+  const add = (buf, at, gain, length = buf.length, pan = 0) => {
     const start = Math.floor(at * SR);
-    for (let i = 0; i < length && start + i < mix.length; i++) mix[start + i] += buf[i] * gain;
+    const [gl, gr] = [gain * Math.min(1, 1 - pan), gain * Math.min(1, 1 + pan)];
+    for (let i = 0; i < length && start + i < left.length; i++) {
+      left[start + i] += buf[i] * gl;
+      right[start + i] += buf[i] * gr;
+    }
   };
+  const stereo = Boolean(song.lead);
+  const guitarPan = stereo ? -0.6 : 0;
 
   // Guitar, one sound per string at a time.
   const plucks = new Map();
@@ -93,7 +108,7 @@ export function render(song, seed, BARS = DEFAULT_BARS) {
     const buf = pluck(midiOf(e.string, e.fret, a.capo));
     const until = nextOnString.get(e.string);
     const length = until === undefined ? buf.length : Math.min(buf.length, Math.floor((until - at + 0.01) * SR));
-    add(buf, at, noteGain(e) * (song.steel ? 0.6 : 1), Math.max(0, length));
+    add(buf, at, noteGain(e) * (song.steel ? 0.6 : 1), Math.max(0, length), guitarPan);
     nextOnString.set(e.string, at);
   }
 
@@ -155,13 +170,22 @@ export function render(song, seed, BARS = DEFAULT_BARS) {
       }
     }
   }
+  if (song.pad) renderPad();
+  if (song.lead) renderLead();
   if (song.noise) {
-    for (let i = 0; i < mix.length; i++) mix[i] += (rand() * 2 - 1) * 0.004;
+    for (let i = 0; i < left.length; i++) {
+      const n = (rand() * 2 - 1) * 0.004;
+      left[i] += n;
+      right[i] += n;
+    }
   }
 
   let peak = 0;
-  for (const v of mix) peak = Math.max(peak, Math.abs(v));
-  for (let i = 0; i < mix.length; i++) mix[i] *= 0.9 / peak;
+  for (let i = 0; i < left.length; i++) peak = Math.max(peak, Math.abs(left[i]), Math.abs(right[i]));
+  for (let i = 0; i < left.length; i++) {
+    left[i] *= 0.9 / peak;
+    right[i] *= 0.9 / peak;
+  }
 
   const truth = {
     name: song.name,
@@ -172,24 +196,98 @@ export function render(song, seed, BARS = DEFAULT_BARS) {
     beatTimesSec: beatTimes.slice(0, BARS * bpb + 1).map((x) => +x.toFixed(4)),
     chords: marks.map((m) => ({ start: +tickToSec(m.tick).toFixed(4), chord: m.soundingName })),
   };
-  return { wav: wav(mix), truth };
+  return { wav: stereo ? wav(left, right) : wav(left), truth };
+
+  /** Sustained chord tones, panned right (keys or strings in a real mix). */
+  function renderPad() {
+    for (const [i, m] of marks.entries()) {
+      const label = parseChord(m.soundingName).label;
+      const from = tickToSec(m.tick);
+      const to = tickToSec(marks[i + 1]?.tick ?? BARS * bpb * 480);
+      const third = label.quality === 'm' || label.quality === 'm7' ? 3 : 4;
+      for (const iv of [0, third, 7]) {
+        const midi = 52 + ((label.pc + iv - 4 + 12) % 12);
+        const x = tone(hz(midi), to - from, 6, [1, 0.5, 0.25]);
+        for (let k = 0; k < x.length; k++) x[k] *= Math.min(1, k / (SR * 0.15)) * Math.min(1, (x.length - k) / (SR * 0.1));
+        add(x, from, 0.07, x.length, 0.7);
+      }
+    }
+  }
+
+  /**
+   * A singer: two notes a beat, about half of them outside the chord (scale
+   * neighbours, held suspensions), loud, centre-panned, with stereo reverb.
+   */
+  function renderLead() {
+    const scale = (song.lead.minor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11]).map((iv) => (song.lead.pc + iv) % 12);
+    const inScale = (pc) => scale.includes(((pc % 12) + 12) % 12);
+    let prev = 64;
+    const nearest = (pcs) => {
+      let best = prev;
+      let dist = Infinity;
+      for (let midi = 57; midi <= 76; midi++) {
+        if (!pcs.includes(midi % 12)) continue;
+        const d = Math.abs(midi - prev) + rand() * 3;
+        if (d < dist) [best, dist] = [midi, d];
+      }
+      return best;
+    };
+    const voice = new Float32Array(left.length);
+    for (let beat = 0; beat < BARS * bpb; beat++) {
+      const bar = Math.floor(beat / bpb);
+      const label = parseChord(chordAt(bar * bpb * 480).soundingName).label;
+      const third = label.quality === 'm' || label.quality === 'm7' ? 3 : 4;
+      const chordPcs = [0, third, 7].map((iv) => (label.pc + iv) % 12);
+      const passing = scale.filter((pc) => !chordPcs.includes(pc));
+      for (let half = 0; half < 2; half++) {
+        const strong = half === 0;
+        const r = rand();
+        // A suspension holds the last note over the change; otherwise chord tone or passing note.
+        let midi = beat % bpb === 0 && strong && r < 0.2 && inScale(prev) ? prev : nearest(r < (strong ? 0.55 : 0.35) ? chordPcs : passing);
+        if (!strong && r > 0.85) continue; // a rest now and then
+        prev = midi;
+        const at = beatTimes[beat] + (half * (beatTimes[beat + 1] - beatTimes[beat])) / 2;
+        const len = (beatTimes[beat + 1] - beatTimes[beat]) * 0.5 * 0.97;
+        const n = Math.floor(len * SR);
+        const start = Math.floor(at * SR);
+        let ph = 0;
+        for (let i = 0; i < n && start + i < voice.length; i++) {
+          const f = hz(midi) * (1 + 0.012 * Math.sin((2 * Math.PI * 5.5 * (start + i)) / SR));
+          ph += (2 * Math.PI * f) / SR;
+          const env = Math.min(1, i / (SR * 0.03)) * Math.min(1, (n - i) / (SR * 0.03));
+          voice[start + i] += (Math.sin(ph) + 0.6 * Math.sin(2 * ph) + 0.45 * Math.sin(3 * ph) + 0.3 * Math.sin(4 * ph) + 0.2 * Math.sin(5 * ph)) * env;
+        }
+      }
+    }
+    add(voice, 0, 0.3);
+    // Early reflections, different per side: some of the voice reaches the side channel, as in real mixes.
+    for (const [ms, g, pan] of [[37, 0.25, -1], [53, 0.22, 1], [83, 0.16, -1], [101, 0.15, 1], [149, 0.1, -1], [167, 0.09, 1]]) {
+      add(voice, ms / 1000, 0.3 * g, voice.length, pan);
+    }
+  }
 }
 
-export function wav(x) {
-  const buf = Buffer.alloc(44 + x.length * 2);
+/** 16-bit PCM WAV from one (mono) or more channels. */
+export function wav(...channels) {
+  const ch = channels.length;
+  const frames = channels[0].length;
+  const bytes = frames * ch * 2;
+  const buf = Buffer.alloc(44 + bytes);
   buf.write('RIFF', 0);
-  buf.writeUInt32LE(36 + x.length * 2, 4);
+  buf.writeUInt32LE(36 + bytes, 4);
   buf.write('WAVEfmt ', 8);
   buf.writeUInt32LE(16, 16);
   buf.writeUInt16LE(1, 20);
-  buf.writeUInt16LE(1, 22);
+  buf.writeUInt16LE(ch, 22);
   buf.writeUInt32LE(SR, 24);
-  buf.writeUInt32LE(SR * 2, 28);
-  buf.writeUInt16LE(2, 32);
+  buf.writeUInt32LE(SR * 2 * ch, 28);
+  buf.writeUInt16LE(2 * ch, 32);
   buf.writeUInt16LE(16, 34);
   buf.write('data', 36);
-  buf.writeUInt32LE(x.length * 2, 40);
-  for (let i = 0; i < x.length; i++) buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, x[i])) * 32767), 44 + i * 2);
+  buf.writeUInt32LE(bytes, 40);
+  for (let i = 0; i < frames; i++) {
+    for (let c = 0; c < ch; c++) buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, channels[c][i])) * 32767), 44 + (i * ch + c) * 2);
+  }
   return buf;
 }
 

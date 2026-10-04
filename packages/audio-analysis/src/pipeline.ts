@@ -26,6 +26,11 @@ export type Progress = {
 
 export type AnalyzeOptions = {
   essentia: EssentiaLike;
+  /**
+   * Stereo side signal, (L − R) / 2. Lead vocals sit in the centre and cancel
+   * here, so it carries the instruments' harmony. Omit for mono clips.
+   */
+  side?: Float32Array;
   onProgress?: (p: Progress) => void;
   signal?: AbortSignal;
 };
@@ -34,6 +39,11 @@ const FRAME = 4096;
 const HPCP_HARMONICS = 0;
 const HOP = 2048;
 const FRAMES_PER_SLICE = 160;
+/** Bass band for the chord root: below the voice, above the kick's thump. */
+const BASS_MIN_HZ = 40;
+const BASS_MAX_HZ = 180;
+/** Side signal this much quieter than the mix (RMS) is treated as mono. */
+const MIN_SIDE_RATIO = 0.08;
 const SILENT_RMS = 1e-4;
 /** Below this low-band alternation, a tracked tempo twice Percival's is trusted. */
 const DOUBLE_IS_REAL_BELOW = 0.6;
@@ -86,7 +96,7 @@ function rms(x: Float32Array, from = 0, to = x.length) {
  * (RhythmExtractor2013), key (KeyExtractor), per-beat HPCP chroma, then our
  * chord templates, meter and bar snapping (postprocess.ts).
  */
-export async function analyzeSamples(samples: Float32Array, sampleRate: number, { essentia: e, onProgress, signal }: AnalyzeOptions): Promise<AnalysisResult> {
+export async function analyzeSamples(samples: Float32Array, sampleRate: number, { essentia: e, onProgress, signal, side: sideInput }: AnalyzeOptions): Promise<AnalysisResult> {
   if (sampleRate !== ANALYSIS_SAMPLE_RATE) throw new RangeError(`analyzeSamples needs ${ANALYSIS_SAMPLE_RATE} Hz audio, got ${sampleRate}`);
   if (rms(samples) < SILENT_RMS) throw new AnalysisError('silent', 'We couldn’t hear anything in this clip.');
   const report = (p: Progress) => onProgress?.(p);
@@ -117,10 +127,40 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   free(signalVec);
   const key = { pc: NOTE_NAMES[k.key] ?? 0, mode: k.scale === 'minor' ? ('minor' as const) : ('major' as const) };
 
-  // Per-beat chroma: average HPCP of the frames centred in each beat.
+  // Per-beat chroma: average HPCP of the frames centred in each beat, for
+  // the mix, its bass band and (when the clip is stereo) the side signal.
+  const side = sideInput && sideInput.length === samples.length && rms(sideInput) >= MIN_SIDE_RATIO * rms(samples) ? sideInput : undefined;
   const beats = beatTimesSec.length;
   const sums = Array.from({ length: beats }, () => new Float64Array(12));
+  const bassSums = Array.from({ length: beats }, () => new Float64Array(12));
+  const sideSums = side ? Array.from({ length: beats }, () => new Float64Array(12)) : undefined;
   const counts = new Uint32Array(beats);
+  const chromaOf = (x: Float32Array, from: number, add: (bin: number, v: number) => void, addBass?: (bin: number, v: number) => void) => {
+    const frameVec = e.arrayToVector(x.subarray(from, from + FRAME));
+    const w = e.Windowing(frameVec, true, FRAME, 'blackmanharris62');
+    const sp = e.Spectrum(w.frame, FRAME);
+    const pk = e.SpectralPeaks(sp.spectrum, 0.00001, 5000, 100, 40, 'magnitude', sampleRate);
+    if (pk.frequencies.size() === 0) {
+      free(frameVec, w.frame, sp.spectrum, pk.frequencies, pk.magnitudes); // silence: nothing to add
+      return;
+    }
+    // harmonics = 0: overtones are modelled in the chord templates instead.
+    const h = e.HPCP(pk.frequencies, pk.magnitudes, true, 500, HPCP_HARMONICS, 5000, false, 40, false, 'unitMax', 440, sampleRate, 12, 'cosine', 1);
+    // Essentia's bin 0 is A (440 Hz reference); rotate so bin 0 is C.
+    const hpcp = e.vectorToArray(h.hpcp);
+    for (let i = 0; i < 12; i++) add((i + 9) % 12, hpcp[i]);
+    if (addBass) {
+      // Bass chroma straight from the peaks (essentia's HPCP won't take a band this narrow).
+      const freqs = e.vectorToArray(pk.frequencies);
+      const mags = e.vectorToArray(pk.magnitudes);
+      for (let i = 0; i < freqs.length; i++) {
+        if (freqs[i] < BASS_MIN_HZ || freqs[i] > BASS_MAX_HZ) continue;
+        const midi = 69 + 12 * Math.log2(freqs[i] / 440);
+        addBass(((Math.round(midi) % 12) + 12) % 12, mags[i] * mags[i]);
+      }
+    }
+    free(frameVec, w.frame, sp.spectrum, pk.frequencies, pk.magnitudes, h.hpcp);
+  };
   const frames = Math.max(0, Math.floor((samples.length - FRAME) / HOP) + 1);
   const bars = Math.ceil(beats / 4);
   let beat = 0;
@@ -133,28 +173,24 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     const centre = (f * HOP + FRAME / 2) / sampleRate;
     while (beat + 1 < beats && centre >= beatTimesSec[beat + 1]) beat++;
     if (centre < beatTimesSec[0]) continue;
-    const frameVec = e.arrayToVector(samples.subarray(f * HOP, f * HOP + FRAME));
-    const w = e.Windowing(frameVec, true, FRAME, 'blackmanharris62');
-    const sp = e.Spectrum(w.frame, FRAME);
-    const pk = e.SpectralPeaks(sp.spectrum, 0.00001, 5000, 100, 40, 'magnitude', sampleRate);
-    // harmonics = 0: overtones are modelled in the chord templates instead.
-    const h = e.HPCP(pk.frequencies, pk.magnitudes, true, 500, HPCP_HARMONICS, 5000, false, 40, false, 'unitMax', 440, sampleRate, 12, 'cosine', 1);
-    const hpcp = e.vectorToArray(h.hpcp);
-    // Essentia's bin 0 is A (440 Hz reference); rotate so bin 0 is C.
-    for (let i = 0; i < 12; i++) sums[beat][(i + 9) % 12] += hpcp[i];
+    const at = beat;
+    chromaOf(samples, f * HOP, (i, v) => (sums[at][i] += v), (i, v) => (bassSums[at][i] += v));
+    if (side && sideSums) chromaOf(side, f * HOP, (i, v) => (sideSums[at][i] += v));
     counts[beat]++;
-    free(frameVec, w.frame, sp.spectrum, pk.frequencies, pk.magnitudes, h.hpcp);
   }
 
   const features: BeatFeatures[] = beatTimesSec.map((t, b) => {
     const end = b + 1 < beats ? beatTimesSec[b + 1] : Math.min(durationSec, t + intervals[0]);
+    const n = Math.max(1, counts[b]);
     return {
-      chroma: Array.from(sums[b], (v) => v / Math.max(1, counts[b])),
+      chroma: Array.from(sums[b], (v) => v / n),
+      bass: Array.from(bassSums[b], (v) => v / n),
+      side: sideSums ? Array.from(sideSums[b], (v) => v / n) : undefined,
       energy: rms(samples, Math.floor(t * sampleRate), Math.min(samples.length, Math.floor(end * sampleRate))),
     };
   });
   const meter = detectMeter(features);
-  const chords = toSegments(features, meter.beatsPerBar, meter.firstDownbeat);
+  const chords = toSegments(features, meter.beatsPerBar, meter.firstDownbeat, key);
 
   report({ step: 'done', fraction: 1, detail: { bpm, beatsPerBar: meter.beatsPerBar } });
   return {

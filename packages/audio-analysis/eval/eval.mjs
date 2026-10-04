@@ -24,7 +24,7 @@ function parse(name) {
   return { pc, quality: SUFFIX[m[3]] ?? 'maj' };
 }
 
-/** 16-bit PCM or 32-bit float WAV → mono Float32 at 44.1 kHz (linear resample). */
+/** 16-bit PCM or 32-bit float WAV → Float32 channels at 44.1 kHz (linear resample). */
 function readWav(path) {
   const b = readFileSync(path);
   let pos = 12;
@@ -40,24 +40,31 @@ function readWav(path) {
   if (!fmt || !data) throw new Error(`${path}: not a WAV file`);
   const bytes = fmt.bits / 8;
   const frames = Math.floor(data.length / (bytes * fmt.channels));
-  const mono = new Float32Array(frames);
-  for (let i = 0; i < frames; i++) {
-    let v = 0;
-    for (let c = 0; c < fmt.channels; c++) {
+  const channels = Array.from({ length: fmt.channels }, (_, c) => {
+    const x = new Float32Array(frames);
+    for (let i = 0; i < frames; i++) {
       const o = (i * fmt.channels + c) * bytes;
-      v += fmt.format === 3 ? data.readFloatLE(o) : fmt.bits === 16 ? data.readInt16LE(o) / 32768 : data.readInt32LE(o) / 2147483648;
+      x[i] = fmt.format === 3 ? data.readFloatLE(o) : fmt.bits === 16 ? data.readInt16LE(o) / 32768 : data.readInt32LE(o) / 2147483648;
     }
-    mono[i] = v / fmt.channels;
-  }
-  if (fmt.rate === 44100) return mono;
-  const out = new Float32Array(Math.floor((frames * 44100) / fmt.rate));
-  for (let i = 0; i < out.length; i++) {
-    const x = (i * fmt.rate) / 44100;
-    const k = Math.floor(x);
-    out[i] = mono[k] + (x - k) * ((mono[k + 1] ?? mono[k]) - mono[k]);
-  }
-  return out;
+    if (fmt.rate === 44100) return x;
+    const out = new Float32Array(Math.floor((frames * 44100) / fmt.rate));
+    for (let i = 0; i < out.length; i++) {
+      const p = (i * fmt.rate) / 44100;
+      const k = Math.floor(p);
+      out[i] = x[k] + (p - k) * ((x[k + 1] ?? x[k]) - x[k]);
+    }
+    return out;
+  });
+  return channels;
 }
+
+/** Mono mix, as the worker makes it. */
+const mixdown = (channels) => {
+  if (channels.length === 1) return channels[0];
+  const out = new Float32Array(channels[0].length);
+  for (const ch of channels) for (let i = 0; i < out.length; i++) out[i] += ch[i] / channels.length;
+  return out;
+};
 
 const chordAtTime = (list, t) => {
   let found = null;
@@ -67,9 +74,11 @@ const chordAtTime = (list, t) => {
 
 async function evaluate(dir, name) {
   const truth = JSON.parse(readFileSync(join(ROOT, dir, `${name}.chords.json`), 'utf8'));
-  const samples = readWav(join(ROOT, dir, `${name}.wav`));
+  const channels = readWav(join(ROOT, dir, `${name}.wav`));
+  const samples = mixdown(channels);
   const t0 = performance.now();
-  const r = await analyzeSamples(samples, 44100, { essentia });
+  const side = channels.length === 2 ? channels[0].map((l, i) => (l - channels[1][i]) / 2) : undefined;
+  const r = await analyzeSamples(samples, 44100, { essentia, side });
   const ms = performance.now() - t0;
 
   const bpb = r.meter.beatsPerBar;
@@ -102,6 +111,8 @@ async function evaluate(dir, name) {
     root: hit.root / n,
     majmin: hit.majmin / n,
     exact: hit.exact / n,
+    changesPerBar: Math.max(0, r.chords.filter((c) => c.chord).length - 1) / Math.max(1, r.chords.at(-1).bar + 1),
+    truthChangesPerBar: (truth.chords.length - 1) / Math.max(1, truth.beatTimesSec ? (truth.beatTimesSec.length - 1) / (truth.beatsPerBar ?? 4) : (r.chords.at(-1).bar + 1)),
     seconds: samples.length / 44100,
     ms,
   };
@@ -123,11 +134,11 @@ const rows = [];
 for (const [dir, name] of clips) rows.push(await evaluate(dir, name));
 
 const pct = (x) => `${(x * 100).toFixed(0)}%`.padStart(5);
-console.log(`\n${'clip'.padEnd(18)}${'kind'.padEnd(18)}${'bpm'.padStart(12)}  meter  root majmin exact   time`);
+console.log(`\n${'clip'.padEnd(18)}${'kind'.padEnd(18)}${'bpm'.padStart(12)}  meter  root majmin exact  chg/bar   time`);
 for (const r of rows) {
   const bpm = `${r.bpmTrue}→${r.bpmEst}`;
   console.log(
-    `${r.name.padEnd(18)}${r.kind.padEnd(18)}${bpm.padStart(12)}${r.tempoOk ? ' ' : '!'} ${r.meterOk ? '  ok ' : ' MISS'}${pct(r.root)}${pct(r.majmin)}${pct(r.exact)} ${(r.ms / 1000).toFixed(1).padStart(5)}s`,
+    `${r.name.padEnd(18)}${r.kind.padEnd(18)}${bpm.padStart(12)}${r.tempoOk ? ' ' : '!'} ${r.meterOk ? '  ok ' : ' MISS'}${pct(r.root)}${pct(r.majmin)}${pct(r.exact)} ${`${r.changesPerBar.toFixed(1)}/${r.truthChangesPerBar.toFixed(1)}`.padStart(8)} ${(r.ms / 1000).toFixed(1).padStart(5)}s`,
   );
 }
 const mean = (k) => rows.reduce((s, r) => s + r[k], 0) / rows.length;
@@ -137,6 +148,16 @@ console.log(`\n${rows.length} clips (${rows.filter((r) => r.source === 'real').l
 console.log(`tempo within ±${TEMPO_TOLERANCE} BPM: ${pct(tempoRate)} (target 90%) ${tempoRate >= 0.9 ? 'PASS' : 'FAIL'}`);
 console.log(`meter: ${pct(rows.filter((r) => r.meterOk).length / rows.length)}`);
 console.log(`chords: root ${pct(mean('root'))}, major/minor ${pct(mean('majmin'))}, exact ${pct(mean('exact'))}`);
+const groups = [
+  ['lead vocal', (r) => r.kind === 'lead vocal'],
+  ['other', (r) => r.kind !== 'lead vocal'],
+];
+for (const [label, test] of groups) {
+  const g = rows.filter(test);
+  if (!g.length || g.length === rows.length) continue;
+  const m = (k) => g.reduce((s, r) => s + r[k], 0) / g.length;
+  console.log(`  ${label} (${g.length}): root ${pct(m('root'))}, major/minor ${pct(m('majmin'))}, exact ${pct(m('exact'))}, changes per bar ${m('changesPerBar').toFixed(2)} (truth ${m('truthChangesPerBar').toFixed(2)})`);
+}
 console.log(`speed: ${(speed * 180).toFixed(1)} s per 3-minute clip (Node, this machine)`);
 
 const out = join(ROOT, 'packages/audio-analysis/test-output');

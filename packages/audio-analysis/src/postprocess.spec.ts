@@ -112,6 +112,44 @@ describe('toSegments', () => {
     expect(seg.confidence).toBeLessThanOrEqual(1);
   });
 
+  it('hears the harmony in the side signal when a centred voice sings other notes', () => {
+    // The mix is dominated by a voice on D and B; the side signal (no voice) has plain C.
+    const voice = Array.from({ length: 12 }, (_, i) => (i === 2 || i === 11 ? 2 : 0));
+    const mixed = beats(new Array(8).fill('C')).map((b) => ({ ...b, chroma: Array.from(b.chroma, (v, i) => v + voice[i]), side: b.chroma }));
+    expect(toSegments(mixed, 4, 0).map(label)).toEqual(['C']);
+    expect(toSegments(mixed.map((b) => ({ chroma: b.chroma, energy: b.energy })), 4, 0).map(label)).not.toEqual(['C']);
+  });
+
+  it('takes the root from the bass when the upper notes fit two chords', () => {
+    // E and G strong, B and C fainter: C and Em score within 0.01 of each other. The bass decides.
+    const both = Array.from({ length: 12 }, (_, i) => ([4, 7].includes(i) ? 1 : i === 11 ? 0.6 : i === 0 ? 0.4 : 0.02));
+    const withBass = (pc: number) => new Array(8).fill(0).map(() => ({ chroma: both, energy: 1, bass: Array.from({ length: 12 }, (_, i) => (i === pc ? 1 : 0)) }));
+    expect(toSegments(withBass(0), 4, 0).map(label)).toEqual(['C']);
+    expect(toSegments(withBass(4), 4, 0).map(label)).toEqual(['Em']);
+  });
+
+  it('counts an inversion\'s bass note for the chord (G/B stays G)', () => {
+    const gOverB = beats(new Array(8).fill('G')).map((b) => ({ ...b, bass: Array.from({ length: 12 }, (_, i) => (i === 11 ? 1 : 0)) }));
+    expect(toSegments(gOverB, 4, 0).map(label)).toEqual(['G']);
+  });
+
+  it('prefers the chord that belongs to the key when the evidence is split', () => {
+    // E, G, G# and B: E major or E minor. In C major it's Em; in A major it's E.
+    const split = Array.from({ length: 12 }, (_, i) => ([4, 7, 8, 11].includes(i) ? 1 : 0.02));
+    const bars = new Array(8).fill(0).map(() => ({ chroma: split, energy: 1 }));
+    expect(toSegments(bars, 4, 0, { pc: 0, mode: 'major' }).map(label)).toEqual(['Em']);
+    expect(toSegments(bars, 4, 0, { pc: 9, mode: 'major' }).map(label)).toEqual(['E']);
+  });
+
+  it('does not flicker when every other half bar leans to another chord', () => {
+    const wobbly = ['C', 'C', 'Am', 'Am'].flatMap((n) => [n]).concat(['C', 'C', 'Am', 'Am'], ['C', 'C', 'Am', 'Am']);
+    const leaning = beats(new Array(wobbly.length).fill('C')).map((b, i) => ({
+      ...b,
+      chroma: Array.from(b.chroma, (v, k) => v + (wobbly[i] === 'Am' ? chroma('Am', i)[k] * 0.95 : 0)),
+    }));
+    expect(toSegments(leaning, 4, 0).map(label)).toEqual(['C']);
+  });
+
   it('is less confident about an ambiguous bar', () => {
     const clear = toSegments(beats(['C', 'C', 'C', 'C']), 4, 0)[0].confidence;
     const mixed = beats(['C', 'C', 'C', 'C']).map((b, i) => ({ ...b, chroma: Array.from(b.chroma, (v, k) => v + chroma('Am', i)[k] * 0.9) }));

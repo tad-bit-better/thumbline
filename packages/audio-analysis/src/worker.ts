@@ -9,6 +9,15 @@ function mixdown(channels: readonly Float32Array[]): Float32Array {
   return out;
 }
 
+/** (L − R) / 2 for stereo clips: what's left when the centre (usually the lead vocal) cancels. */
+function sideOf(channels: readonly Float32Array[]): Float32Array | undefined {
+  if (channels.length !== 2) return undefined;
+  const [l, r] = channels;
+  const out = new Float32Array(l.length);
+  for (let i = 0; i < out.length; i++) out[i] = (l[i] - r[i]) / 2;
+  return out;
+}
+
 type Scope = {
   postMessage: (msg: FromWorker) => void;
   addEventListener: (type: 'message', fn: (e: { data: unknown }) => void) => void;
@@ -27,6 +36,7 @@ export function serveAnalysis(scope: Scope, load: () => Promise<EssentiaLike> = 
       essentia ??= load();
       const result = await analyzeSamples(mixdown(msg.channels), msg.sampleRate, {
         essentia: await essentia,
+        side: sideOf(msg.channels),
         onProgress: (progress) => scope.postMessage({ type: 'progress', progress }),
       });
       scope.postMessage({ type: 'result', result });

@@ -39,6 +39,21 @@ describe('serveAnalysis', () => {
     expect(Math.abs(result.result.bpm - 100)).toBeLessThan(2);
   }, 60000);
 
+  it('hears chords under a loud centred voice in a stereo clip', async () => {
+    const s = scope();
+    serveAnalysis(s.self, async () => loadEssentiaNode());
+    const clip = chordClip(['C', 'G', 'Am', 'F', 'C', 'G', 'Am', 'F']);
+    // A steady voice on D (not in C or G or F), equally loud in both channels; the guitar sits mostly left.
+    const voice = clip.map((_, i) => 0.5 * Math.sin((2 * Math.PI * 587.33 * i) / 44100));
+    const left = clip.map((v, i) => v + voice[i]);
+    const right = clip.map((v, i) => 0.2 * v + voice[i]);
+    s.send({ type: 'analyze', channels: [left, right], sampleRate: 44100 });
+    await done(s.posted);
+    const { result } = s.posted.find((m) => m.type === 'result') as unknown as { result: { chords: Array<{ chord: { pc: number } | null }> } };
+    const roots = result.chords.flatMap((c) => (c.chord ? [c.chord.pc] : []));
+    expect(roots.slice(0, 4)).toEqual([0, 7, 9, 5]);
+  }, 60000);
+
   it('posts clip errors with their code', async () => {
     const s = scope();
     serveAnalysis(s.self, async () => loadEssentiaNode());
