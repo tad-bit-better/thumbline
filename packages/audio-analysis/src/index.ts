@@ -1,1 +1,2 @@
-export * from './lib/audio-analysis.js';
+export * from './types.js';
+export * from './postprocess.js';
