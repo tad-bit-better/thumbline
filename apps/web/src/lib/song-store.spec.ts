@@ -70,6 +70,27 @@ describe('song store', () => {
     expect(b.getState().file).toBeInstanceOf(Blob);
   });
 
+  it('restores the clip where Blobs cannot be stored (WebKit private sessions)', async () => {
+    const inner = memoryStorage();
+    const noBlobs = {
+      ...inner,
+      set: async (k: string, v: unknown) => {
+        if (JSON.stringify(v, (_, x) => (x instanceof Blob ? 'BLOB' : x)).includes('BLOB')) throw new Error('DataCloneError');
+        await inner.set(k, v);
+      },
+    };
+    const a = createSongStore(noBlobs);
+    a.getState().startSong(file());
+    a.getState().setMix('sheet');
+    await a.getState().flush();
+    const b = createSongStore(noBlobs);
+    await b.getState().hydrate();
+    expect(b.getState()).toMatchObject({ meta: { name: 'song.mp3' }, prefs: { mix: 'sheet' } });
+    const restored = b.getState().file as Blob;
+    expect(restored.type).toBe('audio/mpeg');
+    expect([...new Uint8Array(await restored.arrayBuffer())]).toEqual([1, 2, 3]);
+  });
+
   it('hydrates to an empty state when nothing is stored', async () => {
     const store = createSongStore(memoryStorage());
     await store.getState().hydrate();

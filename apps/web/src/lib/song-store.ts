@@ -27,6 +27,11 @@ export type SheetPrefs = {
 };
 
 type Saved = { meta: SongMeta | null; file: Blob | null; analysis: AnalysisResult | null; edits: Edits; prefs: SheetPrefs };
+/**
+ * The clip is saved as bytes under its own key, written once per song.
+ * WebKit can't store Blobs in IndexedDB in private or ephemeral sessions.
+ */
+type SavedClip = { bytes: ArrayBuffer; type: string };
 
 export type SongState = Saved & {
   hydrated: boolean;
@@ -56,6 +61,7 @@ export type Storage = {
 };
 
 const KEY = 'thumbline:song:v1';
+const CLIP_KEY = 'thumbline:clip:v1';
 const EMPTY_EDITS: Edits = { chords: {}, confirmed: [] };
 const DEFAULT_PREFS: SheetPrefs = { style: 'arpeggio', level: 'basic', pattern: {}, mix: 'both', speed: 1 };
 
@@ -73,8 +79,13 @@ export function createSongStore(storage: Storage) {
   let pending: Promise<void> = Promise.resolve();
   const store = createStore<SongState>()((setState, getState) => {
     const save = () => {
-      const { meta, file, analysis, edits, prefs } = getState();
-      pending = pending.then(() => (meta ? storage.set(KEY, { meta, file, analysis, edits, prefs }) : storage.del(KEY))).catch(() => undefined);
+      const { meta, analysis, edits, prefs } = getState();
+      pending = pending.then(() => (meta ? storage.set(KEY, { meta, analysis, edits, prefs }) : storage.del(KEY))).catch(() => undefined);
+    };
+    const saveClip = (file: Blob | null) => {
+      pending = pending
+        .then(async () => (file ? storage.set(CLIP_KEY, { bytes: await file.arrayBuffer(), type: file.type } satisfies SavedClip) : storage.del(CLIP_KEY)))
+        .catch(() => undefined);
     };
     const update = (partial: Partial<SongState>) => {
       setState(partial);
@@ -91,8 +102,10 @@ export function createSongStore(storage: Storage) {
       analysis: null,
       edits: EMPTY_EDITS,
       prefs: DEFAULT_PREFS,
-      startSong: (file) =>
-        update({ meta: { name: file.name, type: file.type, size: file.size }, file, analysis: null, edits: EMPTY_EDITS, uploadError: null }),
+      startSong: (file) => {
+        saveClip(file);
+        update({ meta: { name: file.name, type: file.type, size: file.size }, file, analysis: null, edits: EMPTY_EDITS, uploadError: null });
+      },
       setAnalysis: (analysis) => update({ analysis, edits: EMPTY_EDITS }),
       setChord: (segment, chord) => {
         const { edits } = getState();
@@ -114,15 +127,20 @@ export function createSongStore(storage: Storage) {
       },
       setMix: (mix) => update({ prefs: { ...getState().prefs, mix } }),
       setSpeed: (speed) => update({ prefs: { ...getState().prefs, speed } }),
-      clear: () => update({ meta: null, file: null, analysis: null, edits: EMPTY_EDITS }),
+      clear: () => {
+        saveClip(null);
+        update({ meta: null, file: null, analysis: null, edits: EMPTY_EDITS });
+      },
       hydrate: async () => {
         const saved = (await storage.get(KEY).catch(() => undefined)) as Partial<Saved> | undefined;
+        const clip = saved?.meta ? ((await storage.get(CLIP_KEY).catch(() => undefined)) as SavedClip | undefined) : undefined;
         setState({
           hydrated: true,
           ...(saved?.meta
             ? {
                 meta: saved.meta,
-                file: saved.file ?? null,
+                // Older saves kept the Blob beside the song.
+                file: clip ? new Blob([clip.bytes], { type: clip.type }) : (saved.file ?? null),
                 analysis: saved.analysis ?? null,
                 edits: saved.edits ?? EMPTY_EDITS,
                 prefs: { ...DEFAULT_PREFS, ...saved.prefs },

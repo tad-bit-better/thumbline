@@ -51,6 +51,15 @@ jobs:
 
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
 
+      # Runners have no sound card: without one, Firefox never resumes an
+      # AudioContext and WebKit's audio clock never moves. A null sink acts as one.
+      - name: Virtual sound card
+        run: |
+          sudo apt-get install -y --no-install-recommends pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci
+          pactl set-default-sink ci
+
       # Always run: there is one e2e project and it guards the whole app.
       - run: pnpm nx run-many -t e2e
 
