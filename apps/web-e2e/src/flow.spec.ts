@@ -1,0 +1,82 @@
+import { type Page, expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
+// Analysis runs in a Web Worker with WASM; give slower engines room.
+test.describe.configure({ timeout: 120_000 });
+
+// This project compiles to CommonJS, so require.resolve is available.
+const AXE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
+
+async function expectNoAxeViolations(page: Page) {
+  await page.addScriptTag({ content: AXE });
+  const violations = await page.evaluate(async () => {
+    const axe = (window as unknown as { axe: { run: (ctx: Element) => Promise<{ violations: Array<{ id: string; nodes: unknown[] }> }> } }).axe;
+    const r = await axe.run(document.body);
+    return r.violations.map((v) => `${v.id} (${v.nodes.length})`);
+  });
+  expect(violations).toEqual([]);
+}
+
+async function toReview(page: Page) {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'or try a sample clip' }).click();
+  await expect(page).toHaveURL(/\/listen$/);
+  await expect(page.getByRole('heading', { name: 'Listening to your song' })).toBeVisible();
+  await expect(page).toHaveURL(/\/review$/, { timeout: 90_000 });
+}
+
+test('a clip goes from upload to a playable sheet', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Turn any song into a right-hand sheet.');
+  await expect(page.getByText('Your audio never leaves this device')).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  await toReview(page);
+  await expect(page.getByRole('heading', { name: 'Check the chords' })).toBeVisible();
+  await expect(page.getByText(/chords? to check|All chords checked/)).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  // Pick an alternative for the first bar.
+  const first = page.getByRole('button', { name: /^Bar 1:/ });
+  await first.click();
+  const options = page.locator('[popover]:popover-open button');
+  await expect(options.first()).toBeVisible();
+  const alternative = String(await options.nth(1).getAttribute('aria-label'));
+  await options.nth(1).click();
+  await expect(first).toHaveAttribute('aria-label', `Bar 1: ${alternative}, confirmed`);
+
+  await page.getByRole('button', { name: 'Looks good, write my sheets' }).click();
+  await expect(page).toHaveURL(/\/sheet$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Your sheet' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Chord shapes' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Arpeggio tab' })).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  // Click the visible segment, as a person would (the radio input itself is transparent).
+  await page.getByRole('radiogroup', { name: 'Level' }).getByText('Moderate', { exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Moderate' })).toBeChecked();
+  await expect(page.getByText('p-i-m-a-m-i')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Play' }).click();
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-playhead]')).toHaveCount(1, { timeout: 10_000 });
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+});
+
+test('the song survives a reload', async ({ page }) => {
+  await toReview(page);
+  await page.getByRole('button', { name: 'Looks good, write my sheets' }).click();
+  await expect(page).toHaveURL(/\/sheet$/);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Your sheet' })).toBeVisible();
+  await expect(page.getByText('Sample clip (G Em C D).wav')).toBeVisible();
+});
+
+test('an unsupported file is explained in the drop zone', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('input[type="file"]').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
+  // Next's route announcer is also an alert; match ours by its text.
+  await expect(page.getByRole('alert').filter({ hasText: 'MP3, WAV or M4A' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try another file' })).toBeVisible();
+});

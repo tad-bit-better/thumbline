@@ -63,13 +63,13 @@ describe('Upload screen', () => {
   });
 
   it('loads the sample clip', async () => {
-    const fetchMock = vi.fn(async () => new Response(new Blob([new Uint8Array(8)], { type: 'audio/mp4' })));
+    const fetchMock = vi.fn(async () => new Response(new Blob([new Uint8Array(8)], { type: 'audio/wav' })));
     vi.stubGlobal('fetch', fetchMock);
     render(<Upload />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'or try a sample clip' }));
     });
-    expect(fetchMock).toHaveBeenCalledWith('/samples/sample.m4a');
+    expect(fetchMock).toHaveBeenCalledWith('/samples/sample.wav');
     expect(songStore.getState().meta?.name).toMatch(/sample/i);
     expect(push).toHaveBeenCalledWith('/listen');
     vi.unstubAllGlobals();

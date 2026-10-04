@@ -1,6 +1,8 @@
 // The "try a sample clip" song on the Upload screen (also the e2e fixture).
 // Rendered with our own synth, so it carries no third-party rights.
-// Usage: node tools/make-sample-clip.mjs && afconvert -f m4af -d aac -b 96000 <wav> apps/web/public/samples/sample.m4a
+// Usage: node tools/make-sample-clip.mjs sample.wav
+//   && afconvert -f WAVE -d LEI16@22050 -c 1 sample.wav apps/web/public/samples/sample.wav
+// WAV (not AAC) because Firefox and WebKit on Linux need system codecs for AAC.
 import { writeFileSync } from 'node:fs';
 import { render, wav } from './make-synthetic-fixtures.mjs';
 

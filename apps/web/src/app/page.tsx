@@ -27,7 +27,8 @@ import styles from './page.module.css';
 
 const ACCEPT = '.mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4,audio/x-m4a';
 const MAX_BYTES = 200 * 1024 * 1024;
-const SAMPLE_URL = '/samples/sample.m4a';
+// WAV decodes in every browser (AAC needs system codecs in Firefox and WebKit on Linux).
+const SAMPLE_URL = '/samples/sample.wav';
 const UNSUPPORTED =
   'That file isn’t one we can read. Use an MP3, WAV or M4A clip.';
 
@@ -97,7 +98,7 @@ export default function Upload() {
   const trySample = async () => {
     const blob = await (await fetch(SAMPLE_URL)).blob();
     accept(
-      new File([blob], 'Sample clip (G Em C D).m4a', { type: 'audio/mp4' }),
+      new File([blob], 'Sample clip (G Em C D).wav', { type: 'audio/wav' }),
     );
   };
 
