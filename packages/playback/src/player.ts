@@ -48,6 +48,17 @@ const DAMP_SEC = 0.012;
 /** A hammer-on or pull-off starts past the pluck's noisy attack and swells in. */
 const LEGATO_SKIP_SEC = 0.02;
 const LEGATO_RISE_SEC = 0.004;
+/** Body resonances (Hz, dB, Q), as in the M9 spike renders. */
+const BODY_EQ: ReadonlyArray<readonly [number, number, number]> = [
+  [105, 5, 2],
+  [230, 2.5, 1.4],
+  [5200, -3, 0.8],
+];
+/** Vibrato on held melody notes: it starts after a moment, like a singer's. */
+const VIBRATO_MIN_SEC = 0.45;
+const VIBRATO_DELAY_SEC = 0.25;
+const VIBRATO_HZ = 5.5;
+const VIBRATO_CENTS = 15;
 /** How much of the sheet goes to the room reverb (the original has its own room). */
 const REVERB_SEND = 0.22;
 /** Stereo spread of the strings: low E this far left, high E as far right. */
@@ -79,7 +90,20 @@ export function createPlayer(options: PlayerOptions): Player {
   const originalBus = ctx.createGain();
   const compressor = ctx.createDynamicsCompressor();
   master.gain.value = 0.9;
-  sheetBus.connect(master);
+  // A guitar body under the strings: a low "box" resonance, a little warmth, softer pick noise.
+  if (typeof ctx.createBiquadFilter === 'function') {
+    let into: AudioNode = sheetBus;
+    for (const [hz, db, q] of BODY_EQ) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'peaking';
+      f.frequency.value = hz;
+      f.gain.value = db;
+      f.Q.value = q;
+      into.connect(f);
+      into = f;
+    }
+    into.connect(master);
+  } else sheetBus.connect(master);
   originalBus.connect(master);
   master.connect(compressor);
   compressor.connect(ctx.destination);
@@ -252,6 +276,18 @@ export function createPlayer(options: PlayerOptions): Player {
         const legato = sound.kind === 'legato';
         const voice = playSource(buffer, stringBus[e.string], at, legato ? 0 : noteGain(e), legato ? LEGATO_SKIP_SEC : 0);
         if (legato) voice.gain.gain.setTargetAtTime(noteGain(e), at, LEGATO_RISE_SEC);
+        const held = timeline.tickToSec(e.tick + e.dur) - eventSec[eventIndex];
+        if (e.melody && held > VIBRATO_MIN_SEC && typeof ctx.createOscillator === 'function' && voice.src.detune) {
+          const lfo = ctx.createOscillator();
+          const depth = ctx.createGain();
+          lfo.frequency.value = VIBRATO_HZ;
+          depth.gain.setValueAtTime(0, at + VIBRATO_DELAY_SEC);
+          depth.gain.linearRampToValueAtTime(VIBRATO_CENTS, at + VIBRATO_DELAY_SEC + 0.3);
+          lfo.connect(depth);
+          depth.connect(voice.src.detune);
+          lfo.start(at + VIBRATO_DELAY_SEC);
+          lfo.stop(at + held + 0.5);
+        }
         ringing[e.string] = voice;
       }
       queue.push({ eventIndex, when });

@@ -243,9 +243,13 @@ export function strumOffsets(events: readonly NoteEvent[]): Map<number, number> 
   return offsets;
 }
 
-/** Linear gain for a note: velocity, accents, softer legato and a little more bass. */
+/** The tune sits on top of the pattern. */
+const MELODY_LIFT = 1.3;
+
+/** Linear gain for a note: velocity, accents, the tune lifted, softer legato and a little more bass. */
 export function noteGain(e: NoteEvent): number {
   let g = e.velocity * 0.62;
+  if (e.melody) g *= MELODY_LIFT;
   if (e.accent) g *= 1.25;
   if (e.tech === 'hammer' || e.tech === 'pull') g *= 0.7;
   if (e.tech === 'apagado') g *= 0.8;

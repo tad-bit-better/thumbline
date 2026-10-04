@@ -128,6 +128,13 @@ describe('golpeBurst', () => {
   });
 });
 
+describe('melody', () => {
+  it('lifts a note of the tune above the pattern', () => {
+    const plain: NoteEvent = { tick: 0, dur: 480, string: 5, fret: 3, finger: 'a', velocity: 0.8 };
+    expect(noteGain({ ...plain, melody: true })).toBeGreaterThan(noteGain(plain) * 1.2);
+  });
+});
+
 describe('palm-muted pluck', () => {
   it('stays in tune but dies within half a second', () => {
     const muted = nylonPluck(45, SR, { seed: 4, muted: true });
