@@ -31,6 +31,7 @@ import {
   useState,
 } from 'react';
 import { AppShell } from '../../components/AppShell';
+import { effectiveMood } from '../../lib/mood';
 import { effectiveAnalysis, songStore, useSong } from '../../lib/song-store';
 import { LOTTIE } from '../../lib/lottie';
 import { useSheetPlayer } from '../../lib/use-sheet-player';
@@ -111,12 +112,14 @@ export default function SheetPage() {
   const style: Style =
     prefs.style === 'flamenco' && !flamencoOk ? 'arpeggio' : prefs.style;
   const palo = style === 'flamenco' ? prefs.palo : undefined;
+  // The mood orders the patterns (the default is one that suits it) and sets the touch (M10).
+  const mood = analysis ? effectiveMood(analysis, edits) : undefined;
   const patterns = useMemo(
     () =>
       effective
-        ? patternsFor(style, prefs.level, effective.meter.beatsPerBar, palo)
+        ? patternsFor(style, prefs.level, effective.meter.beatsPerBar, palo, mood)
         : [],
-    [effective, style, prefs.level, palo],
+    [effective, style, prefs.level, palo, mood],
   );
   const pattern = patterns.length
     ? patterns[
@@ -131,11 +134,12 @@ export default function SheetPage() {
         level: prefs.level,
         patternId: pattern.id,
         palo,
+        mood,
       });
     } catch {
       return null;
     }
-  }, [effective, style, prefs.level, pattern, palo]);
+  }, [effective, style, prefs.level, pattern, palo, mood]);
 
   const onEnd = useCallback(
     (wholeSong: boolean) => {

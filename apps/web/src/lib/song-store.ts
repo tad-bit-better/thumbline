@@ -1,4 +1,4 @@
-import type { AnalysisResult, ChordLabel, ChordSegment, Level, Style } from '@thumbline/engine';
+import type { AnalysisResult, ChordLabel, ChordSegment, Level, MoodLabel, Style } from '@thumbline/engine';
 
 /** The flamenco palos v1 plays. */
 export type Palo = 'rumba' | 'tangos';
@@ -16,6 +16,8 @@ export type Edits = {
   /** Segment indexes the user confirmed. */
   confirmed: number[];
   beatsPerBar?: 3 | 4;
+  /** The mood the user chose over the detected one (M10). */
+  mood?: MoodLabel;
 };
 
 export type Speed = 0.5 | 0.75 | 1;
@@ -48,6 +50,7 @@ export type SongState = Saved & {
   relisten: () => void;
   setChord: (segment: number, chord: ChordLabel | null) => void;
   setMeter: (beatsPerBar: 3 | 4) => void;
+  setMood: (mood: MoodLabel) => void;
   setStyle: (style: Style) => void;
   setLevel: (level: Level) => void;
   setPalo: (palo: Palo) => void;
@@ -126,6 +129,7 @@ export function createSongStore(storage: Storage) {
         });
       },
       setMeter: (beatsPerBar) => update({ edits: { ...getState().edits, beatsPerBar } }),
+      setMood: (mood) => update({ edits: { ...getState().edits, mood } }),
       setStyle: (style) => update({ prefs: { ...getState().prefs, style } }),
       setLevel: (level) => update({ prefs: { ...getState().prefs, level } }),
       setPalo: (palo) => update({ prefs: { ...getState().prefs, palo } }),

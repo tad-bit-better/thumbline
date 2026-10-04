@@ -81,7 +81,8 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
   // Flamenco: rumba by default; strums and golpes play.
   // The whole card is the radio's hit area.
   await page.getByRole('radio', { name: 'Flamenco' }).click();
-  await expect(page.getByText('Rumba with golpe')).toBeVisible(); // still on Moderate
+  // Rumba is the default palo; which rumba pattern opens depends on the song's mood (M10).
+  await expect(page.getByRole('radio', { name: 'Rumba' })).toBeChecked();
   await expect(page.getByRole('region', { name: 'Flamenco tab' })).toBeVisible();
   await page.getByRole('button', { name: 'Play' }).click();
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });

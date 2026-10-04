@@ -21,7 +21,7 @@ All screens: max content width 1200–1240px, fluid down to 360px; nav with logo
 - Stepper at "Review". Title "Check the chords", hint "Tap a chord with an orange ring to pick a better match."
 - **Chord grid:** 8 columns (4 on mobile), one ChordBlock per bar, paginated by 16 bars with a mini-map for long songs. Counter "2 chords to check" → "All chords checked".
 - **Popover on a low-confidence block:** top 3 alternatives with confidence bars and percentages; choosing one plays Chord confirmed (#4). Tapping a confident block also opens the popover (all chords editable), just not highlighted.
-- **Side panel:** Tempo, Key, Time (4/4 · 3/4 segmented). Primary button "Looks good, write my sheets". Note "You can come back and change chords any time."
+- **Side panel:** Tempo, Key, Time (4/4 · 3/4 segmented), Mood (Sad · Warm · Intense · Happy segmented, preset to what we heard, with a note when the user picks another; M10, DESIGN-REVIEW: not in the original design). Primary button "Looks good, write my sheets". Note "You can come back and change chords any time."
 - Optional: tapping a block plays that bar of the original.
 
 ## 4. Sheet (`/sheet`)

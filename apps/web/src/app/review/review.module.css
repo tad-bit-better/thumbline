@@ -123,6 +123,11 @@
   color: var(--color-ink-2);
 }
 
+.time > .heardMood {
+  color: var(--color-ink-3);
+  font-size: var(--text-small);
+}
+
 .note {
   margin: 0;
   text-align: center;

@@ -225,6 +225,16 @@ User feedback (2026-10-05): the chords are in sync, but with the original muted 
 - [ ] **Wrong notes:** the tracker still grabs instruments between phrases and misses some notes (user: "some err moments"). Next: drop low-confidence notes, feed it the stereo centre (vocals) instead of the mix, and prefer chord tones on strong beats.
 - [ ] **Groove:** loudness that follows the song (needs per-beat energy in `AnalysisResult`, contract) and a human timing push, as in the spike renders.
 
+### M10: Mood and sections (the vibe)
+User feedback (2026-10-05): "the vibe of all the songs remains the same"; a sad song gets the same groove and cadence as a happy one. Patterns were chosen by style and level only. Decision: all four of mood → pattern, mood → touch, sections build and breathe, mood shown and editable.
+- [x] **Probe:** `tools/melody-spike/mood-probe.mjs` — essentia's OnsetRate, Danceability, DynamicComplexity and spectral centroid on the fixtures. Tum Hi Ho: F minor, 94 bpm, 2.8 onsets/s, danceability 1.00, 1664 Hz; Hotel California (cover): B minor, 70 bpm, 3.1 onsets/s, 1.06, 2075 Hz. Both dark and calm. _(Need an upbeat major-key fixture to calibrate.)_
+- [x] **Contract + analysis:** `AnalysisResult.mood = { energy, valence }` (0..1: calm→driving, dark→bright) from tempo, onset rate, danceability, brightness, mode and the share of major chords; `AnalysisResult.beatEnergy` (loudness per beat, 0..1). Mood labels: melancholic (calm, dark), warm (calm, bright), intense (driving, dark), upbeat (driving, bright).
+- [x] **Mood picks the pattern:** `PatternDef.moods`; the level's patterns are ordered mood-first. New calm patterns where a style lacks one (a fingerstyle ballad at Moderate and Advanced: let-ring rolls, legato, no slaps or palm mutes).
+- [x] **Mood shapes the touch:** `Arrangement.mood`; engine: note lengths (ring vs short), velocity curve and accents; playback: tone (darker/brighter), room, strum speed.
+- [x] **Sections build and breathe:** bar loudness from `beatEnergy`, smoothed over phrases, into soft / normal / full; soft bars thin the pattern to the beat and play softer, full bars get the whole pattern and accents. The tune always stays.
+- [x] **App:** Review shows the mood next to tempo and meter (Sad · Warm · Intense · Happy) and lets you change it; the sheet re-arranges.
+- [ ] **Calibrate** the mood weights on an upbeat major-key song (and a few more of each kind); check the sections on songs with a quiet verse and a big chorus.
+
 ### M8: Polish and launch
 - [x] Final dotLottie files for the 8 moments replace CSS placeholders. _(#1 Pick drop, #3 Metronome (swings at the detected tempo), #4 Chord confirmed, #8 First full play, built by `tools/make-lottie.mjs`, 0.9–2.6 KB each; #2 stays the CSS wave; #5–#7 are in code. Renderer WASM self-hosted, not from a CDN.)_
 - [ ] Accessibility pass: keyboard play/stop/loop, tab screen-reader summary, focus order, reduced motion.

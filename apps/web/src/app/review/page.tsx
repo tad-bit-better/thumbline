@@ -22,6 +22,7 @@ import {
   toBars,
 } from '../../lib/bars';
 import { formatClock } from '../../lib/format';
+import { MOOD_OPTIONS, detectedMood, effectiveMood, moodName } from '../../lib/mood';
 import { LOTTIE } from '../../lib/lottie';
 import { findSections, hasRepeats } from '../../lib/sections';
 import { effectiveAnalysis, songStore, useSong } from '../../lib/song-store';
@@ -137,6 +138,8 @@ export default function Review() {
     [analysis, edits],
   );
   const bars = useMemo(() => (effective ? toBars(effective) : []), [effective]);
+  const heard = analysis ? detectedMood(analysis) : undefined;
+  const mood = analysis ? effectiveMood(analysis, edits) : undefined;
   const spans = useMemo(
     () => (effective ? barSpans(effective, bars.length) : []),
     [effective, bars.length],
@@ -324,6 +327,26 @@ export default function Review() {
                 }
               />
             </div>
+            {mood && (
+              <div className={styles.time}>
+                <span id="mood-label">Mood</span>
+                <SegmentedControl
+                  label="Mood"
+                  tone="secondary"
+                  fullWidth
+                  options={MOOD_OPTIONS}
+                  value={mood}
+                  onChange={(v) => songStore.getState().setMood(v)}
+                />
+                {heard && (
+                  <span className={styles.heardMood}>
+                    {heard === mood
+                      ? 'This is how it sounded to us. It sets the pattern and the touch.'
+                      : `It sounded ${moodName(heard).toLowerCase()} to us.`}
+                  </span>
+                )}
+              </div>
+            )}
           </Card>
           <Button size="lg" onClick={() => router.push('/sheet')}>
             Looks good, write my sheets

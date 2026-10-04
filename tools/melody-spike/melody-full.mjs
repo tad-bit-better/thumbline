@@ -13,6 +13,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join, parse as parsePath } from 'node:path';
 import { arrange } from '../../packages/engine/dist/index.js';
 import {
+  FEEL,
   apagadoChunk,
   createTimeline,
   golpeBurst,
@@ -26,7 +27,9 @@ import {
 import { analyzeSamples } from '../../packages/audio-analysis/dist/index.js';
 import { OUT, ROOT, SR, beatsAndKey, clean, e, melodyOf, onePerBeat, room } from './melody-spike.mjs';
 
-const APP = process.argv.includes('--app');
+const APP = process.argv.includes('--app') || process.argv.includes('--moods');
+// --moods: the app's Fingerstyle Moderate in each of the four moods (M10), to hear the vibe change.
+const MOODS = process.argv.includes('--moods');
 const RENDERS = [
   ['fingerstyle', 'basic'],
   ['fingerstyle', 'moderate'],
@@ -155,10 +158,11 @@ function renderFull(analysis, line, mono, capo0) {
   const bus = [new Float32Array(length), new Float32Array(length)];
   const loud = dynamics(mono);
   const rand = rng(11);
-  const fn = ({ style, level }) => {
-    const a = arrange(analysis, { style, level });
+  const fn = ({ style, level, mood }) => {
+    const a = arrange(analysis, { style, level, ...(mood ? { mood } : {}) });
     const tl = createTimeline(a, { beatTimesSec: analysis.beatTimesSec, barStartBeat: analysis.barStartBeat });
-    const strum = strumOffsets(a.events);
+    const feel = a.mood ? FEEL[a.mood] : { strumMs: 12, reverb: 0.22, shelfDb: 0, crisp: false };
+    const strum = strumOffsets(a.events, feel.strumMs);
     bus[0].fill(0);
     bus[1].fill(0);
 
@@ -203,6 +207,8 @@ function renderFull(analysis, line, mono, capo0) {
       const v = {
         buf: bufOf(s),
         start,
+        // Crisp moods stop pattern notes at their written length.
+        ...(feel.crisp && !n.melody ? { end: start + Math.floor(held * SR) } : {}),
         gain: noteGain(n) * 0.55,
         pan: n.melody ? 0.08 : (n.string - 2.5) * 0.1,
         skip: s.kind === 'legato' ? Math.floor(0.02 * SR) : 0,
@@ -237,14 +243,16 @@ function renderFull(analysis, line, mono, capo0) {
       peak(ch, 105, 5, 2);
       peak(ch, 230, 2.5, 1.4);
       peak(ch, 5200, -3, 0.8);
+      peak(ch, 4500, feel.shelfDb, 0.5); // the mood's colour (a broad bell standing in for the app's high shelf)
       for (let i = 0; i < ch.length; i++) ch[i] *= loud(i);
     }
-    const out = [room(bus[0], 0.3), room(bus[1].map((v, i) => (i > 300 ? bus[1][i - 300] * 0.15 + v : v)), 0.3)];
+    const wet = feel.reverb * 1.4;
+    const out = [room(bus[0], wet), room(bus[1].map((v, i) => (i > 300 ? bus[1][i - 300] * 0.15 + v : v)), wet)];
     let max = 0;
     for (const ch of out) for (const v of ch) max = Math.max(max, Math.abs(v));
     for (const ch of out) for (let i = 0; i < ch.length; i++) ch[i] *= 0.89 / (max || 1);
     fn.tuneCount = a.events.filter((n) => n.melody).length;
-    return { pattern: a.patternId, capo: a.capo, out };
+    return { pattern: a.patternId, capo: a.capo, out, arranged: a };
   };
   return fn;
 }
@@ -268,16 +276,18 @@ for (const clip of clips) {
   const { beats, scale } = beatsAndKey(mono);
   const line = clean(notes, beats, scale, mono.length / SR);
   const basicLine = onePerBeat(line, beats);
-  for (const [style, level] of RENDERS) {
+  if (analysis.mood) console.log(`  mood: energy ${analysis.mood.energy}, valence ${analysis.mood.valence}`);
+  const jobs = MOODS ? ['melancholic', 'warm', 'intense', 'upbeat'].map((mood) => ['fingerstyle', 'moderate', mood]) : RENDERS;
+  for (const [style, level, mood] of jobs) {
     if (style === 'flamenco' && analysis.meter.beatsPerBar !== 4) continue;
     const render = renderFull(analysis, level === 'basic' ? basicLine : line, mono);
-    const { pattern, capo, out } = render({ style, level });
+    const { pattern, capo, out, arranged } = render({ style, level, mood });
     const tmp = join(OUT, `${name}.full.tmp.wav`);
-    const m4a = join(OUT, `${name}.${APP ? 'app' : 'full'}.${style}-${level}.m4a`);
+    const m4a = join(OUT, `${name}.${MOODS ? `mood-${mood}` : `${APP ? 'app' : 'full'}.${style}-${level}`}.m4a`);
     writeStereoWav(tmp, out[0], out[1]);
     execFileSync('afconvert', ['-f', 'm4af', '-d', 'aac', '-b', '192000', tmp, m4a]);
     rmSync(tmp);
-    console.log(`  ${style} ${level}: ${pattern}, capo ${capo}${APP ? `, ${render.tuneCount} tune notes` : ''}`);
+    console.log(`  ${style} ${level}${mood ? ` ${mood}` : ''}: ${pattern}, capo ${capo}${APP ? `, ${render.tuneCount} tune notes` : ''}${arranged.sections ? `, sections ${['soft', 'normal', 'full'].map((l) => `${l} ${arranged.sections.filter((x) => x === l).length}`).join('/')}` : ''}`);
   }
 }
 console.log(`\nWrote ${OUT}`);
