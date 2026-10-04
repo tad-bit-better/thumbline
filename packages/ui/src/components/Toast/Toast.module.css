@@ -1,0 +1,65 @@
+.region {
+  position: fixed;
+  inset: auto 0 var(--space-6);
+  z-index: 10;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: min(480px, 100%);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+  color: var(--color-surface);
+  font-weight: 600;
+  font-size: var(--text-small);
+  box-shadow: var(--shadow-card-hover);
+  pointer-events: auto;
+  animation: rise var(--dur-glide) var(--ease-glide) both;
+}
+
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-violet-soft);
+}
+
+.success .dot {
+  background: var(--color-mint);
+}
+
+.warning .dot {
+  background: var(--color-orange);
+}
+
+.message {
+  flex: 1;
+}
+
+.dismiss {
+  color: var(--color-surface);
+}
+
+.dismiss:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-surface) 15%, transparent);
+}
+
+.region[data-reduced-motion] .toast {
+  animation: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}

@@ -104,7 +104,7 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 
 ### M2: UI kit (`packages/ui`)
 - [x] Tokens (`tokens.css`) and a `Theme` story showing every token.
-- [ ] Components: Button (3D press), IconButton, SegmentedControl with sliding pill, Chip, Card, StyleCard, Stepper, ProgressBar (shimmer), Toast, Popover, Dialog.
+- [x] Components: Button (3D press), IconButton, SegmentedControl with sliding pill, Chip, Card, StyleCard, Stepper, ProgressBar (shimmer), Toast, Popover, Dialog.
 - [x] 3D icon set (SVG): Pick, Metronome, Waveform tile, Arpeggio, Fingerstyle, Flamenco, Play sphere, Check badge, Upload arrow.
 - [x] Motion primitives: `Reveal` (staggered pop-in), `PressScale`, `Pulse`, `useReducedMotion` wrapper.
 - [ ] `LottieMoment` component wrapping dotLottie with a static fallback and reduced-motion handling.

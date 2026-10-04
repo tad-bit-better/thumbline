@@ -1,0 +1,66 @@
+.dialog {
+  width: min(480px, calc(100vw - 2 * var(--space-4)));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-card-hover);
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dur-glide) var(--ease-glide),
+    transform var(--dur-bounce) var(--ease-bounce),
+    overlay var(--dur-glide) allow-discrete,
+    display var(--dur-glide) allow-discrete;
+}
+
+.dialog:not([open]) {
+  opacity: 0;
+  transform: translateY(8px) scale(0.92);
+}
+
+@starting-style {
+  .dialog[open] {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+}
+
+.dialog::backdrop {
+  background: color-mix(in srgb, var(--color-ink) 40%, transparent);
+  transition: opacity var(--dur-glide) var(--ease-glide);
+}
+
+.header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-6) 0;
+}
+
+.title {
+  margin: 0;
+  padding-top: var(--space-2);
+  font-size: var(--text-h3);
+  font-weight: 800;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
+}
+
+.body {
+  padding: var(--space-4) var(--space-6) var(--space-6);
+  color: var(--color-ink-2);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: 0 var(--space-6) var(--space-6);
+}
+
+.dialog[data-reduced-motion] {
+  transition: none;
+}

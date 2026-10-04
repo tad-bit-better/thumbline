@@ -20,3 +20,6 @@ export const LOOP_MS = {
   /** Idle play button breathing glow. */
   breathe: 2400,
 } as const;
+
+/** How long a toast stays up, in ms. */
+export const TOAST_MS = 4000;
