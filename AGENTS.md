@@ -38,7 +38,7 @@ Run `lint` and `test` for every project you touch before calling a task done.
 5. **Patterns are data** in `packages/engine/src/patterns/*.ts`. No special cases in the runner.
 6. **Never commit copyrighted audio.** Every fixture needs a `fixtures/audio/LICENSES.md` entry.
 7. **No new runtime dependency** without a stated reason and an AGPL-compatible licence.
-8. **Stay in scope**: no note editor, strumming, accounts or melody extraction in v1.
+8. **Stay in scope**: no note editor, strumming or accounts in v1. Melody extraction moved into v1 (2026-10-05, PLAN.md M9) using essentia's melody tracker, still on the device.
 9. **Never hardcode colours, radii, shadows, durations or easings** in components. Use tokens from `packages/ui/src/styles/tokens.css`.
 10. **Every animation respects reduced motion** via `useReducedMotion` or the `prefers-reduced-motion` media query.
 

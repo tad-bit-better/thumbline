@@ -15,7 +15,7 @@
 4. **Generate** sheets: **style** (Arpeggio, Fingerstyle, Flamenco) × **level** (Basic, Moderate, Advanced).
 5. **Play** with a moving playhead. Modes: sheet, original, both. Loop a bar range; speed 50/75/100% without changing pitch.
 
-**Out of scope for v1:** note/pattern editor, strumming patterns (rasgueado is in scope as flamenco technique), accounts/backend, melody extraction (v2), 12-beat palos (v1.5).
+**Out of scope for v1:** note/pattern editor, strumming patterns (rasgueado is in scope as flamenco technique), accounts/backend, 12-beat palos (v1.5). _(Melody extraction moved into v1 on 2026-10-05: see M9.)_
 
 **Principles**
 - Audio stays on the device. No upload endpoint exists.
@@ -213,6 +213,15 @@ User feedback (2026-10-05): Basic, Moderate and Advanced "all sound the same"; n
 - [x] **T2 Level ladder:** Basic: plain plucks. Moderate: Travis gets a palm-muted thumb on the off-beat bass and a hammer-on each bar; Pinch-and-roll ends each bar on a hammer-on. Advanced: "Percussive Travis" (slaps on 2 and 4, hammer-on, pull-off, a harmonic on the bar's last eighth), the five-string arpeggio gets a pull-off and a hammer-on, the four-finger rasgueado rumba chokes beat 2 with an apagado. Snapshots reviewed and updated. _(MUSIC-REVIEW: the bar-end harmonic needs the fretting hand to lift; check it at faster tempos.)_
 - [x] **T3 Flamenco vocabulary:** new targets `campanella`, `drone`, `pedal` (contract). New patterns: Moderate — three-finger rasgueado (a-m-i, rumba), pulgar (thumb melody with rest strokes, tangos), pedal and drone (both palos); Advanced — five-stroke and continuous rasgueado (rumba), abanico and campanella (tangos). Apagado chokes strums in the advanced rumba, pulgar and abanico. Already in: golpe, picado, alzapúa, apoyando, tremolo, arpeggios, ligados, e-a-m-i (the four-finger rasgueado), cejilla (capo), compás (meter accents per palo). The Andalusian cadence is a chord progression, not a right-hand technique: we follow the song's chords and voice the cadence on the E shape (M7). Fixed on the way: the moving top line made flamenco tremolo alternate two notes; it now skips flamenco. _(All first drafts with MUSIC-REVIEW notes, pending the flamenco player sign-off.)_
 - [x] **R Review shows where you are in the song:** each block shows its time (0:24); a play button plays that bar from the original clip; repeated chord runs get section letters (A, B, A…) so the verse and chorus stand out.
+
+### M9: The song's melody on top (chord-melody)
+User feedback (2026-10-05): the chords are in sync, but with the original muted "I can't make out what song it is", in every style and level. Chords say which notes fit; the melody says which song it is. Decision: bring melody extraction into v1 (was v2), spike first, melody at every level.
+- [x] **Spike:** `packages/audio-analysis/eval/melody-spike.mjs` runs essentia's `PredominantPitchMelodia` + `PitchContourSegmentation` (already shipped, no new dependency) on the fixtures and renders the melody with the app's synth to `fixtures/local/melody-spike/` (melody alone; melody over the original). First run: ~2.9 notes/s, voice found in ~66% of frames, ~81% of notes in the detected key; analysis 25 s for 4.4 min (60 s for 7.6 min) in Node.
+- [ ] **Gate (user listens):** with the original muted, the melody file is recognisable as the song. If not: tune the tracker (voicing tolerance, min note length, side-signal input as in M5b), then consider Basic Pitch (TF.js, new dependency, needs approval).
+- [ ] **Contract:** `AnalysisResult.melody` (notes: time, duration, MIDI, confidence) from the worker; melody quantised to the beat grid (16ths); octave-shifted onto strings 2–5 within reach of each chord shape.
+- [ ] **Engine:** melody notes become the top voice and the pattern fills underneath without clashing (drop pattern notes on the melody's string; keep the bass). Basic: melody on the beat + bass at chord changes. Moderate: full melody + the thumb's pattern. Advanced: full melody + the style's pattern and techniques in the gaps. Flamenco: picado/tremolo follow the melody.
+- [ ] **App:** analysis progress covers the melody step; old saved songs re-analyse once; Review/Sheet copy no longer says "not a transcription" where melody is present.
+- [ ] **Performance:** melody step under ~10 s for a 4-minute clip in the browser (hop 256, or only voiced sections), else run it after the first sheet shows.
 
 ### M8: Polish and launch
 - [x] Final dotLottie files for the 8 moments replace CSS placeholders. _(#1 Pick drop, #3 Metronome (swings at the detected tempo), #4 Chord confirmed, #8 First full play, built by `tools/make-lottie.mjs`, 0.9–2.6 KB each; #2 stays the CSS wave; #5–#7 are in code. Renderer WASM self-hosted, not from a CDN.)_
