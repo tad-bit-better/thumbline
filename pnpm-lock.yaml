@@ -341,6 +341,18 @@ importers:
 
   apps/web:
     dependencies:
+      '@thumbline/audio-analysis':
+        specifier: workspace:*
+        version: link:../../packages/audio-analysis
+      '@thumbline/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@thumbline/playback':
+        specifier: workspace:*
+        version: link:../../packages/playback
+      '@thumbline/tab-renderer':
+        specifier: workspace:*
+        version: link:../../packages/tab-renderer
       '@thumbline/ui':
         specifier: workspace:*
         version: link:../../packages/ui

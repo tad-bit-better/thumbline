@@ -7,6 +7,10 @@ const nextConfig = {
   turbopack: {
     root: path.join(__dirname, '../..'),
   },
+  // Screen-to-screen morphs with React's <ViewTransition> (docs/design/motion.md).
+  experimental: {
+    viewTransition: true,
+  },
 };
 
 module.exports = nextConfig;

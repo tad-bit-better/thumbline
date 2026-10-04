@@ -68,6 +68,18 @@
   "references": [
     {
       "path": "../../packages/ui"
+    },
+    {
+      "path": "../../packages/tab-renderer"
+    },
+    {
+      "path": "../../packages/playback"
+    },
+    {
+      "path": "../../packages/engine"
+    },
+    {
+      "path": "../../packages/audio-analysis"
     }
   ]
 }

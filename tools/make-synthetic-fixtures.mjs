@@ -4,14 +4,15 @@
 // Needs built engine and playback: pnpm nx run-many -t build -p @thumbline/engine @thumbline/playback
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { arrange, parseChord } from '../packages/engine/dist/index.js';
 import { midiOf, noteGain, nylonPluck } from '../packages/playback/dist/index.js';
 
 const SR = 44100;
 const OUT = new URL('../fixtures/synthetic/', import.meta.url).pathname;
-const BARS = 16;
+const DEFAULT_BARS = 16;
 
-const SONGS = [
+export const SONGS = [
   { name: 'pop-g-nylon', kind: 'solo nylon', chart: 'G D Em C', style: 'arpeggio', level: 'basic', bpm: 84 },
   { name: 'ballad-c-nylon', kind: 'solo nylon', chart: 'C G/B Am Am/G F C/E Dm7 G', style: 'arpeggio', level: 'moderate', bpm: 72 },
   { name: 'waltz-d-nylon', kind: 'solo nylon', chart: 'D D G A7 D Bm Em7 A7', style: 'arpeggio', level: 'moderate', bpm: 108, meter: 3 },
@@ -39,7 +40,7 @@ function random(seed) {
   };
 }
 
-function render(song, seed) {
+export function render(song, seed, BARS = DEFAULT_BARS) {
   const rand = random(seed);
   const bpb = song.meter ?? 4;
   const tokens = song.chart.split(' ');
@@ -174,7 +175,7 @@ function render(song, seed) {
   return { wav: wav(mix), truth };
 }
 
-function wav(x) {
+export function wav(x) {
   const buf = Buffer.alloc(44 + x.length * 2);
   buf.write('RIFF', 0);
   buf.writeUInt32LE(36 + x.length * 2, 4);
@@ -192,13 +193,15 @@ function wav(x) {
   return buf;
 }
 
-mkdirSync(OUT, { recursive: true });
-const force = process.argv.includes('--force');
-SONGS.forEach((song, i) => {
-  const wavPath = join(OUT, `${song.name}.wav`);
-  if (!force && existsSync(wavPath)) return;
-  const { wav: data, truth } = render(song, 1000 + i);
-  writeFileSync(wavPath, data);
-  writeFileSync(join(OUT, `${song.name}.chords.json`), JSON.stringify(truth, null, 2) + '\n');
-  console.log(`${song.name}: ${(data.length / 1e6).toFixed(1)} MB, ${truth.chords.length} chord marks`);
-});
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  mkdirSync(OUT, { recursive: true });
+  const force = process.argv.includes('--force');
+  SONGS.forEach((song, i) => {
+    const wavPath = join(OUT, `${song.name}.wav`);
+    if (!force && existsSync(wavPath)) return;
+    const { wav: data, truth } = render(song, 1000 + i);
+    writeFileSync(wavPath, data);
+    writeFileSync(join(OUT, `${song.name}.chords.json`), JSON.stringify(truth, null, 2) + '\n');
+    console.log(`${song.name}: ${(data.length / 1e6).toFixed(1)} MB, ${truth.chords.length} chord marks`);
+  });
+}

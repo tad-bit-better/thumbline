@@ -10,6 +10,10 @@
     ]
   },
   "dependencies": {
+    "@thumbline/audio-analysis": "workspace:*",
+    "@thumbline/engine": "workspace:*",
+    "@thumbline/playback": "workspace:*",
+    "@thumbline/tab-renderer": "workspace:*",
     "@thumbline/ui": "workspace:*",
     "idb-keyval": "^6.3.0",
     "motion": "^14.0.0",

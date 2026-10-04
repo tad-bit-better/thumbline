@@ -1,3 +1,7 @@
+// Ambient types for essentia's untyped ES builds must travel with this file to consumers
+// that compile it from source (the web app); an import can't load a .d.ts at runtime.
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
+/// <reference path="./essentia-modules.d.ts" />
 /** The parts of essentia.js the pipeline uses (its own types are incomplete). */
 export type EssentiaVector = { size(): number; get(i: number): number; delete(): void };
 
