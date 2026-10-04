@@ -12,6 +12,7 @@ export { ProgressBar, type ProgressBarProps } from './ProgressBar/ProgressBar';
 export { Stepper, type StepperProps } from './Stepper/Stepper';
 export { StyleCard, type StyleCardProps, type StyleKind } from './StyleCard/StyleCard';
 export { Dialog, type DialogProps } from './Dialog/Dialog';
+export { PlayerBar, type PlayerBarProps, type PlayerMix, type PlayerSpeed } from './PlayerBar/PlayerBar';
 export { Popover, type PopoverProps, type PopoverTriggerProps } from './Popover/Popover';
 export { TOAST_MS, ToastProvider, type ToastOptions, type ToastTone, useToast } from './Toast/Toast';
 export * from './glyphs';
