@@ -88,9 +88,10 @@ Contracts: `docs/engine-spec.md`.
 Every milestone ends with green `lint`, `test`, `build` for affected projects.
 
 ### M0: Workspace
-- [ ] Generate app and packages (README), module boundary tags, lint rules.
-- [ ] CI: `nx affected -t lint test build` on GitHub Actions.
-- [ ] Fonts, `tokens.css` and global styles wired into `apps/web`.
+- [x] Generate app and packages (README), module boundary tags, lint rules.
+- [x] CI: `nx affected -t lint test build` on GitHub Actions.
+- [x] Fonts, `tokens.css` and global styles wired into `apps/web`.
+- [ ] Follow-ups: install Playwright browsers locally (`pnpm exec playwright install`) and add `e2e` to CI once M6 has real flows; add a `LICENSE` file (M8).
 - **Done when:** a fresh clone passes `pnpm nx run-many -t lint test build`.
 
 ### M1: Engine core (port from prototype)
