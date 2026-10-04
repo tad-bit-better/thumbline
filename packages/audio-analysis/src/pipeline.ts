@@ -1,6 +1,7 @@
 import type { EssentiaLike, EssentiaVector } from './essentia.js';
 import { type BeatFeatures, detectMeter, extendBeats, lowBandAlternation, toSegments } from './postprocess.js';
 import { cleanMelody, trackMelody } from './melody.js';
+import { beatEnergyOf, moodOf } from './mood.js';
 import type { AnalysisResult } from './types.js';
 
 export const ANALYSIS_SAMPLE_RATE = 44100;
@@ -125,6 +126,16 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   await tick();
   checkAborted(signal);
   const k = e.KeyExtractor(signalVec);
+  // Mood signals (M10): cheap (~1.5 s for 4 minutes), and optional: a failure leaves the mood out.
+  let feel: { onsetRate: number; danceability: number } | undefined;
+  try {
+    const onsets = e.OnsetRate(signalVec);
+    const dance = e.Danceability(signalVec);
+    feel = { onsetRate: onsets.onsetRate, danceability: dance.danceability };
+    free(onsets.onsets, dance.dfa);
+  } catch {
+    feel = undefined;
+  }
   free(signalVec);
   const key = { pc: NOTE_NAMES[k.key] ?? 0, mode: k.scale === 'minor' ? ('minor' as const) : ('major' as const) };
 
@@ -191,6 +202,7 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     };
   });
   const meter = detectMeter(features);
+  const brightnessHz = brightness(e, samples, sampleRate);
   const chords = toSegments(features, meter.beatsPerBar, meter.firstDownbeat, key);
 
   // The tune (M9): one pass over the whole clip, so progress jumps once.
@@ -215,5 +227,31 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     key,
     chords,
     ...(melody?.length ? { melody } : {}),
+    ...(feel && brightnessHz !== undefined ? { mood: moodOf({ bpm, ...feel, brightnessHz, mode: key.mode, chords }) } : {}),
+    beatEnergy: beatEnergyOf(features.map((f) => f.energy)),
   };
+}
+
+/** Mean spectral centroid (Hz) over one frame every half second: how bright the mix sounds. */
+function brightness(e: EssentiaLike, samples: Float32Array, sampleRate: number): number | undefined {
+  try {
+    const size = 2048;
+    const step = Math.floor(sampleRate / 2);
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i + size < samples.length; i += step) {
+      const frame = e.arrayToVector(samples.subarray(i, i + size));
+      const w = e.Windowing(frame, true, size, 'hann');
+      const sp = e.Spectrum(w.frame, size);
+      const c = e.Centroid(sp.spectrum, sampleRate / 2).centroid;
+      free(frame, w.frame, sp.spectrum);
+      if (Number.isFinite(c) && c > 0) {
+        sum += c;
+        n++;
+      }
+    }
+    return n ? sum / n : undefined;
+  } catch {
+    return undefined;
+  }
 }

@@ -40,6 +40,9 @@ export type EssentiaLike = {
     windowSize?: number,
   ): { hpcp: EssentiaVector };
   EqualLoudness(signal: EssentiaVector, sampleRate?: number): { signal: EssentiaVector };
+  OnsetRate(signal: EssentiaVector): { onsetRate: number; onsets: EssentiaVector };
+  Danceability(signal: EssentiaVector): { danceability: number; dfa: EssentiaVector };
+  Centroid(array: EssentiaVector, range?: number): { centroid: number };
   PredominantPitchMelodia(
     signal: EssentiaVector,
     binResolution?: number,

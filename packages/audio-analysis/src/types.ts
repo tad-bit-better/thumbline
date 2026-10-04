@@ -24,6 +24,11 @@ export type AnalysisResult = {
   key: { pc: number; mode: 'major' | 'minor' | 'phrygian' };
   chords: ChordSegment[];
   melody?: MelodyNote[];
+  mood?: Mood;
+  beatEnergy?: number[];
 };
+
+/** 0..1 each: energy calm → driving, valence dark → bright. */
+export type Mood = { energy: number; valence: number };
 
 export type MelodyNote = { startSec: number; durSec: number; midi: number; confidence: number };
