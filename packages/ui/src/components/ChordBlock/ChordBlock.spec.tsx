@@ -41,6 +41,11 @@ describe('ChordBlock', () => {
     expect(screen.getByRole('button', { name: 'Bar 9: no chord' })).toBeTruthy();
   });
 
+  it('can be spoken differently from what it shows', () => {
+    render(<ChordBlock bar={9} chord="A · —" spoken="A, then no chord" />);
+    expect(screen.getByRole('button', { name: 'Bar 9: A, then no chord' })).toBeTruthy();
+  });
+
   it('draws the same mini waveform for the same bar', () => {
     const a = render(<ChordBlock bar={7} chord="D" />).container.querySelector('[data-wave]')?.innerHTML;
     const b = render(<ChordBlock bar={7} chord="D" />).container.querySelector('[data-wave]')?.innerHTML;

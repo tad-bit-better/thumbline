@@ -42,11 +42,19 @@
 }
 
 .name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: var(--text-h3);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1;
   white-space: nowrap;
+}
+
+/* Two chords in a bar, or a long name: smaller so it fits. */
+.name[data-long] {
+  font-size: var(--text-small);
 }
 
 .none {

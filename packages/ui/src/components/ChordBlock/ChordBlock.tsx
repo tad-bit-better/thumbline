@@ -10,6 +10,8 @@ export type ChordBlockProps = Omit<ComponentPropsWithRef<'button'>, 'children'> 
   bar: number;
   /** Chord name as displayed, or null for no chord. */
   chord: string | null;
+  /** What screen readers hear instead of `chord` (e.g. "no chord" for a "—"). */
+  spoken?: string;
   status?: ChordBlockStatus;
   /** Its popover is showing. */
   open?: boolean;
@@ -21,7 +23,7 @@ function wave(bar: number) {
 }
 
 /** One bar on the Review screen: number, chord name and a mini waveform. */
-export function ChordBlock({ bar, chord, status = 'normal', open = false, className, type = 'button', ...rest }: ChordBlockProps) {
+export function ChordBlock({ bar, chord, spoken, status = 'normal', open = false, className, type = 'button', ...rest }: ChordBlockProps) {
   const reduced = useReducedMotion();
   const suffix = status === 'low' ? ', not sure, tap to choose' : status === 'confirmed' ? ', confirmed' : '';
   return (
@@ -33,7 +35,7 @@ export function ChordBlock({ bar, chord, status = 'normal', open = false, classN
       <button
         type={type}
         className={styles['block']}
-        aria-label={`Bar ${bar}: ${chord ?? 'no chord'}${suffix}`}
+        aria-label={`Bar ${bar}: ${spoken ?? chord ?? 'no chord'}${suffix}`}
         data-status={status}
         data-open={open ? '' : undefined}
         data-reduced-motion={reduced ? '' : undefined}
@@ -42,7 +44,11 @@ export function ChordBlock({ bar, chord, status = 'normal', open = false, classN
         <span className={styles['number']} aria-hidden="true">
           {bar}
         </span>
-        <span className={[styles['name'], chord ? '' : styles['none']].join(' ')} aria-hidden="true">
+        <span
+          className={[styles['name'], chord ? '' : styles['none']].join(' ')}
+          data-long={chord && chord.length > 5 ? '' : undefined}
+          aria-hidden="true"
+        >
           {chord ?? '—'}
         </span>
         <span className={styles['wave']} aria-hidden="true" data-wave="">
