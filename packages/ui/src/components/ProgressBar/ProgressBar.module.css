@@ -1,0 +1,68 @@
+.track {
+  position: relative;
+  height: 12px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  box-shadow: inset 0 2px 3px color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+/* Width is the one non-transform animation allowed (motion.md). */
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--color-violet);
+  transition: width var(--dur-glide) var(--ease-glide);
+}
+
+.fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-surface) 45%, transparent),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: shimmer var(--shimmer-period) var(--ease-glide) infinite;
+}
+
+.indeterminate .fill {
+  width: 35%;
+  animation: slide var(--shimmer-period) var(--ease-glide) infinite;
+}
+
+.track[data-paused] .fill,
+.track[data-paused] .fill::after {
+  animation-play-state: paused;
+}
+
+.track[data-reduced-motion] .fill,
+.track[data-reduced-motion] .fill::after {
+  animation: none;
+  transition: none;
+}
+
+.track[data-reduced-motion].indeterminate .fill {
+  width: 100%;
+  opacity: 0.35;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(290%);
+  }
+}
