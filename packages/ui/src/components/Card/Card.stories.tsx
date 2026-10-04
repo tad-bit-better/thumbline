@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { Button } from '../Button/Button';
 import { Card } from './Card';
 
 const meta: Meta<typeof Card> = {
@@ -43,11 +44,11 @@ export const Focus: Story = {
   args: { interactive: true },
   render: (args) => (
     <Card {...args} style={{ width: 320 }}>
-      <a href="#pattern">Try another pattern</a>
+      <Button variant="ghost">Try another pattern</Button>
     </Card>
   ),
   play: ({ canvasElement }) => {
-    canvasElement.querySelector('a')?.focus();
+    canvasElement.querySelector('button')?.focus();
   },
 };
 

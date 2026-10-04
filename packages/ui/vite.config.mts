@@ -38,7 +38,9 @@ export default defineConfig(() => ({
     },
     rolldownOptions: {
       // External packages that should not be bundled into your library.
-      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      external: ['react', 'react-dom', 'react/jsx-runtime', /^motion/, /^@lottiefiles\//],
+      // Every export uses hooks or browser APIs: mark the bundle for Next's App Router.
+      output: { banner: "'use client';" },
     },
   },
   test: {
