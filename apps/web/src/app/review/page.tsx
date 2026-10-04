@@ -18,10 +18,14 @@ import {
   type BarCell,
   type BarSegment,
   LOW_CONFIDENCE,
+  barSpans,
   toBars,
 } from '../../lib/bars';
+import { formatClock } from '../../lib/format';
 import { LOTTIE } from '../../lib/lottie';
+import { findSections, hasRepeats } from '../../lib/sections';
 import { effectiveAnalysis, songStore, useSong } from '../../lib/song-store';
+import { useBarPlayer } from '../../lib/use-bar-player';
 import styles from './review.module.css';
 
 const PAGE = 16;
@@ -33,6 +37,11 @@ const METERS = [
 
 const displayName = (c: ChordLabel | null) => (c ? chordName(c) : '—');
 const spokenName = (c: ChordLabel | null) => (c ? chordName(c) : 'no chord');
+/** The chords shown for a bar: those starting in it, or the one carried in. */
+const chordsOf = (cell: BarCell) =>
+  cell.segments.length
+    ? cell.segments.map((s) => s.chord)
+    : [cell.sounding?.chord ?? null];
 // DESIGN-REVIEW: the design shows a percentage per alternative, but AnalysisResult
 // only ranks alternatives (no scores). Bars show rank, not invented percentages.
 const RANK_WIDTH = [100, 62, 40, 26];
@@ -113,7 +122,9 @@ export default function Review() {
   const meta = useSong((s) => s.meta);
   const analysis = useSong((s) => s.analysis);
   const edits = useSong((s) => s.edits);
+  const file = useSong((s) => s.file);
   const [page, setPage] = useState(0);
+  const player = useBarPlayer(file);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -126,6 +137,23 @@ export default function Review() {
     [analysis, edits],
   );
   const bars = useMemo(() => (effective ? toBars(effective) : []), [effective]);
+  const spans = useMemo(
+    () => (effective ? barSpans(effective, bars.length) : []),
+    [effective, bars.length],
+  );
+  const sections = useMemo(
+    () =>
+      findSections(bars.map((cell) => chordsOf(cell).map(displayName).join(' · '))),
+    [bars],
+  );
+  // Letters only help when something repeats.
+  const lettered = hasRepeats(sections);
+
+  // A new meter regroups the beats: the bar that was playing is a different stretch now.
+  const beatsPerBar = effective?.meter.beatsPerBar;
+  const stopPlayer = player.stop;
+  useEffect(() => stopPlayer(), [beatsPerBar, stopPlayer]);
+
   if (!effective || !analysis) return null;
 
   const isLow = (seg: BarSegment) =>
@@ -144,6 +172,8 @@ export default function Review() {
   const shown = bars.slice(page * PAGE, page * PAGE + PAGE);
   const first = page * PAGE + 1;
   const last = page * PAGE + shown.length;
+  const from = spans[first - 1];
+  const to = spans[last - 1];
 
   return (
     <AppShell actions={<Stepper steps={STEPS} current={2} align="end" />}>
@@ -162,6 +192,9 @@ export default function Review() {
               <div className={styles.gridHead}>
                 <b>
                   Bars {first} to {last}
+                  {from && to
+                    ? ` · ${formatClock(from.start)}–${formatClock(to.end)}`
+                    : ''}
                 </b>
                 <span className={styles.count} aria-live="polite">
                   {toCheck
@@ -169,11 +202,17 @@ export default function Review() {
                     : 'All chords checked'}
                 </span>
               </div>
+              {lettered && (
+                <p className={styles.sectionsHint}>
+                  Letters mark runs of chords that repeat, so you can spot the
+                  verse and the chorus.
+                </p>
+              )}
               <ul className={styles.grid}>
                 {shown.map((cell) => {
-                  const chords = cell.segments.length
-                    ? cell.segments.map((s) => s.chord)
-                    : [cell.sounding?.chord ?? null];
+                  const chords = chordsOf(cell);
+                  const span = spans[cell.bar];
+                  const section = sections[cell.bar];
                   return (
                     <li key={cell.bar} className={styles.cell}>
                       {burst?.bar === cell.bar && (
@@ -199,6 +238,23 @@ export default function Review() {
                             spoken={chords.map(spokenName).join(' · ')}
                             status={statusOf(cell)}
                             open={props['aria-expanded']}
+                            time={span ? formatClock(span.start) : undefined}
+                            section={
+                              lettered && section?.starts
+                                ? section.letter
+                                : undefined
+                            }
+                            onPlay={
+                              file && span
+                                ? () =>
+                                    void player.toggle(
+                                      cell.bar,
+                                      span.start,
+                                      span.end,
+                                    )
+                                : undefined
+                            }
+                            playing={player.playing === cell.bar}
                           />
                         )}
                       >

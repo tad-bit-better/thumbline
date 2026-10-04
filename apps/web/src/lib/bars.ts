@@ -42,3 +42,25 @@ export function toBars(analysis: AnalysisResult): BarCell[] {
   }
   return cells;
 }
+
+/** Where a bar sits in the clip, in seconds. */
+export type BarSpan = { start: number; end: number };
+
+/**
+ * Start and end of each of the first `count` bars, from the detected beats
+ * (so a song that speeds up or slows down still lines up). Bars past the last
+ * detected beat carry on at the song's tempo; nothing goes past the clip's end.
+ */
+export function barSpans(analysis: AnalysisResult, count: number): BarSpan[] {
+  const beats = analysis.beatTimesSec;
+  const period = analysis.bpm > 0 ? 60 / analysis.bpm : 0.5;
+  const last = beats.length - 1;
+  const beatAt = (i: number) =>
+    last < 0 ? i * period : i <= last ? beats[Math.max(0, i)] : beats[last] + (i - last) * period;
+  const clamp = (t: number) => Math.min(Math.max(0, t), analysis.durationSec);
+  const bpb = analysis.meter.beatsPerBar;
+  return Array.from({ length: count }, (_, bar) => {
+    const first = analysis.barStartBeat + bar * bpb;
+    return { start: clamp(beatAt(first)), end: clamp(beatAt(first + bpb)) };
+  });
+}
