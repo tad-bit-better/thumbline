@@ -3,13 +3,13 @@
 // patterns, put the cleaned melody on top, and render offline with the app's synth plus
 // groove (small human timing, loudness that follows the song), a guitar body, stereo and
 // vibrato on held notes. Writes fixtures/local/melody-spike/<name>.full.<style>-<level>.m4a.
-// Run after building: pnpm nx run-many -t build -p @thumbline/engine @thumbline/playback audio-analysis
-//   node packages/audio-analysis/eval/melody-full.mjs
+// Run after building: pnpm nx run-many -t build -p @thumbline/engine @thumbline/playback @thumbline/audio-analysis
+//   node tools/melody-spike/melody-full.mjs
 import { execFileSync } from 'node:child_process';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { existsSync, readdirSync } from 'node:fs';
 import { join, parse as parsePath } from 'node:path';
-import { arrange } from '../../engine/dist/index.js';
+import { arrange } from '../../packages/engine/dist/index.js';
 import {
   apagadoChunk,
   createTimeline,
@@ -20,8 +20,8 @@ import {
   slapBurst,
   soundOf,
   strumOffsets,
-} from '../../playback/dist/index.js';
-import { analyzeSamples } from '../dist/index.js';
+} from '../../packages/playback/dist/index.js';
+import { analyzeSamples } from '../../packages/audio-analysis/dist/index.js';
 import { OUT, ROOT, SR, beatsAndKey, clean, e, melodyOf, onePerBeat, room } from './melody-spike.mjs';
 
 const RENDERS = [

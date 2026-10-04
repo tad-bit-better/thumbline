@@ -9,19 +9,20 @@
 //                                legato, accents on the beat and a little room
 //   <name>.clean+original.wav    the cleaned line over the original
 //   <name>.basic.wav             one note per beat (what a Basic sheet would carry)
-// and print how many notes were found. Run: node packages/audio-analysis/eval/melody-spike.mjs
+// and print how many notes were found. Run: node tools/melody-spike/melody-spike.mjs
 // Needs macOS afconvert to decode mp3/m4a. Everything stays on this machine.
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, parse as parsePath } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { nylonPluck } from '../../playback/dist/index.js';
+import { nylonPluck } from '../../packages/playback/dist/index.js';
 
-export const ROOT = new URL('../../../', import.meta.url).pathname;
+export const ROOT = new URL('../../', import.meta.url).pathname;
 export const OUT = join(ROOT, 'fixtures/local/melody-spike');
 export const SR = 44100;
-const require = createRequire(import.meta.url);
+// essentia.js is audio-analysis's dependency (pnpm keeps it there), so resolve it from that package.
+const require = createRequire(new URL('../../packages/audio-analysis/package.json', import.meta.url));
 const { EssentiaWASM, Essentia } = require('essentia.js');
 export const e = new Essentia(EssentiaWASM);
 
@@ -104,7 +105,7 @@ export function grid16(beats, end) {
  * half, so the line sings instead of ticking.
  */
 export function clean(notes, beats, scale, end) {
-  let n = notes.filter((x) => x.dur >= 0.09).map((x) => ({ ...x }));
+  const n = notes.filter((x) => x.dur >= 0.09).map((x) => ({ ...x }));
   for (let i = 0; i < n.length; i++) {
     const around = n.slice(Math.max(0, i - 3), i).concat(n.slice(i + 1, i + 4)).map((x) => x.midi).sort((a, b) => a - b);
     if (!around.length) continue;
@@ -237,7 +238,7 @@ export function render(notes, length) {
 }
 
 // Run only when called directly; melody-full.mjs imports the helpers above.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
 
 function main() {
   mkdirSync(OUT, { recursive: true });
