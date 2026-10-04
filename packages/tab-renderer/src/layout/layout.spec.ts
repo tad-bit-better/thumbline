@@ -201,3 +201,31 @@ describe('tickAtX', () => {
     expect(tickAtX(l, first, G.left - 5)).toBeNull();
   });
 });
+
+describe('bass chips', () => {
+  it('marks thumb notes as bass, but not a thumb strum', () => {
+    const a = techniqueSheet([
+      { tick: 0, string: 0, fret: 0, finger: 'p' },
+      { tick: 240, string: 0, fret: 0, finger: 'p', tech: 'rasgueo-down' },
+      { tick: 240, string: 1, fret: 2, finger: 'p', tech: 'rasgueo-down' },
+    ]);
+    const notes = layoutSheet(a, 800).systems[0].notes;
+    expect(notes.map((n) => n.bass)).toEqual([true, false, false]);
+  });
+});
+
+describe('technique lane', () => {
+  it('puts an accent beside a golpe on the same beat, not on it', () => {
+    const a = techniqueSheet([
+      { tick: 0, string: 0, fret: -1, finger: 'a', tech: 'golpe' },
+      { tick: 0, string: 1, fret: 2, finger: 'i', tech: 'rasgueo-down', accent: true },
+      { tick: 480, string: 1, fret: 2, finger: 'i', accent: true },
+    ]);
+    const marks = layoutSheet(a, 800).systems[0].techniques;
+    const golpe = marks.find((m) => m.kind === 'golpe') as { x: number };
+    const accents = marks.filter((m) => m.kind === 'accent') as Array<{ x: number }>;
+    expect(accents[0].x - golpe.x).toBeGreaterThanOrEqual(12);
+    // An accent without a golpe stays on its note.
+    expect(accents[1].x).toBe(layoutSheet(a, 800).positions[2].x);
+  });
+});

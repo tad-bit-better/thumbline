@@ -58,6 +58,10 @@ const STYLE_CARDS = [
     hint: 'A steady thumb with the fingers playing around it.',
   },
 ] as const;
+const PALOS = [
+  { value: 'rumba', label: 'Rumba' },
+  { value: 'tangos', label: 'Tangos' },
+] as const;
 const MIX_TEXT = {
   sheet: 'sheet only',
   original: 'original only',
@@ -98,30 +102,36 @@ export default function SheetPage() {
     () => (analysis ? effectiveAnalysis(analysis, edits) : null),
     [analysis, edits],
   );
+  // Rumba and tangos are in 4/4: a song in 3/4 plays arpeggio instead.
+  const flamencoOk = effective?.meter.beatsPerBar === 4;
+  const style: Style =
+    prefs.style === 'flamenco' && !flamencoOk ? 'arpeggio' : prefs.style;
+  const palo = style === 'flamenco' ? prefs.palo : undefined;
   const patterns = useMemo(
     () =>
       effective
-        ? patternsFor(prefs.style, prefs.level, effective.meter.beatsPerBar)
+        ? patternsFor(style, prefs.level, effective.meter.beatsPerBar, palo)
         : [],
-    [effective, prefs.style, prefs.level],
+    [effective, style, prefs.level, palo],
   );
   const pattern = patterns.length
     ? patterns[
-        (prefs.pattern[`${prefs.style}.${prefs.level}`] ?? 0) % patterns.length
+        (prefs.pattern[`${style}.${prefs.level}`] ?? 0) % patterns.length
       ]
     : null;
   const arrangement = useMemo<Arrangement | null>(() => {
     if (!effective || !pattern) return null;
     try {
       return arrange(effective, {
-        style: prefs.style,
+        style,
         level: prefs.level,
         patternId: pattern.id,
+        palo,
       });
     } catch {
       return null;
     }
-  }, [effective, prefs.style, prefs.level, pattern]);
+  }, [effective, style, prefs.level, pattern, palo]);
 
   const onEnd = useCallback(
     (wholeSong: boolean) => {
@@ -241,7 +251,7 @@ export default function SheetPage() {
               {...s}
               headingLevel={2}
               name="style"
-              selected={prefs.style === s.kind}
+              selected={style === s.kind}
               onSelect={() => songStore.getState().setStyle(s.kind)}
             />
           ))}
@@ -250,10 +260,15 @@ export default function SheetPage() {
             headingLevel={2}
             title="Flamenco"
             hint="Rumba and tangos with rasgueado and golpe."
-            sublabel="Coming soon"
+            sublabel={
+              flamencoOk
+                ? PALOS.find((p) => p.value === prefs.palo)?.label
+                : 'Needs 4/4'
+            }
             name="style"
-            disabled
-            onSelect={() => undefined}
+            selected={style === 'flamenco'}
+            disabled={!flamencoOk}
+            onSelect={() => songStore.getState().setStyle('flamenco')}
           />
         </div>
 
@@ -264,6 +279,15 @@ export default function SheetPage() {
             value={prefs.level}
             onChange={(v: Level) => songStore.getState().setLevel(v)}
           />
+          {style === 'flamenco' && (
+            // DESIGN-REVIEW: screens.md shows the palo only as the card's sub-label; this is how you pick it.
+            <SegmentedControl
+              label="Palo"
+              options={PALOS}
+              value={prefs.palo}
+              onChange={(v) => songStore.getState().setPalo(v)}
+            />
+          )}
           {pattern && (
             <Card padding="sm" className={styles.pattern}>
               <div>
@@ -308,7 +332,7 @@ export default function SheetPage() {
                       arrangement={arrangement}
                       width={tabWidth}
                       cursorIndex={player.cursor}
-                      label={`${STYLE_NAMES[prefs.style]} tab`}
+                      label={`${STYLE_NAMES[style]} tab`}
                       onSeek={(tick) => void player.seek(tick, true)}
                     />
                   </div>
@@ -324,7 +348,7 @@ export default function SheetPage() {
             playing={playing}
             preparing={player.state === 'preparing'}
             onTogglePlay={() => void player.toggle()}
-            title={`${STYLE_NAMES[prefs.style]}, ${LEVELS.find((l) => l.value === prefs.level)?.label}`}
+            title={`${STYLE_NAMES[style]}${palo ? ` (${PALOS.find((p) => p.value === palo)?.label})` : ''}, ${LEVELS.find((l) => l.value === prefs.level)?.label}`}
             subtitle={`${Math.round(effective.bpm)} bpm, ${MIX_TEXT[file ? prefs.mix : 'sheet']}${prefs.speed < 1 ? `, ${prefs.speed * 100}% speed` : ''}`}
             mix={file ? prefs.mix : 'sheet'}
             mixDisabled={!file}

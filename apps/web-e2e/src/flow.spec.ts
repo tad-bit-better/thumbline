@@ -73,6 +73,16 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
   const here = await position.getAttribute('aria-valuetext');
   await page.getByRole('button', { name: 'Back one bar' }).click();
   await expect(position).not.toHaveAttribute('aria-valuetext', String(here));
+
+  // Flamenco: rumba by default; strums and golpes play.
+  // The whole card is the radio's hit area.
+  await page.getByRole('radio', { name: 'Flamenco' }).click();
+  await expect(page.getByText('Rumba with golpe')).toBeVisible(); // still on Moderate
+  await expect(page.getByRole('region', { name: 'Flamenco tab' })).toBeVisible();
+  await page.getByRole('button', { name: 'Play' }).click();
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await expectNoAxeViolations(page);
 });
 
 test('the song survives a reload', async ({ page }) => {

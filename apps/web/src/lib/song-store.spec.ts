@@ -48,6 +48,18 @@ describe('song store', () => {
     expect(store.getState().prefs).toMatchObject({ style: 'fingerstyle', level: 'advanced', mix: 'original', speed: 0.75 });
   });
 
+  it('keeps the flamenco palo, rumba by default', async () => {
+    const storage = memoryStorage();
+    const a = createSongStore(storage);
+    expect(a.getState().prefs.palo).toBe('rumba');
+    a.getState().startSong(file());
+    a.getState().setPalo('tangos');
+    await a.getState().flush();
+    const b = createSongStore(storage);
+    await b.getState().hydrate();
+    expect(b.getState().prefs.palo).toBe('tangos');
+  });
+
   it('cycles through patterns per style and level', () => {
     const store = createSongStore(memoryStorage());
     store.getState().cyclePattern(2);

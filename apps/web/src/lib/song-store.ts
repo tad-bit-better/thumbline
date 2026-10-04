@@ -1,4 +1,7 @@
 import type { AnalysisResult, ChordLabel, ChordSegment, Level, Style } from '@thumbline/engine';
+
+/** The flamenco palos v1 plays. */
+export type Palo = 'rumba' | 'tangos';
 import type { Mix } from '@thumbline/playback';
 import { del, get, set } from 'idb-keyval';
 import { useStore } from 'zustand';
@@ -20,6 +23,7 @@ export type Speed = 0.5 | 0.75 | 1;
 export type SheetPrefs = {
   style: Style;
   level: Level;
+  palo: Palo;
   /** Pattern index per `style.level`. */
   pattern: Partial<Record<string, number>>;
   mix: Mix;
@@ -44,6 +48,7 @@ export type SongState = Saved & {
   setMeter: (beatsPerBar: 3 | 4) => void;
   setStyle: (style: Style) => void;
   setLevel: (level: Level) => void;
+  setPalo: (palo: Palo) => void;
   /** Move to the next of `count` patterns for the current style and level. */
   cyclePattern: (count: number) => void;
   setMix: (mix: Mix) => void;
@@ -63,7 +68,7 @@ export type Storage = {
 const KEY = 'thumbline:song:v1';
 const CLIP_KEY = 'thumbline:clip:v1';
 const EMPTY_EDITS: Edits = { chords: {}, confirmed: [] };
-const DEFAULT_PREFS: SheetPrefs = { style: 'arpeggio', level: 'basic', pattern: {}, mix: 'both', speed: 1 };
+const DEFAULT_PREFS: SheetPrefs = { style: 'arpeggio', level: 'basic', palo: 'rumba', pattern: {}, mix: 'both', speed: 1 };
 
 export function memoryStorage(): Storage {
   const map = new Map<string, unknown>();
@@ -120,6 +125,7 @@ export function createSongStore(storage: Storage) {
       setMeter: (beatsPerBar) => update({ edits: { ...getState().edits, beatsPerBar } }),
       setStyle: (style) => update({ prefs: { ...getState().prefs, style } }),
       setLevel: (level) => update({ prefs: { ...getState().prefs, level } }),
+      setPalo: (palo) => update({ prefs: { ...getState().prefs, palo } }),
       cyclePattern: (count) => {
         const { prefs } = getState();
         const key = patternKey();

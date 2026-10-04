@@ -107,9 +107,28 @@ describe('Sheet screen', () => {
     expect(screen.getByText('Simple roll')).toBeTruthy();
   });
 
-  it('keeps flamenco for later', () => {
+  it('plays flamenco: rumba first, tangos on request', () => {
     render(<Sheet />);
-    expect((screen.getByRole('radio', { name: 'Flamenco' }) as HTMLInputElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('radio', { name: 'Flamenco' }));
+    expect(songStore.getState().prefs.style).toBe('flamenco');
+    expect(screen.getByText('Rumba strum')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Flamenco tab' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'Tangos' }));
+    expect(songStore.getState().prefs.palo).toBe('tangos');
+    expect(screen.getByText('Tangos strum')).toBeTruthy();
+    expect(screen.getByText(/Flamenco \(Tangos\), Basic/)).toBeTruthy();
+  });
+
+  it('offers flamenco only for songs in 4/4', () => {
+    songStore.getState().setStyle('flamenco');
+    songStore.getState().setMeter(3);
+    render(<Sheet />);
+    const card = screen.getByRole('radio', { name: 'Flamenco' }) as HTMLInputElement;
+    expect(card.disabled).toBe(true);
+    expect(screen.getByText('Needs 4/4')).toBeTruthy();
+    // A saved flamenco choice plays arpeggio until the song is back in 4/4.
+    expect(screen.getByRole('region', { name: 'Arpeggio tab' })).toBeTruthy();
+    expect(screen.queryByRole('radiogroup', { name: 'Palo' })).toBeNull();
   });
 
   it('plays with the original on one context and moves the playhead', async () => {

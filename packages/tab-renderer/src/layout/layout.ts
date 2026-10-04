@@ -72,6 +72,9 @@ export type SheetLayout = {
   positions: Array<{ system: number; x: number }>;
 };
 
+/** Golpe chip half-width (8) plus the accent's half-width (4) and a 1 px gap. */
+const ACCENT_BESIDE_GOLPE = 13;
+
 const STRING_Y = Array.from({ length: 6 }, (_, s) => GEOMETRY.stringTop + (5 - s) * GEOMETRY.stringGap);
 
 /** Pure layout of an arrangement for a given width; wraps 1–4 bars per system. */
@@ -142,7 +145,9 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
       sys.techniques.push({ kind: 'golpe', x: pos.x });
       return;
     }
-    sys.notes.push({ eventIndex: i, x: pos.x, y, text: String(e.fret), bass: e.finger === 'p' });
+    // A thumb strum (alzapúa) is a stroke, not a bass note: no bass chip.
+    const strum = e.tech === 'rasgueo-down' || e.tech === 'rasgueo-up';
+    sys.notes.push({ eventIndex: i, x: pos.x, y, text: String(e.fret), bass: e.finger === 'p' && !strum });
 
     if (e.accent && !accented.has(`${e.tick}`)) {
       accented.add(`${e.tick}`);
@@ -187,6 +192,12 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
     lastOnString[e.string] = pos;
   });
   flushColumn();
+
+  // An accent on a golpe's beat sits just right of the golpe chip, not on top of it.
+  for (const sys of systems) {
+    const golpes = new Set(sys.techniques.flatMap((t) => (t.kind === 'golpe' ? [t.x] : [])));
+    for (const t of sys.techniques) if (t.kind === 'accent' && golpes.has(t.x)) t.x += ACCENT_BESIDE_GOLPE;
+  }
 
   for (const g of groups.values()) {
     const [y1, y2] = [STRING_Y[g.hi], STRING_Y[g.lo]];

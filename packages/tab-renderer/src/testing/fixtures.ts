@@ -35,9 +35,16 @@ export function analysis(chart: string, beatsPerBar: BeatsPerBar = 4): AnalysisR
   };
 }
 
-/** A real engine arrangement for a chart. */
-export function sheet(chart: string, style: Style = 'arpeggio', level: Level = 'basic', beatsPerBar: BeatsPerBar = 4): Arrangement {
-  return arrange(analysis(chart, beatsPerBar), { style, level });
+/** A real engine arrangement for a chart (flamenco: a palo, and the key the chart is in). */
+export function sheet(
+  chart: string,
+  style: Style = 'arpeggio',
+  level: Level = 'basic',
+  beatsPerBar: BeatsPerBar = 4,
+  flamenco?: { palo: 'rumba' | 'tangos'; key: { pc: number; mode: 'major' | 'minor' } },
+): Arrangement {
+  const input = analysis(chart, beatsPerBar);
+  return arrange(flamenco ? { ...input, key: flamenco.key } : input, { style, level, palo: flamenco?.palo });
 }
 
 /** A song of `bars` bars cycling through a pop loop. */

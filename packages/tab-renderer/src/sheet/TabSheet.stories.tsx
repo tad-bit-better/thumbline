@@ -45,6 +45,14 @@ export const FingerstyleBasic: Story = styleLevel('fingerstyle', 'basic');
 export const FingerstyleModerate: Story = styleLevel('fingerstyle', 'moderate');
 export const FingerstyleAdvanced: Story = styleLevel('fingerstyle', 'advanced');
 
+/** The Andalusian cadence in A minor, as the flamenco patterns play it. */
+const ANDALUSIAN = 'Am | G | F | E | Am | G | F | E';
+const A_MINOR = { pc: 9, mode: 'minor' } as const;
+export const FlamencoRumbaBasic: Story = { args: { arrangement: sheet(ANDALUSIAN, 'flamenco', 'basic', 4, { palo: 'rumba', key: A_MINOR }) } };
+export const FlamencoRumbaAdvanced: Story = { args: { arrangement: sheet(ANDALUSIAN, 'flamenco', 'advanced', 4, { palo: 'rumba', key: A_MINOR }) } };
+export const FlamencoTangosModerate: Story = { args: { arrangement: sheet(ANDALUSIAN, 'flamenco', 'moderate', 4, { palo: 'tangos', key: A_MINOR }) } };
+export const FlamencoTangosAdvanced: Story = { args: { arrangement: sheet(ANDALUSIAN, 'flamenco', 'advanced', 4, { palo: 'tangos', key: A_MINOR }) } };
+
 /** 3/4 waltz. */
 export const Waltz: Story = { args: { arrangement: sheet('D | G | A7 | D', 'arpeggio', 'moderate', 3) } };
 
