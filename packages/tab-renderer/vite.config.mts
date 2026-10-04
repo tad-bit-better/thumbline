@@ -1,5 +1,5 @@
 /// <reference types='vitest' />
-import { defineConfig } from 'vite';
+import { defaultClientConditions, defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import dts from 'vite-plugin-dts';
 import * as path from 'path';
@@ -7,6 +7,8 @@ import * as path from 'path';
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/tab-renderer',
+  // Use workspace packages from source in tests and Storybook.
+  resolve: { conditions: ['@thumbline/source', ...defaultClientConditions] },
   plugins: [
     react(),
     dts({
@@ -38,7 +40,8 @@ export default defineConfig(() => ({
     },
     rolldownOptions: {
       // External packages that should not be bundled into your library.
-      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      external: ['react', 'react-dom', 'react/jsx-runtime', /^@thumbline\//, /^motion/],
+      output: { banner: "'use client';" },
     },
   },
   test: {
@@ -46,6 +49,7 @@ export default defineConfig(() => ({
     watch: false,
     globals: true,
     environment: 'jsdom',
+    setupFiles: ['./src/testing/setup.ts'],
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     coverage: {

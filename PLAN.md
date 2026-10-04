@@ -108,7 +108,6 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - [x] 3D icon set (SVG): Pick, Metronome, Waveform tile, Arpeggio, Fingerstyle, Flamenco, Play sphere, Check badge, Upload arrow.
 - [x] Motion primitives: `Reveal` (staggered pop-in), `PressScale`, `Pulse`, `useReducedMotion` wrapper.
 - [x] `LottieMoment` component wrapping dotLottie with a static fallback and reduced-motion handling.
-- [ ] Design review of `DESIGN-REVIEW` notes in `packages/ui` (popover radius 18px has no token; using `--radius-md`). Loop periods and toast duration live in `motion/springs.ts`; promote to tokens if wanted.
 - **Done when:** every component has stories (default, hover, focus, disabled, reduced motion), axe checks pass in Storybook and unit tests, all interactive targets ≥ 44px. Dark stories come with the v1.1 dark theme (design-system.md).
 
 ### M3: Tab renderer
@@ -147,6 +146,7 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - [ ] Final dotLottie files for the 8 moments replace CSS placeholders.
 - [ ] Accessibility pass: keyboard play/stop/loop, tab screen-reader summary, focus order, reduced motion.
 - [ ] Performance: first-load JS < 200 KB gzipped; essentia WASM and Lottie files lazy-loaded; LCP < 2 s.
+- [ ] Design review (moved from M2) of `DESIGN-REVIEW` notes in `packages/ui` (popover radius 18px has no token; using `--radius-md`). Loop periods and toast duration live in `motion/springs.ts`; promote to tokens if wanted.
 - [ ] Offline (service worker), deploy (Vercel), CONTRIBUTING with "add a pattern" guide.
 
 ## 6. Design references

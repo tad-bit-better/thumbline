@@ -1,1 +1,1 @@
-export * from './lib/tab-renderer';
+export * from './layout/layout';

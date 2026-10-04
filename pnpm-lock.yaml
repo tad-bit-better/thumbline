@@ -387,7 +387,14 @@ importers:
         specifier: ^0.0.100
         version: 0.0.100
 
-  packages/tab-renderer: {}
+  packages/tab-renderer:
+    dependencies:
+      '@thumbline/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@thumbline/ui':
+        specifier: workspace:*
+        version: link:../ui
 
   packages/ui:
     dependencies:

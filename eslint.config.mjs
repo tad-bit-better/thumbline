@@ -100,6 +100,8 @@ export default [
       'packages/tab-renderer/src/**/*.ts',
       'packages/tab-renderer/src/**/*.tsx',
     ],
+    // Stories, tests and test helpers may call the real engine for realistic data.
+    ignores: ['**/*.stories.tsx', '**/*.spec.ts', '**/*.spec.tsx', '**/testing/**'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
