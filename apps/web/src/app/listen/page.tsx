@@ -22,6 +22,7 @@ import {
   useState,
 } from 'react';
 import { AppShell, STEPS } from '../../components/AppShell';
+import { LOTTIE, METRONOME_AUTHORED_BPM } from '../../lib/lottie';
 import { analyze } from '../../lib/analyze';
 import { formatDuration } from '../../lib/format';
 import { songStore, useSong } from '../../lib/song-store';
@@ -151,8 +152,13 @@ export default function Listen() {
         <ViewTransition name="main-card">
           <div className={styles.card}>
             <div className={styles.head}>
+              {/* Metronome (moment #3): still until the tempo is found, then swings at it. */}
               <LottieMoment
                 loop
+                src={live.bpm ? LOTTIE.metronome : undefined}
+                speed={live.bpm ? live.bpm / METRONOME_AUTHORED_BPM : 1}
+                width={120}
+                height={120}
                 fallback={<Metronome size={120} />}
                 label={
                   live.bpm

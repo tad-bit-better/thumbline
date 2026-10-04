@@ -26,7 +26,9 @@ In `motion/react`, the springy curves map to `type: "spring", stiffness: 500, da
 | 7 | Playhead glow | During playback | synced | yes | In code: 4px violet line with a soft 28px halo; notes brighten as it passes |
 | 8 | First full play | Sheet played to the end the first time | 1.2s | once per sheet | Picks, dots and notes burst upward in brand colours; "Nice!" |
 
-Lottie deliverables: #1, #2, #3, #4, #8 as `.lottie` files in `apps/web/public/lottie/`, each under 60 KB, 60fps, using only brand colours (themeable via dotLottie theming where possible). #5–#7 stay in code so they can sync with state.
+Lottie deliverables: #1, #3, #4, #8 as `.lottie` files in `apps/web/public/lottie/`, each under 60 KB, 60fps, using only brand colours (themeable via dotLottie theming where possible). They're built from code by `tools/make-lottie.mjs` (geometry from the 3D icons, colours from the tokens), so a change is a code review, not a file swap. #2 stays in CSS: the Listening screen's 28-bar wave already is the listening loop, and a Lottie version would only add the player's download. #5–#7 stay in code so they can sync with state.
+
+The player's WASM renderer is served from our origin (`/lottie/dotlottie-player.wasm`, copied by the same script); by default it would load from a public CDN. Warm it while the Upload page is idle so the Pick drop starts at once; a one-shot that hasn't finished after 2 s completes anyway, so no flow waits on it.
 
 ## Component transitions
 - **Buttons:** hover lift 2px (snap), press sink 3px (snap).

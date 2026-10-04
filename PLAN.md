@@ -169,7 +169,7 @@ Real mixes break chord detection: on a commercial track with vocals, half the ch
 - **Done when:** end-to-end Playwright test with a fixture clip on Chromium, WebKit, Firefox; matches `docs/design/screens.md`. *(Passes on Chromium locally; WebKit and Firefox run in CI.)*
 
 **M6 follow-ups**
-- [ ] Metronome swings at the detected BPM on the Listening screen (with the M8 Lottie).
+- [x] Metronome swings at the detected BPM on the Listening screen (with the M8 Lottie).
 - [ ] Listening → Review view transition (only drop zone → listening and chord grid → tab exist).
 - [ ] Loop a bar range by drag-selecting bars on the sheet; today Loop repeats the whole song.
 - [x] Seeking: click the tab to play from there; back/forward a bar and a position slider in the player bar; ←/→ work playing or paused; Pause resumes where it stopped (it used to restart from bar 1). A play that jumped ahead doesn't count as the first full play.
@@ -208,12 +208,13 @@ Sheets sound thin next to the recording: on a 70 bpm ballad (Hotel California) e
 - [ ] Flamenco in 3/4 (soleá, bulerías, alegrías): the palos are in the type; no patterns yet.
 
 ### M8: Polish and launch
-- [ ] Final dotLottie files for the 8 moments replace CSS placeholders.
+- [x] Final dotLottie files for the 8 moments replace CSS placeholders. _(#1 Pick drop, #3 Metronome (swings at the detected tempo), #4 Chord confirmed, #8 First full play, built by `tools/make-lottie.mjs`, 0.9–2.6 KB each; #2 stays the CSS wave; #5–#7 are in code. Renderer WASM self-hosted, not from a CDN.)_
 - [ ] Accessibility pass: keyboard play/stop/loop, tab screen-reader summary, focus order, reduced motion.
 - [ ] Move WSOLA time-stretch into a Web Worker: switching speed on a 3-minute clip blocks the main thread ~80 ms (audio unaffected, playhead hesitates once).
 - [ ] Performance: first-load JS < 200 KB gzipped; essentia WASM and Lottie files lazy-loaded; LCP < 2 s.
 - [ ] Design review (moved from M2) of `DESIGN-REVIEW` notes in `packages/ui` (popover radius 18px has no token; using `--radius-md`). Loop periods and toast duration live in `motion/springs.ts`; promote to tokens if wanted.
-- [ ] Offline (service worker), deploy (Vercel), CONTRIBUTING with "add a pattern" guide.
+- [ ] Offline (service worker), CONTRIBUTING with "add a pattern" guide.
+- [x] Deploy: Vercel, https://thumbline.app (apps/web/vercel.json; pushes to main deploy).
 
 ## 6. Design references
 - Visual language: `docs/design/design-system.md`

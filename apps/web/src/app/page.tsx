@@ -8,6 +8,7 @@ import {
   Pick,
   StyleCard,
   UploadGlyph,
+  preloadLottie,
   usePageVisible,
   useReducedMotion,
 } from '@thumbline/ui';
@@ -16,11 +17,13 @@ import {
   type CSSProperties,
   type DragEvent,
   ViewTransition,
+  useEffect,
   useId,
   useRef,
   useState,
 } from 'react';
 import { AppShell } from '../components/AppShell';
+import { LOTTIE } from '../lib/lottie';
 import { songStore, useSong } from '../lib/song-store';
 import styles from './page.module.css';
 
@@ -64,6 +67,15 @@ export default function Upload() {
   const [dropping, setDropping] = useState(0);
   const uploadError = useSong((s) => s.uploadError);
   const reduced = useReducedMotion();
+  // Warm the animation player while the page is idle, so the Pick drop starts at once.
+  useEffect(() => {
+    if (reduced) return;
+    const idle =
+      window.requestIdleCallback ??
+      ((fn: () => void) => window.setTimeout(fn, 1500));
+    const id = idle(() => preloadLottie());
+    return () => (window.cancelIdleCallback ?? window.clearTimeout)(id);
+  }, [reduced]);
   const visible = usePageVisible();
 
   const accept = (file: File | undefined) => {
@@ -162,9 +174,12 @@ export default function Upload() {
                 <span className={styles.stage} aria-hidden="true">
                   <span className={styles.pick}>
                     {dropping > 0 ? (
-                      // Pick drop (moment #1); the dotLottie file arrives in M8.
+                      // Pick drop (moment #1).
                       <LottieMoment
+                        src={LOTTIE.pickDrop}
                         playKey={dropping}
+                        width={150}
+                        height={150}
                         fallback={<Pick size={150} />}
                         onComplete={() => router.push('/listen')}
                       />

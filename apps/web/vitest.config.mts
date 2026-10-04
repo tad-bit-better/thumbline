@@ -9,6 +9,8 @@ export default defineConfig(() => ({
   resolve: {
     alias: {
       '@': join(import.meta.dirname, './src'),
+      // jsdom can't run the dotLottie WASM renderer (and tests mustn't fetch it).
+      '@lottiefiles/dotlottie-react': join(import.meta.dirname, './specs/stubs/dotlottie-react.tsx'),
     },
   },
   test: {

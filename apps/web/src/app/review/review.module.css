@@ -54,6 +54,20 @@
   list-style: none;
 }
 
+.cell {
+  position: relative;
+}
+
+/* Chord confirmed burst: centred on the block, above it, never in the way. */
+.burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
 @container (max-width: 560px) {
   .grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -6,6 +6,7 @@ import {
   Card,
   ChordBlock,
   type ChordBlockStatus,
+  LottieMoment,
   Popover,
   SegmentedControl,
   Stepper,
@@ -19,6 +20,7 @@ import {
   LOW_CONFIDENCE,
   toBars,
 } from '../../lib/bars';
+import { LOTTIE } from '../../lib/lottie';
 import { effectiveAnalysis, songStore, useSong } from '../../lib/song-store';
 import styles from './review.module.css';
 
@@ -103,6 +105,7 @@ function Options({
 }
 
 export default function Review() {
+  const [burst, setBurst] = useState<{ bar: number; key: number } | null>(null);
   const router = useRouter();
   const routerRef = useRef(router);
   routerRef.current = router;
@@ -172,7 +175,19 @@ export default function Review() {
                     ? cell.segments.map((s) => s.chord)
                     : [cell.sounding?.chord ?? null];
                   return (
-                    <li key={cell.bar}>
+                    <li key={cell.bar} className={styles.cell}>
+                      {burst?.bar === cell.bar && (
+                        // Chord confirmed (moment #4): decorative, over the block.
+                        <LottieMoment
+                          src={LOTTIE.chordConfirmed}
+                          playKey={burst.key}
+                          width={96}
+                          height={96}
+                          className={styles.burst}
+                          fallback={null}
+                          onComplete={() => setBurst(null)}
+                        />
+                      )}
                       <Popover
                         label={`Pick a chord for bar ${cell.bar + 1}`}
                         trigger={({ ref, ...props }) => (
@@ -193,6 +208,10 @@ export default function Review() {
                             edited={edits.confirmed}
                             onPick={(seg, chord) => {
                               songStore.getState().setChord(seg.index, chord);
+                              setBurst((b) => ({
+                                bar: cell.bar,
+                                key: (b?.key ?? 0) + 1,
+                              }));
                               close();
                             }}
                           />

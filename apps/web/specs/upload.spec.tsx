@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import axe from 'axe-core';
 import { songStore } from '../src/lib/song-store';
 
@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 
 describe('Upload screen', () => {
-  it('sets expectations and reassures about privacy', () => {
+  it('sets expectations', () => {
     render(<Upload />);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Turn any song into a right-hand sheet.');
     expect(screen.getByText(/We hear the chords and write a part for you to play/)).toBeTruthy();
@@ -29,7 +29,9 @@ describe('Upload screen', () => {
       fireEvent.change(input, { target: { files: [audio()] } });
     });
     expect(songStore.getState().meta?.name).toBe('take.mp3');
-    expect(push).toHaveBeenCalledWith('/listen');
+    // After the Pick drop (moment #1) plays.
+    await waitFor(() => expect(container.querySelector('canvas[data-lottie="/lottie/pick-drop.lottie"]')).toBeTruthy());
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/listen'));
   });
 
   it('accepts a dropped file and highlights the zone while dragging', async () => {
@@ -41,7 +43,7 @@ describe('Upload screen', () => {
       fireEvent.drop(zone, { dataTransfer: { files: [audio('song.wav', 'audio/wav')], types: ['Files'] } });
     });
     expect(zone.hasAttribute('data-dragging')).toBe(false);
-    expect(push).toHaveBeenCalledWith('/listen');
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/listen'));
   });
 
   it('explains an unsupported file inside the drop zone and offers a retry', async () => {
@@ -70,7 +72,7 @@ describe('Upload screen', () => {
     });
     expect(fetchMock).toHaveBeenCalledWith('/samples/sample.wav');
     expect(songStore.getState().meta?.name).toMatch(/sample/i);
-    expect(push).toHaveBeenCalledWith('/listen');
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/listen'));
     vi.unstubAllGlobals();
   });
 

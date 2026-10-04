@@ -134,6 +134,17 @@
   margin-top: var(--space-8);
 }
 
+/* First full play burst: rises from the player bar, never in the way. */
+.burst {
+  position: absolute;
+  bottom: 40%;
+  left: 50%;
+  z-index: 1;
+  max-width: 100%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 /* DESIGN-REVIEW: on phones the bar wraps to ~270px, a third of the screen, so it
    stays at the end of the page there. A compact phone layout would let it stick. */
 @media (max-width: 560px) {

@@ -1,3 +1,11 @@
+// jsdom has no CSS.escape; React's <ViewTransition> uses it to name elements.
+if (!globalThis.CSS?.escape) {
+  Object.defineProperty(globalThis, 'CSS', {
+    configurable: true,
+    value: { ...globalThis.CSS, escape: (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`) },
+  });
+}
+
 // jsdom has no matchMedia; default to "no preference" and let tests override.
 if (!window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {

@@ -13,6 +13,7 @@ import {
   Card,
   Chip,
   Dialog,
+  LottieMoment,
   PlayerBar,
   SegmentedControl,
   StyleCard,
@@ -31,6 +32,7 @@ import {
 } from 'react';
 import { AppShell } from '../../components/AppShell';
 import { effectiveAnalysis, songStore, useSong } from '../../lib/song-store';
+import { LOTTIE } from '../../lib/lottie';
 import { useSheetPlayer } from '../../lib/use-sheet-player';
 import { useWidth } from '../../lib/use-width';
 import styles from './sheet.module.css';
@@ -91,6 +93,8 @@ export default function SheetPage() {
   const [confirmNew, setConfirmNew] = useState(false);
   const [tabRef, tabWidth] = useWidth<HTMLDivElement>();
   const celebrated = useRef(new Set<string>());
+  /** Plays the first-full-play burst once per sheet; bumps to replay. */
+  const [burst, setBurst] = useState(0);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -139,7 +143,8 @@ export default function SheetPage() {
       const key = `${meta?.name}:${arrangement.patternId}`;
       if (celebrated.current.has(key)) return;
       celebrated.current.add(key);
-      // First full play (moment #8); the confetti dotLottie arrives in M8.
+      // First full play (moment #8): the burst, and the words for everyone.
+      setBurst((n) => n + 1);
       toast({ message: 'Nice! You played the whole song.', tone: 'success' });
     },
     [arrangement, loop, meta?.name, toast],
@@ -344,6 +349,17 @@ export default function SheetPage() {
         )}
 
         <div className={styles.player}>
+          {burst > 0 && (
+            <LottieMoment
+              src={LOTTIE.firstPlay}
+              playKey={burst}
+              width={480}
+              height={320}
+              className={styles.burst}
+              fallback={null}
+              onComplete={() => setBurst(0)}
+            />
+          )}
           <PlayerBar
             playing={playing}
             preparing={player.state === 'preparing'}
