@@ -19,6 +19,10 @@ export const LOOP_MS = {
   shimmer: 1600,
   /** Idle play button breathing glow. */
   breathe: 2400,
+  /** Floating pick on the Upload drop zone. */
+  bob: 2600,
+  /** Marching dashed border on the drop zone. */
+  march: 2400,
 } as const;
 
 /** How long a toast stays up, in ms. */

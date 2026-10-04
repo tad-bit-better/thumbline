@@ -30,6 +30,9 @@ type Saved = { meta: SongMeta | null; file: Blob | null; analysis: AnalysisResul
 
 export type SongState = Saved & {
   hydrated: boolean;
+  /** A problem with the last clip, shown on the Upload screen. Not saved. */
+  uploadError: string | null;
+  setUploadError: (message: string | null) => void;
   startSong: (file: File) => void;
   setAnalysis: (analysis: AnalysisResult) => void;
   setChord: (segment: number, chord: ChordLabel | null) => void;
@@ -81,13 +84,15 @@ export function createSongStore(storage: Storage) {
 
     return {
       hydrated: false,
+      uploadError: null,
+      setUploadError: (uploadError) => setState({ uploadError }),
       meta: null,
       file: null,
       analysis: null,
       edits: EMPTY_EDITS,
       prefs: DEFAULT_PREFS,
       startSong: (file) =>
-        update({ meta: { name: file.name, type: file.type, size: file.size }, file, analysis: null, edits: EMPTY_EDITS }),
+        update({ meta: { name: file.name, type: file.type, size: file.size }, file, analysis: null, edits: EMPTY_EDITS, uploadError: null }),
       setAnalysis: (analysis) => update({ analysis, edits: EMPTY_EDITS }),
       setChord: (segment, chord) => {
         const { edits } = getState();
