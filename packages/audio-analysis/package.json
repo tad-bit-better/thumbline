@@ -23,6 +23,25 @@
     "tags": [
       "scope:audio-analysis",
       "type:core"
-    ]
+    ],
+    "targets": {
+      "eval": {
+        "command": "node tools/make-synthetic-fixtures.mjs && node packages/audio-analysis/eval/eval.mjs",
+        "options": {
+          "cwd": "{workspaceRoot}"
+        },
+        "dependsOn": [
+          "build",
+          {
+            "projects": [
+              "@thumbline/engine",
+              "@thumbline/playback"
+            ],
+            "target": "build"
+          }
+        ],
+        "cache": false
+      }
+    }
   }
 }

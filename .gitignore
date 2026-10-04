@@ -81,3 +81,6 @@ pnpm-debug.log*
 
 # Local audio scratch (only licensed fixtures belong in fixtures/audio)
 /scratch
+
+# Generated eval audio (tools/make-synthetic-fixtures.mjs)
+fixtures/synthetic/

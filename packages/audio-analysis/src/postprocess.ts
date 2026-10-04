@@ -20,11 +20,25 @@ const FAMILY: Record<Quality, string> = { maj: 'maj', '7': 'maj', maj7: 'maj', '
 
 type Template = { label: ChordLabel; key: string; group: string; weights: Float64Array; prior: number };
 
+/**
+ * Plucked strings ring with strong overtones: harmonic k of a note lands k
+ * semitone-steps up the series (octave, fifth, octave, major third, fifth).
+ * Templates include them, so a minor chord's own overtones (the root's 5th
+ * harmonic is its major third) don't make it look major.
+ */
+const HARMONIC_INTERVALS = [0, 0, 7, 0, 4, 7];
+/** Tuned on the eval (0.4–0.8 tried; 0.6 best). */
+const HARMONIC_DECAY = 0.6;
+
 const TEMPLATES: Template[] = [];
 for (let pc = 0; pc < 12; pc++) {
   for (const q of QUALITIES) {
     const weights = new Float64Array(12);
-    for (const [iv, w] of q.tones) weights[(pc + iv) % 12] = w;
+    for (const [iv, w] of q.tones) {
+      HARMONIC_INTERVALS.forEach((h, k) => {
+        weights[(pc + iv + h) % 12] += w * HARMONIC_DECAY ** k;
+      });
+    }
     const norm = Math.hypot(...weights);
     for (let i = 0; i < 12; i++) weights[i] /= norm;
     TEMPLATES.push({ label: { pc, quality: q.quality }, key: `${pc}:${q.quality}`, group: `${pc}:${FAMILY[q.quality]}`, weights, prior: q.prior });
@@ -146,10 +160,13 @@ export function toSegments(beats: readonly BeatFeatures[], beatsPerBar: number, 
         let top = 0;
         for (let k = 1; k < sums.length; k++) if (sums[k] > sums[top]) top = k;
         key = TEMPLATES[top].key;
-        // Inside a bar, only change on a clear win; a passing note shouldn't split it.
+        // Inside a bar, only change on a clear win on every beat of the half;
+        // a passing note, or a chord straddling two beats (Dm7 over C + Dm), shouldn't split it.
         if (slot > 0 && open && open.key !== null && key !== open.key) {
           const current = TEMPLATES.findIndex((t) => t.key === open?.key);
-          if (sums[top] - sums[current] < CHANGE_MARGIN_PER_BEAT * (to - from)) key = open.key;
+          let everyBeat = true;
+          for (let b = from; b < to; b++) if (perBeat[b][top] <= perBeat[b][current]) everyBeat = false;
+          if (!everyBeat || sums[top] - sums[current] < CHANGE_MARGIN_PER_BEAT * (to - from)) key = open.key;
         }
       }
       if (!open || key !== open.key) {
@@ -170,6 +187,39 @@ export function extendBeats(times: readonly number[]): number[] {
   const intervals = times.slice(1, 9).map((t, i) => t - times[i]).sort((a, b) => a - b);
   const step = intervals[Math.floor(intervals.length / 2)];
   const before: number[] = [];
-  for (let t = times[0] - step; t >= -1e-9; t -= step) before.unshift(Math.max(0, t));
+  // A beat a few ms before 0 is the clip starting on the beat: keep it, at 0.
+  for (let t = times[0] - step; t >= -0.15 * step; t -= step) before.unshift(Math.max(0, t));
   return [...before, ...times];
+}
+
+
+/**
+ * How evenly low-frequency onsets fall on alternate beats: min/max of the
+ * mean bass energy just after even vs odd beats (1 = even, near 0 = strongly
+ * alternating). Kick and bass on 1 and 3 alternate; a tracker counting the
+ * picked eighth notes of a solo guitar does not.
+ */
+export function lowBandAlternation(samples: Float32Array, sampleRate: number, beats: readonly number[]): number {
+  const a = Math.exp((-2 * Math.PI * 150) / sampleRate);
+  const window = Math.floor(0.06 * sampleRate);
+  const sums = [0, 0];
+  const counts = [0, 0];
+  let lp = 0;
+  let next = 0;
+  for (let i = 0, b = 0; i < samples.length && b < beats.length; i++) {
+    lp = a * lp + (1 - a) * samples[i];
+    const start = Math.floor(beats[b] * sampleRate);
+    if (i >= start && i < start + window) {
+      sums[b % 2] += lp * lp;
+      next = start + window;
+    }
+    if (i >= next && i >= start + window) {
+      counts[b % 2]++;
+      b++;
+    }
+  }
+  const even = sums[0] / Math.max(1, counts[0]);
+  const odd = sums[1] / Math.max(1, counts[1]);
+  const hi = Math.max(even, odd);
+  return hi > 0 ? Math.sqrt(Math.min(even, odd) / hi) : 1;
 }

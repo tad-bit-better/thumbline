@@ -2,6 +2,7 @@ import {
   type BeatFeatures,
   detectMeter,
   extendBeats,
+  lowBandAlternation,
   rankChords,
   toSegments,
 } from './postprocess.js';
@@ -123,11 +124,42 @@ describe('extendBeats', () => {
     expect(extendBeats([1.1, 1.6, 2.1, 2.6])).toEqual([0.1, 0.6, 1.1, 1.6, 2.1, 2.6].map((x) => expect.closeTo(x, 6)));
   });
 
+  it('keeps a missed beat that falls just before zero, at zero', () => {
+    expect(extendBeats([0.59, 1.18, 1.77])).toEqual([0, 0.59, 1.18, 1.77].map((x) => expect.closeTo(x, 6)));
+  });
+
   it('leaves beats that already start near zero', () => {
     expect(extendBeats([0.2, 0.7, 1.2])).toEqual([0.2, 0.7, 1.2]);
   });
 
   it('copes with too few beats', () => {
     expect(extendBeats([1])).toEqual([1]);
+  });
+});
+
+describe('lowBandAlternation', () => {
+  const SR = 8000;
+  const beatsAt = (n: number, step: number) => Array.from({ length: n }, (_, i) => 0.1 + i * step);
+  const thump = (x: Float32Array, t: number, amp: number) => {
+    const at = Math.floor(t * SR);
+    for (let i = 0; i < 400 && at + i < x.length; i++) x[at + i] += amp * Math.sin((2 * Math.PI * 60 * i) / SR) * Math.exp(-i / 200);
+  };
+
+  it('is near 1 when every beat has the same bass', () => {
+    const x = new Float32Array(SR * 5);
+    const beats = beatsAt(16, 0.25);
+    beats.forEach((t) => thump(x, t, 0.5));
+    expect(lowBandAlternation(x, SR, beats)).toBeGreaterThan(0.9);
+  });
+
+  it('is low when the bass hits every other beat', () => {
+    const x = new Float32Array(SR * 5);
+    const beats = beatsAt(16, 0.25);
+    beats.forEach((t, i) => thump(x, t, i % 2 ? 0.05 : 0.5));
+    expect(lowBandAlternation(x, SR, beats)).toBeLessThan(0.3);
+  });
+
+  it('is 1 for silence', () => {
+    expect(lowBandAlternation(new Float32Array(SR), SR, [0.1, 0.3, 0.5])).toBe(1);
   });
 });

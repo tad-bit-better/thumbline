@@ -1,5 +1,5 @@
 import type { EssentiaLike, EssentiaVector } from './essentia.js';
-import { type BeatFeatures, detectMeter, extendBeats, toSegments } from './postprocess.js';
+import { type BeatFeatures, detectMeter, extendBeats, lowBandAlternation, toSegments } from './postprocess.js';
 import type { AnalysisResult } from './types.js';
 
 export const ANALYSIS_SAMPLE_RATE = 44100;
@@ -31,9 +31,12 @@ export type AnalyzeOptions = {
 };
 
 const FRAME = 4096;
+const HPCP_HARMONICS = 0;
 const HOP = 2048;
 const FRAMES_PER_SLICE = 160;
 const SILENT_RMS = 1e-4;
+/** Below this low-band alternation, a tracked tempo twice Percival's is trusted. */
+const DOUBLE_IS_REAL_BELOW = 0.6;
 const NOTE_NAMES: Record<string, number> = {
   C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11,
 };
@@ -42,6 +45,34 @@ const free = (...vs: Array<EssentiaVector | undefined>) => vs.forEach((v) => v?.
 const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 function checkAborted(signal?: AbortSignal) {
   if (signal?.aborted) throw new DOMException('Analysis cancelled', 'AbortError');
+}
+
+const ticksOf = (e: EssentiaLike, r: { ticks: EssentiaVector }) => {
+  const out = Array.from(e.vectorToArray(r.ticks));
+  free(r.ticks);
+  return out;
+};
+const tempoOf = (ticks: number[]) => {
+  const iv = ticks.slice(1).map((t, i) => t - ticks[i]).sort((a, b) => a - b);
+  return iv.length ? 60 / iv[Math.floor(iv.length / 2)] : 0;
+};
+const near = (ratio: number, target: number, tolerance: number) => Math.abs(ratio - target) <= tolerance * target;
+
+/**
+ * Beat positions from Degara's tracker, with Percival's estimator as a
+ * second opinion on the tempo. Trackers often lock onto the picked eighth
+ * notes of a solo guitar (double tempo); kick and bass on beats 1 and 3
+ * show when the faster reading is real (see the eval for the numbers).
+ */
+function trackBeats(e: EssentiaLike, signalVec: EssentiaVector, samples: Float32Array, sampleRate: number): number[] {
+  const reference = e.PercivalBpmEstimator(signalVec).bpm;
+  const ticks = ticksOf(e, e.RhythmExtractor2013(signalVec, 208, 'degara', 40));
+  const tracked = tempoOf(ticks);
+  if (!reference || !tracked || near(tracked / reference, 1, 0.06)) return ticks;
+  if (near(tracked / reference, 2, 0.06) && lowBandAlternation(samples, sampleRate, ticks) < DOUBLE_IS_REAL_BELOW) return ticks;
+  const min = Math.max(40, Math.round(reference * 0.85));
+  const max = Math.min(208, Math.round(reference * 1.15));
+  return ticksOf(e, e.RhythmExtractor2013(signalVec, max, 'degara', min));
 }
 
 function rms(x: Float32Array, from = 0, to = x.length) {
@@ -67,9 +98,7 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   const signalVec = e.arrayToVector(samples);
   let ticks: number[];
   try {
-    const rhythm = e.RhythmExtractor2013(signalVec, 208, 'multifeature', 40);
-    ticks = Array.from(e.vectorToArray(rhythm.ticks));
-    free(rhythm.ticks);
+    ticks = trackBeats(e, signalVec, samples, sampleRate);
   } catch {
     ticks = [];
   }
@@ -108,7 +137,8 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     const w = e.Windowing(frameVec, true, FRAME, 'blackmanharris62');
     const sp = e.Spectrum(w.frame, FRAME);
     const pk = e.SpectralPeaks(sp.spectrum, 0.00001, 5000, 100, 40, 'magnitude', sampleRate);
-    const h = e.HPCP(pk.frequencies, pk.magnitudes, true, 500, 8, 5000, false, 40, false, 'unitMax', 440, sampleRate, 12, 'cosine', 1);
+    // harmonics = 0: overtones are modelled in the chord templates instead.
+    const h = e.HPCP(pk.frequencies, pk.magnitudes, true, 500, HPCP_HARMONICS, 5000, false, 40, false, 'unitMax', 440, sampleRate, 12, 'cosine', 1);
     const hpcp = e.vectorToArray(h.hpcp);
     // Essentia's bin 0 is A (440 Hz reference); rotate so bin 0 is C.
     for (let i = 0; i < 12; i++) sums[beat][(i + 9) % 12] += hpcp[i];

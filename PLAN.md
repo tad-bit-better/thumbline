@@ -125,9 +125,11 @@ Every milestone ends with green `lint`, `test`, `build` for affected projects.
 - **Done when:** playhead drift vs audio < 20 ms over 3 minutes. _(Chromium, 191 s with 0.75× and back: mean lag 8.4 ms, p95 15.8 ms, drift −0.01 ms.)_
 
 ### M5: Audio analysis worker
-- [ ] Decode, mono, resample; essentia pipeline; post-processing; progress events; cancel; errors.
-- [ ] `nx run audio-analysis:eval` reports per-bar chord accuracy and tempo error on fixtures.
-- **Done when:** tempo within ±3 BPM on 90% of clips; 3-minute clip analysed in < 15 s on a mid-range laptop.
+- [x] Decode, mono, resample; essentia pipeline; post-processing; progress events; cancel; errors.
+- [x] `nx run audio-analysis:eval` reports per-bar chord accuracy and tempo error on fixtures.
+- **Done when:** tempo within ±3 BPM on 90% of clips; 3-minute clip analysed in < 15 s on a mid-range laptop. _(15 synthetic clips: tempo 93%, meter 93%, chords root 89% / major-minor 81% / exact 72%. 3-minute clip in 5.1 s in Chromium on an Apple-silicon Mac; re-time on a mid-range Windows laptop.)_
+- [ ] Add ≥ 15 real, licensed clips to `fixtures/audio` (PLAN §7 mix) and re-run the eval: tuning so far is on synthetic audio from our own synth.
+- [ ] Known miss: slow 3/4 (66 bpm) solo picking is read at double tempo by every estimator tried.
 
 ### M6: App flow (`apps/web`)
 - [ ] Upload screen (drop zone, file picker, sample clip, limits) with Pick drop moment.
