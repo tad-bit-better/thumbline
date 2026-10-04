@@ -1,0 +1,119 @@
+/* 3D press (design-system.md): hover lifts 2px, active sinks 3px. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 46px;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--dur-snap) var(--ease-snap),
+    box-shadow var(--dur-snap) var(--ease-snap),
+    background-color var(--dur-snap) var(--ease-snap);
+}
+
+.lg {
+  min-height: 58px;
+  padding: 0 var(--space-8);
+  font-size: var(--text-h3);
+  border-radius: var(--radius-lg);
+}
+
+.icon {
+  display: inline-flex;
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.icon > svg {
+  width: 100%;
+  height: 100%;
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+/* primary: violet with a solid bottom edge */
+.primary {
+  background: var(--color-violet);
+  color: var(--color-surface);
+  box-shadow: var(--shadow-press-violet);
+}
+
+.primary:hover:not(:disabled),
+:global([data-force-state='hover']) .primary:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-press-violet-hover);
+}
+
+.primary:active:not(:disabled),
+:global([data-force-state='active']) .primary:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: var(--shadow-press-violet-active);
+}
+
+.primary:focus-visible {
+  box-shadow: var(--shadow-press-violet), var(--ring-focus);
+}
+
+/* secondary: sunken */
+.secondary {
+  background: var(--color-surface-sunken);
+  color: var(--color-ink);
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+
+.secondary:hover:not(:disabled),
+:global([data-force-state='hover']) .secondary:not(:disabled) {
+  background: var(--color-violet-soft);
+  transform: translateY(-2px);
+}
+
+.secondary:active:not(:disabled),
+:global([data-force-state='active']) .secondary:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* ghost: text only */
+.ghost {
+  background: transparent;
+  color: var(--color-violet-deep);
+}
+
+.ghost:hover:not(:disabled),
+:global([data-force-state='hover']) .ghost:not(:disabled) {
+  background: var(--color-violet-soft);
+}
+
+.ghost:active:not(:disabled),
+:global([data-force-state='active']) .ghost:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  background: var(--color-surface-sunken);
+  color: var(--color-ink-3);
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+
+.ghost:disabled {
+  background: transparent;
+  box-shadow: none;
+}
+
+.button[data-reduced-motion] {
+  transition: none;
+}
