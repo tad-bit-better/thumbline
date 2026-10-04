@@ -7,13 +7,15 @@ export type StepperProps = {
   /** 0-based index of the current step. */
   current: number;
   label?: string;
+  /** `end` right-aligns the steps (in a nav bar). */
+  align?: 'start' | 'end';
   className?: string;
 };
 
 /** Upload · Listen · Review · Play. Done steps are mint, the current one violet. */
-export function Stepper({ steps, current, label = 'Progress', className }: StepperProps) {
+export function Stepper({ steps, current, label = 'Progress', align = 'start', className }: StepperProps) {
   return (
-    <nav aria-label={label} className={[styles['nav'], className].filter(Boolean).join(' ')}>
+    <nav aria-label={label} className={[styles['nav'], align === 'end' && styles['end'], className].filter(Boolean).join(' ')}>
       <ol className={styles['list']}>
         {steps.map((step, i) => {
           const state = i < current ? 'done' : i === current ? 'current' : 'upcoming';

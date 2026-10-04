@@ -1,0 +1,191 @@
+.main {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-14);
+}
+
+.card {
+  width: 100%;
+  max-width: 640px;
+  padding: clamp(var(--space-6), 4vw, var(--space-10));
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  view-transition-name: main-card;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.headText {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.headText h1 {
+  font-size: var(--text-h2);
+}
+
+.headText p {
+  margin-top: var(--space-2);
+  color: var(--color-ink-2);
+}
+
+.chip {
+  margin-top: var(--space-3);
+}
+
+/* Listening loop (#2) until its dotLottie lands: bars breathing out of phase. */
+.wave {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+  height: 72px;
+  margin: var(--space-8) 0 var(--space-2);
+}
+
+.bar {
+  width: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-violet);
+  transform-origin: 50% 100%;
+  animation: breathe var(--wave-period) var(--ease-glide) infinite;
+}
+
+.bar:nth-child(5n + 3) {
+  background: var(--color-orange);
+}
+
+.bar:nth-child(7n + 5) {
+  background: var(--color-mint);
+}
+
+.wave[data-paused] .bar {
+  animation-play-state: paused;
+}
+
+.wave[data-reduced-motion] .bar {
+  animation: none;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.steps {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 32px;
+  font-weight: 600;
+  animation: rise var(--dur-glide) var(--ease-glide) both;
+  animation-delay: calc(200ms * var(--i));
+}
+
+.step[data-state='pending'] {
+  color: var(--color-ink-3);
+}
+
+.stepName {
+  flex: 1;
+}
+
+.detail {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  font-weight: 500;
+  color: var(--color-ink-2);
+}
+
+.step[data-state='done'] .detail {
+  color: var(--color-mint-deep);
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+}
+
+.done {
+  background: var(--color-mint);
+  color: var(--color-surface);
+  box-shadow: inset 0 -3px 0 var(--color-mint-deep);
+  animation: pop var(--dur-bounce) var(--ease-bounce) both;
+}
+
+.done svg {
+  width: 16px;
+  height: 16px;
+}
+
+.active {
+  border: 3px solid var(--color-line);
+  border-top-color: var(--color-violet);
+  animation: spin 800ms linear infinite;
+}
+
+.pending {
+  border: 3px dashed var(--color-line);
+}
+
+.steps[data-reduced-motion] .step,
+.steps[data-reduced-motion] .done {
+  animation: none;
+}
+
+.steps[data-reduced-motion] .active {
+  animation-duration: 2400ms;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+}

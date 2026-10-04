@@ -1,5 +1,12 @@
 .nav {
   container-type: inline-size;
+  /* Inline-size containment ignores content width, so the stepper must be given room. */
+  width: 100%;
+  min-width: 0;
+}
+
+.end .list {
+  justify-content: flex-end;
 }
 
 .list {
