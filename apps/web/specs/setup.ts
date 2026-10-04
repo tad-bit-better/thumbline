@@ -42,3 +42,15 @@ if (!('showPopover' in HTMLElement.prototype)) {
     },
   });
 }
+
+// jsdom's Blob lacks arrayBuffer(); browsers have it.
+if (!Blob.prototype.arrayBuffer) {
+  Blob.prototype.arrayBuffer = function arrayBuffer(this: Blob) {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}

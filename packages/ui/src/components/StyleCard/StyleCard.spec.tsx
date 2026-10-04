@@ -35,6 +35,11 @@ describe('StyleCard', () => {
     expect(container.querySelector('[data-tone]')?.getAttribute('data-tone')).toBe(tone);
   });
 
+  it('can sit at another heading level', () => {
+    render(<StyleCard kind="arpeggio" title="Arpeggio" hint="h" headingLevel={2} />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Arpeggio' })).toBeTruthy();
+  });
+
   it('shows a sub-label', () => {
     render(<StyleCard kind="flamenco" title="Flamenco" hint="h" sublabel="Rumba" />);
     expect(screen.getByText('Rumba')).toBeTruthy();

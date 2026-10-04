@@ -23,11 +23,14 @@ export type StyleCardProps = {
   name?: string;
   selected?: boolean;
   disabled?: boolean;
+  /** Match the page outline; 3 under a section heading, 2 right under the page title. */
+  headingLevel?: 2 | 3 | 4;
   className?: string;
 };
 
 /** 3D icon, title and hint for a picking style; selectable as a radio. */
-export function StyleCard({ kind, title, hint, sublabel, onSelect, name, selected = false, disabled, className }: StyleCardProps) {
+export function StyleCard({ kind, title, hint, sublabel, onSelect, name, selected = false, disabled, headingLevel = 3, className }: StyleCardProps) {
+  const Heading = `h${headingLevel}` as const;
   const id = useId();
   const { Icon, tone } = LOOK[kind];
   const selectable = onSelect !== undefined;
@@ -51,9 +54,9 @@ export function StyleCard({ kind, title, hint, sublabel, onSelect, name, selecte
         />
       )}
       <Icon size={72} />
-      <h3 id={`${id}-title`} className={styles['title']}>
+      <Heading id={`${id}-title`} className={styles['title']}>
         {title}
-      </h3>
+      </Heading>
       {sublabel && <Chip tone={tone}>{sublabel}</Chip>}
       <p id={`${id}-hint`} className={styles['hint']}>
         {hint}

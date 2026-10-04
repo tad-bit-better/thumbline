@@ -1,4 +1,5 @@
-import { LOOP_MS, Pulse, useReducedMotion } from '../../motion';
+import type { CSSProperties } from 'react';
+import { LOOP_MS, usePageVisible, useReducedMotion } from '../../motion';
 import { LoopGlyph, PauseGlyph, PlayGlyph } from '../glyphs';
 import { IconButton } from '../IconButton/IconButton';
 import { SegmentedControl } from '../SegmentedControl/SegmentedControl';
@@ -56,6 +57,7 @@ export function PlayerBar({
   className,
 }: PlayerBarProps) {
   const reduced = useReducedMotion();
+  const visible = usePageVisible();
   const label = preparing ? 'Getting ready' : playing ? 'Pause' : 'Play';
   const button = (
     <button type="button" className={styles['play']} aria-label={label} aria-busy={preparing || undefined} onClick={onTogglePlay}>
@@ -65,11 +67,12 @@ export function PlayerBar({
   return (
     <section
       aria-label="Player"
-      className={[styles['bar'], className].filter(Boolean).join(' ')}
+      className={[styles['bar'], !playing && !preparing && styles['idle'], className].filter(Boolean).join(' ')}
+      style={{ '--breathe-period': `${LOOP_MS.breathe}ms` } as CSSProperties}
+      data-paused={visible ? undefined : ''}
       data-reduced-motion={reduced ? '' : undefined}
     >
-      {/* The idle sphere breathes to invite a first play. */}
-      {playing || preparing ? button : <Pulse periodMs={LOOP_MS.breathe}>{button}</Pulse>}
+      {button}
       <div className={styles['now']}>
         <b>{title}</b>
         <p>{subtitle}</p>

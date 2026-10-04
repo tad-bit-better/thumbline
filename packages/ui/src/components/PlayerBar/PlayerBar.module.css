@@ -15,6 +15,7 @@
 }
 
 .play {
+  position: relative;
   flex: none;
   display: grid;
   place-items: center;
@@ -49,6 +50,39 @@
 .play svg {
   width: 24px;
   height: 24px;
+}
+
+/* Idle: a breathing glow behind the sphere (the button itself stays still). */
+.idle .play::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--color-violet);
+  opacity: 0;
+  animation: glow var(--breathe-period) var(--ease-glide) infinite;
+  pointer-events: none;
+}
+
+.bar[data-paused] .play::before {
+  animation-play-state: paused;
+}
+
+.bar[data-reduced-motion] .play::before {
+  animation: none;
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.28;
+    transform: scale(1.35);
+  }
 }
 
 .spinner {
