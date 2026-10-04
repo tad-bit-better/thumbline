@@ -1,0 +1,292 @@
+import type { Arrangement } from '@thumbline/engine';
+import { type Scheduler, createScheduler } from './scheduler.js';
+import { timeStretchAsync } from './stretch.js';
+import { golpeBurst, midiOf, noteGain, nylonPluck, strumOffsets } from './synth.js';
+import { type Beats, createTimeline } from './timeline.js';
+
+export type Mix = 'sheet' | 'original' | 'both';
+export type PlayerState = 'idle' | 'preparing' | 'playing';
+
+export type PlayerOptions = {
+  arrangement: Arrangement;
+  /** The uploaded clip, decoded. Enables the Original and Both mixes. */
+  original?: AudioBuffer;
+  /** Beat grid from the AnalysisResult, so the sheet follows the recording's tempo drift. */
+  beats?: Beats;
+  /** Index into `arrangement.events` of the note being heard. */
+  onCursor: (eventIndex: number) => void;
+  /** The song played to its end (not called on stop or while looping). */
+  onEnd?: () => void;
+  onStateChange?: (state: PlayerState) => void;
+  /** Diagnostics: the audio-clock time each note was scheduled for. */
+  onScheduled?: (eventIndex: number, audioTime: number) => void;
+  /** Supply a context to share one; otherwise the player creates and owns it. */
+  context?: AudioContext;
+};
+
+export type Player = {
+  play: (fromBar?: number) => Promise<void>;
+  stop: () => void;
+  /** 0.5–1. Pitch is unchanged; the original is time-stretched first if needed. */
+  setTempoRatio: (ratio: number) => Promise<void>;
+  /** Loop bars `barStart`–`barEnd` (0-based, inclusive); `null` clears it. */
+  setLoop: (barStart: number | null, barEnd?: number) => void;
+  setMix: (mix: Mix) => void;
+  dispose: () => void;
+  readonly state: PlayerState;
+  readonly tempoRatio: number;
+};
+
+const LOOKAHEAD_SEC = 0.15;
+const TICK_MS = 25;
+const START_DELAY_SEC = 0.06;
+/** How fast a string is damped when the next note on it starts. */
+const DAMP_SEC = 0.012;
+const ORIGINAL_LEVEL_BOTH = 0.8;
+const MIX_GLIDE_SEC = 0.02;
+const MIN_RATIO = 0.5;
+
+type Frame = (cb: () => void) => () => void;
+const nextFrame: Frame =
+  typeof requestAnimationFrame === 'function'
+    ? (cb) => {
+        const id = requestAnimationFrame(cb);
+        return () => cancelAnimationFrame(id);
+      }
+    : (cb) => {
+        const id = setTimeout(cb, 16);
+        return () => clearTimeout(id);
+      };
+
+/** Sheet synth plus the original recording on one Web Audio clock (engine-spec §6). */
+export function createPlayer(options: PlayerOptions): Player {
+  const { arrangement: a, original, beats, onCursor, onEnd, onStateChange, onScheduled } = options;
+  const ownsContext = !options.context;
+  const ctx = options.context ?? new AudioContext({ latencyHint: 'interactive' });
+
+  const master = ctx.createGain();
+  const sheetBus = ctx.createGain();
+  const originalBus = ctx.createGain();
+  const compressor = ctx.createDynamicsCompressor();
+  master.gain.value = 0.9;
+  sheetBus.connect(master);
+  originalBus.connect(master);
+  master.connect(compressor);
+  compressor.connect(ctx.destination);
+
+  const timeline = createTimeline(a, beats);
+  const eventSec = a.events.map((e) => timeline.tickToSec(e.tick));
+  const strum = strumOffsets(a.events);
+
+  const plucks = new Map<number, AudioBuffer>();
+  let golpe: AudioBuffer | null = null;
+  const toBuffer = (data: Float32Array) => {
+    const b = ctx.createBuffer(1, data.length, ctx.sampleRate);
+    b.copyToChannel(data as Float32Array<ArrayBuffer>, 0);
+    return b;
+  };
+  const prepareSynth = () => {
+    for (const e of a.events) {
+      if (e.fret < 0) golpe ??= toBuffer(golpeBurst(ctx.sampleRate));
+      else {
+        const midi = midiOf(e.string, e.fret, a.capo);
+        if (!plucks.has(midi)) plucks.set(midi, toBuffer(nylonPluck(midi, ctx.sampleRate)));
+      }
+    }
+  };
+
+  const stretched = new Map<number, Promise<AudioBuffer>>();
+  const originalAt = (ratio: number): Promise<AudioBuffer> | null => {
+    if (!original) return null;
+    if (ratio === 1) return Promise.resolve(original);
+    let p = stretched.get(ratio);
+    if (!p) {
+      const channels = Array.from({ length: original.numberOfChannels }, (_, c) => original.getChannelData(c));
+      p = timeStretchAsync(channels, original.sampleRate, ratio).then((outs) => {
+        const b = ctx.createBuffer(outs.length, outs[0].length, original.sampleRate);
+        outs.forEach((o, c) => b.copyToChannel(o as Float32Array<ArrayBuffer>, c));
+        return b;
+      });
+      stretched.set(ratio, p);
+    }
+    return p;
+  };
+  const ready = new Map<number, AudioBuffer>();
+  const ensureOriginal = async (ratio: number) => {
+    const p = originalAt(ratio);
+    if (p) ready.set(ratio, await p);
+  };
+
+  let state: PlayerState = 'idle';
+  const setState = (s: PlayerState) => {
+    if (s === state) return;
+    state = s;
+    onStateChange?.(s);
+  };
+
+  let ratio = 1;
+  let mix: Mix = original ? 'both' : 'sheet';
+  let loop: { startSec: number; endSec: number } | null = null;
+  let scheduler: Scheduler | null = null;
+  let timer: ReturnType<typeof setInterval> | null = null;
+  let cancelFrame: (() => void) | null = null;
+  let endAt: number | null = null;
+  let queue: Array<{ eventIndex: number; when: number }> = [];
+  const active = new Set<AudioBufferSourceNode>();
+  const passSources = new Map<number, AudioBufferSourceNode>();
+  const ringing: Array<{ src: AudioBufferSourceNode; gain: GainNode } | undefined> = [];
+
+  const applyMix = () => {
+    const now = ctx.currentTime;
+    const [sheet, orig] = !original ? [1, 0] : mix === 'sheet' ? [1, 0] : mix === 'original' ? [0, 1] : [1, ORIGINAL_LEVEL_BOTH];
+    sheetBus.gain.setTargetAtTime(sheet, now, MIX_GLIDE_SEC);
+    originalBus.gain.setTargetAtTime(orig, now, MIX_GLIDE_SEC);
+  };
+  applyMix();
+
+  /** What the listener hears now, on the context clock. */
+  const audibleTime = () => {
+    const ts = typeof ctx.getOutputTimestamp === 'function' ? ctx.getOutputTimestamp() : null;
+    if (ts && ts.contextTime !== undefined && ts.performanceTime !== undefined && ts.performanceTime > 0) {
+      return ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+    }
+    return ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0);
+  };
+
+  const playSource = (buffer: AudioBuffer, bus: AudioNode, when: number, gainValue: number, offset = 0) => {
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = gainValue;
+    src.connect(gain);
+    gain.connect(bus);
+    src.onended = () => active.delete(src);
+    src.start(when, offset);
+    active.add(src);
+    return { src, gain };
+  };
+
+  const tick = () => {
+    if (!scheduler) return;
+    const now = ctx.currentTime;
+    const r = scheduler.advance(now + LOOKAHEAD_SEC);
+
+    for (const { id, audioEnd } of r.passesEnded) {
+      passSources.get(id)?.stop(audioEnd);
+      passSources.delete(id);
+    }
+    for (const p of r.passesStarted) {
+      const buffer = ready.get(p.ratio);
+      if (!buffer) continue;
+      const late = Math.max(0, now - p.audioStart);
+      const { src } = playSource(buffer, originalBus, p.audioStart + late, 1, p.songStart / p.ratio + late / p.ratio);
+      passSources.set(p.id, src);
+    }
+    for (const { eventIndex, when } of r.notes) {
+      const e = a.events[eventIndex];
+      const at = when + (strum.get(eventIndex) ?? 0);
+      if (e.fret < 0) {
+        if (golpe) playSource(golpe, sheetBus, at, noteGain(e));
+      } else {
+        const buffer = plucks.get(midiOf(e.string, e.fret, a.capo));
+        if (buffer) {
+          const prev = ringing[e.string];
+          if (prev) {
+            prev.gain.gain.setTargetAtTime(0, at, DAMP_SEC);
+            prev.src.stop(at + DAMP_SEC * 8);
+          }
+          ringing[e.string] = playSource(buffer, sheetBus, at, noteGain(e));
+        }
+      }
+      queue.push({ eventIndex, when });
+      onScheduled?.(eventIndex, when);
+    }
+    if (r.endedAt !== null) endAt = r.endedAt;
+  };
+
+  const frame = () => {
+    const heard = audibleTime();
+    let last: number | null = null;
+    while (queue.length && queue[0].when <= heard) last = (queue.shift() as { eventIndex: number }).eventIndex;
+    if (last !== null) onCursor(last);
+    if (endAt !== null && heard >= endAt) {
+      finish();
+      onEnd?.();
+      return;
+    }
+    cancelFrame = nextFrame(frame);
+  };
+
+  const finish = () => {
+    if (timer) clearInterval(timer);
+    timer = null;
+    cancelFrame?.();
+    cancelFrame = null;
+    scheduler = null;
+    queue = [];
+    endAt = null;
+    setState('idle');
+  };
+
+  const stop = () => {
+    const now = ctx.currentTime;
+    for (const src of active) {
+      try {
+        src.stop(now);
+      } catch {
+        // already stopped
+      }
+    }
+    active.clear();
+    passSources.clear();
+    ringing.length = 0;
+    finish();
+  };
+
+  return {
+    get state() {
+      return state;
+    },
+    get tempoRatio() {
+      return ratio;
+    },
+    async play(fromBar = 0) {
+      if (state !== 'idle') stop();
+      setState('preparing');
+      await ctx.resume();
+      prepareSynth();
+      await ensureOriginal(ratio);
+      if (state !== 'preparing') return; // stopped while preparing
+      scheduler = createScheduler({ eventSec, endSec: timeline.endSec });
+      scheduler.setLoop(loop);
+      scheduler.start(ctx.currentTime + START_DELAY_SEC, timeline.barToSec(fromBar), ratio);
+      setState('playing');
+      tick();
+      timer = setInterval(tick, TICK_MS);
+      cancelFrame = nextFrame(frame);
+    },
+    stop,
+    async setTempoRatio(next) {
+      const r = Math.min(1, Math.max(MIN_RATIO, next));
+      if (r === ratio) return;
+      await ensureOriginal(r);
+      ratio = r;
+      scheduler?.setRatio(r);
+    },
+    setLoop(barStart, barEnd = barStart ?? 0) {
+      loop = barStart === null ? null : { startSec: timeline.barToSec(barStart), endSec: timeline.barToSec(barEnd + 1) };
+      scheduler?.setLoop(loop);
+    },
+    setMix(next) {
+      mix = next;
+      applyMix();
+    },
+    dispose() {
+      stop();
+      sheetBus.disconnect();
+      originalBus.disconnect();
+      master.disconnect();
+      if (ownsContext) void ctx.close();
+    },
+  };
+}

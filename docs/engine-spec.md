@@ -156,4 +156,27 @@ function arrange(input: AnalysisResult, opts: {
 
 ## 6. Playback inputs
 
-`createPlayer({ arrangement, original?: AudioBuffer, onCursor: (eventIndex) => void })` returns `{ play, stop, setTempoRatio, setLoop(barStart, barEnd), setMix('sheet'|'original'|'both'|'ab') }`. Sheet timing uses `beatTimesSec` from `AnalysisResult` when the original is playing, so the sheet follows the recording's real tempo drift.
+```ts
+createPlayer({
+  arrangement,
+  original?: AudioBuffer,            // decoded clip; enables the Original and Both mixes
+  beats?: { beatTimesSec, barStartBeat },  // from AnalysisResult
+  onCursor: (eventIndex) => void,    // note being heard (output latency compensated)
+  onEnd?: () => void,                // played to the end (not on stop or while looping)
+  onStateChange?: (state: 'idle' | 'preparing' | 'playing') => void,
+  context?: AudioContext,            // share one; otherwise the player owns it
+}) → {
+  play(fromBar?): Promise<void>,
+  stop(),
+  setTempoRatio(0.5–1): Promise<void>,   // pitch unchanged
+  setLoop(barStart, barEnd) | setLoop(null),  // 0-based, inclusive
+  setMix('sheet' | 'original' | 'both'),
+  dispose(),
+  state, tempoRatio,
+}
+```
+
+- With `beats`, ticks map to seconds in the recording (linear between detected beats, extrapolated past the last), so the sheet follows its real tempo drift. Without them the sheet uses the steady `bpm`.
+- Sheet notes and the original share one Web Audio clock. Playback is a series of passes (one per loop pass or tempo change); in each, a note at song time `s` plays at `audioStart + (s − songStart) / ratio` and the original starts at `songStart / ratio` in its time-stretched copy, so they cannot drift.
+- Slower speeds play a WSOLA time-stretched copy of the original (pitch unchanged), prepared in the background and cached per ratio.
+- Tempo, loop and mix changes take effect within the 150 ms lookahead.

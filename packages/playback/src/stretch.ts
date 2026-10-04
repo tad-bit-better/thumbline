@@ -124,6 +124,20 @@ export function timeStretch(channels: readonly Float32Array[], sampleRate: numbe
   }
 }
 
+/** Yield a macrotask so the page stays responsive (not tied to timers). */
+function yieldToEventLoop(): Promise<void> {
+  const sched = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  if (sched?.yield) return sched.yield();
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+}
+
 /** Same result as `timeStretch`, yielding to the event loop every few ms. */
 export async function timeStretchAsync(
   channels: readonly Float32Array[],
@@ -140,6 +154,6 @@ export async function timeStretchAsync(
       if (r.done) return r.value;
       if (performance.now() >= sliceEnd) break;
     }
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await yieldToEventLoop();
   }
 }
