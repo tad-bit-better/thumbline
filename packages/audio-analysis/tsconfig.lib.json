@@ -12,6 +12,7 @@
   "include": ["src/**/*.ts"],
   "references": [],
   "exclude": [
+    "src/testing/**",
     "vite.config.ts",
     "vite.config.mts",
     "vitest.config.ts",

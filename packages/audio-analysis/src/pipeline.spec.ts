@@ -1,0 +1,91 @@
+import { AnalysisError, analyzeSamples, type Progress } from './pipeline.js';
+import { loadEssentiaNode } from './testing/node-essentia.js';
+import { chordClip } from './testing/synth.js';
+import type { AnalysisResult } from './types.js';
+
+const essentia = loadEssentiaNode();
+const NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const SUFFIX: Record<string, string> = { maj: '', m: 'm', '7': '7', m7: 'm7', maj7: 'maj7', sus2: 'sus2', sus4: 'sus4', dim: 'dim' };
+const chordAt = (r: AnalysisResult, bar: number) => {
+  const seg = [...r.chords].reverse().find((s) => s.bar <= bar);
+  return seg?.chord ? NAMES[seg.chord.pc] + SUFFIX[seg.chord.quality] : '-';
+};
+
+describe('analyzeSamples', () => {
+  const chart = ['C', 'C', 'Am', 'Am', 'F', 'F', 'G', 'G', 'C', 'C', 'Am', 'Am', 'F', 'F', 'G', 'G'];
+  let result: AnalysisResult;
+  const progress: Progress[] = [];
+
+  beforeAll(async () => {
+    result = await analyzeSamples(chordClip(chart, { bpm: 100 }), 44100, { essentia, onProgress: (p) => progress.push(p) });
+  }, 60000);
+
+  it('finds the tempo', () => {
+    expect(Math.abs(result.bpm - 100)).toBeLessThan(1.5);
+  });
+
+  it('returns the beat grid, starting near the beginning', () => {
+    expect(result.beatTimesSec.length).toBeGreaterThan(60);
+    expect(result.beatTimesSec[0]).toBeLessThan(0.65);
+    for (let i = 1; i < result.beatTimesSec.length; i++) expect(result.beatTimesSec[i]).toBeGreaterThan(result.beatTimesSec[i - 1]);
+  });
+
+  it('finds 4/4 and the key', () => {
+    expect(result.meter.beatsPerBar).toBe(4);
+    expect(result.key).toEqual({ pc: 0, mode: 'major' });
+  });
+
+  it('hears the chords bar by bar', () => {
+    const bars = Math.min(chart.length, Math.max(...result.chords.map((c) => c.bar)) + 1);
+    let right = 0;
+    for (let b = 0; b < bars; b++) if (chordAt(result, b) === chart[b]) right++;
+    expect(right / bars).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it('fills in the contract fields', () => {
+    expect(result.version).toBe(1);
+    expect(result.durationSec).toBeCloseTo(chordClip(chart).length / 44100, 3);
+    expect(result.barStartBeat).toBeGreaterThanOrEqual(0);
+    for (const c of result.chords) {
+      expect(c.alternatives.length).toBeLessThanOrEqual(3);
+      expect(c.confidence).toBeGreaterThanOrEqual(0);
+      expect(c.confidence).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('reports progress through each step, ending at 1', () => {
+    const steps = [...new Set(progress.map((p) => p.step))];
+    expect(steps).toEqual(['beats', 'key', 'chords', 'done']);
+    for (let i = 1; i < progress.length; i++) expect(progress[i].fraction).toBeGreaterThanOrEqual(progress[i - 1].fraction);
+    expect(progress.at(-1)?.fraction).toBe(1);
+    expect(progress.find((p) => p.step === 'key')?.detail).toMatchObject({ bpm: expect.any(Number) });
+    expect(progress.at(-1)?.detail).toMatchObject({ bpm: expect.any(Number), beatsPerBar: 4 });
+    expect(progress.filter((p) => p.step === 'chords').at(-1)?.detail).toMatchObject({ bar: expect.any(Number), bars: expect.any(Number) });
+  });
+
+  it('can be cancelled', async () => {
+    const controller = new AbortController();
+    const p = analyzeSamples(chordClip(chart), 44100, {
+      essentia,
+      signal: controller.signal,
+      onProgress: (e) => e.step === 'chords' && controller.abort(),
+    });
+    await expect(p).rejects.toMatchObject({ name: 'AbortError' });
+  }, 60000);
+
+  it('refuses silence', async () => {
+    await expect(analyzeSamples(new Float32Array(44100 * 5), 44100, { essentia })).rejects.toMatchObject({
+      code: 'silent',
+    });
+  });
+
+  it('refuses clips too short to find a beat', async () => {
+    const err = await analyzeSamples(chordClip(['C']).subarray(0, 44100), 44100, { essentia }).catch((e) => e);
+    expect(err).toBeInstanceOf(AnalysisError);
+    expect(err.code).toBe('too-short');
+  });
+
+  it('requires 44.1 kHz input', async () => {
+    await expect(analyzeSamples(new Float32Array(48000), 48000, { essentia })).rejects.toThrow(/44100/);
+  });
+});
