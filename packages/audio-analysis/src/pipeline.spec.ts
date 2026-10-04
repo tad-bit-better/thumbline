@@ -55,7 +55,7 @@ describe('analyzeSamples', () => {
 
   it('reports progress through each step, ending at 1', () => {
     const steps = [...new Set(progress.map((p) => p.step))];
-    expect(steps).toEqual(['beats', 'key', 'chords', 'done']);
+    expect(steps).toEqual(['beats', 'key', 'chords', 'melody', 'done']);
     for (let i = 1; i < progress.length; i++) expect(progress[i].fraction).toBeGreaterThanOrEqual(progress[i - 1].fraction);
     expect(progress.at(-1)?.fraction).toBe(1);
     expect(progress.find((p) => p.step === 'key')?.detail).toMatchObject({ bpm: expect.any(Number) });

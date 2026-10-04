@@ -23,4 +23,7 @@ export type AnalysisResult = {
   meter: { beatsPerBar: 3 | 4 | 12; accents?: number[] };
   key: { pc: number; mode: 'major' | 'minor' | 'phrygian' };
   chords: ChordSegment[];
+  melody?: MelodyNote[];
 };
+
+export type MelodyNote = { startSec: number; durSec: number; midi: number; confidence: number };

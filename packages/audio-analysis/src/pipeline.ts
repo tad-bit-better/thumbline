@@ -1,5 +1,6 @@
 import type { EssentiaLike, EssentiaVector } from './essentia.js';
 import { type BeatFeatures, detectMeter, extendBeats, lowBandAlternation, toSegments } from './postprocess.js';
+import { cleanMelody, trackMelody } from './melody.js';
 import type { AnalysisResult } from './types.js';
 
 export const ANALYSIS_SAMPLE_RATE = 44100;
@@ -18,7 +19,7 @@ export class AnalysisError extends Error {
 }
 
 export type Progress = {
-  step: 'decode' | 'beats' | 'key' | 'chords' | 'done';
+  step: 'decode' | 'beats' | 'key' | 'chords' | 'melody' | 'done';
   /** Overall 0..1. */
   fraction: number;
   detail?: { bpm?: number; beatsPerBar?: number; bar?: number; bars?: number };
@@ -166,7 +167,7 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   let beat = 0;
   for (let f = 0; f < frames; f++) {
     if (f % FRAMES_PER_SLICE === 0) {
-      report({ step: 'chords', fraction: 0.5 + 0.48 * (f / frames), detail: { bar: Math.min(bars, Math.floor(beat / 4) + 1), bars } });
+      report({ step: 'chords', fraction: 0.5 + 0.3 * (f / frames), detail: { bar: Math.min(bars, Math.floor(beat / 4) + 1), bars } });
       await tick();
       checkAborted(signal);
     }
@@ -192,6 +193,17 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   const meter = detectMeter(features);
   const chords = toSegments(features, meter.beatsPerBar, meter.firstDownbeat, key);
 
+  // The tune (M9): one pass over the whole clip, so progress jumps once.
+  report({ step: 'melody', fraction: 0.82, detail: { bpm, beatsPerBar: meter.beatsPerBar } });
+  await tick();
+  checkAborted(signal);
+  let melody: AnalysisResult['melody'];
+  try {
+    melody = cleanMelody(trackMelody(e, samples, sampleRate), key);
+  } catch {
+    melody = undefined; // a sheet without the tune beats no sheet
+  }
+
   report({ step: 'done', fraction: 1, detail: { bpm, beatsPerBar: meter.beatsPerBar } });
   return {
     version: 1,
@@ -202,5 +214,6 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     meter: { beatsPerBar: meter.beatsPerBar },
     key,
     chords,
+    ...(melody?.length ? { melody } : {}),
   };
 }

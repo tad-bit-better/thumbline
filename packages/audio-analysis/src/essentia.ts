@@ -39,6 +39,22 @@ export type EssentiaLike = {
     weightType?: string,
     windowSize?: number,
   ): { hpcp: EssentiaVector };
+  EqualLoudness(signal: EssentiaVector, sampleRate?: number): { signal: EssentiaVector };
+  PredominantPitchMelodia(
+    signal: EssentiaVector,
+    binResolution?: number,
+    filterIterations?: number,
+    frameSize?: number,
+    guessUnvoiced?: boolean,
+    harmonicWeight?: number,
+    hopSize?: number,
+  ): { pitch: EssentiaVector; pitchConfidence: EssentiaVector };
+  PitchContourSegmentation(
+    pitch: EssentiaVector,
+    signal: EssentiaVector,
+    hopSize?: number,
+    minDuration?: number,
+  ): { onset: EssentiaVector; duration: EssentiaVector; MIDIpitch: EssentiaVector };
 };
 
 /**
