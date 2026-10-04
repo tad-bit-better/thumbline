@@ -19,6 +19,10 @@
   contain-intrinsic-size: auto 162px;
 }
 
+.system[data-seekable] {
+  cursor: pointer;
+}
+
 .system + .system {
   margin-top: var(--space-6);
 }

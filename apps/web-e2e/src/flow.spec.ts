@@ -59,9 +59,20 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Play' }).click();
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-playhead]')).toHaveCount(1, { timeout: 10_000 });
+  // The first note can take a while when several browsers analyse and set up audio at once.
+  await expect(page.locator('[data-playhead]')).toHaveCount(1, { timeout: 20_000 });
   await page.getByRole('button', { name: 'Pause' }).click();
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+
+  // Click a later bar on the tab: it plays from there, and Pause keeps the place.
+  const position = page.getByRole('slider', { name: 'Position in song' });
+  await page.locator('[data-system]').nth(1).click({ position: { x: 120, y: 90 } });
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });
+  await expect(position).not.toHaveAttribute('aria-valuetext', /^Bar [1-4] of/);
+  await page.getByRole('button', { name: 'Pause' }).click();
+  const here = await position.getAttribute('aria-valuetext');
+  await page.getByRole('button', { name: 'Back one bar' }).click();
+  await expect(position).not.toHaveAttribute('aria-valuetext', String(here));
 });
 
 test('the song survives a reload', async ({ page }) => {

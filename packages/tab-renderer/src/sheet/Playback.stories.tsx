@@ -49,12 +49,19 @@ function Player({ bars = 8, startPlaying = false }: { bars?: number; startPlayin
         <Button onClick={() => setCursor(playing ? undefined : 0)}>{playing ? 'Stop' : 'Play'}</Button>
         <SegmentedControl label="Level" options={LEVELS} value={level} onChange={(v) => setLevel(v)} />
       </div>
-      <TabSheet arrangement={arrangement} width={1040} cursorIndex={cursor} label="Fingerstyle tab" />
+      <TabSheet
+        arrangement={arrangement}
+        width={1040}
+        cursorIndex={cursor}
+        label="Fingerstyle tab"
+        // Click to play from there: the first note at or after the tick.
+        onSeek={(tick) => setCursor(Math.max(0, arrangement.events.findIndex((e) => e.tick >= tick)))}
+      />
     </section>
   );
 }
 
-/** Switch level to replay the reveal; press Play for the playhead. */
+/** Switch level to replay the reveal; press Play for the playhead, or click the tab to play from there. */
 export const RevealAndPlay: StoryObj = { render: () => <Player /> };
 
 /** The playhead mid-song, with its glow and the active notes lit. */

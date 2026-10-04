@@ -172,6 +172,9 @@ Real mixes break chord detection: on a commercial track with vocals, half the ch
 - [ ] Metronome swings at the detected BPM on the Listening screen (with the M8 Lottie).
 - [ ] Listening → Review view transition (only drop zone → listening and chord grid → tab exist).
 - [ ] Loop a bar range by drag-selecting bars on the sheet; today Loop repeats the whole song.
+- [x] Seeking: click the tab to play from there; back/forward a bar and a position slider in the player bar; ←/→ work playing or paused; Pause resumes where it stopped (it used to restart from bar 1). A play that jumped ahead doesn't count as the first full play.
+- [x] Player bar sticks to the bottom of the screen (it never did: its wrapper was exactly its size).
+- [ ] Compact player bar for phones. It wraps to ~270px there, so it stays at the end of the page below 560px. `DESIGN-REVIEW`
 - [ ] Review popover shows ranked alternatives without percentages: `ChordSegment.alternatives` has no scores. Adding them is a contract change in `docs/engine-spec.md`. `DESIGN-REVIEW`
 - [ ] Accuracy: the sample clip (G Em C D) reads Em as E7 in some bars; add to the M5 eval set.
 

@@ -186,6 +186,33 @@ describe('createPlayer', () => {
   });
 
   describe('with the original recording', () => {
+    it('starts both from any point in the song', async () => {
+      const original = clickTrack(5);
+      const { ctx, player, run, cursor } = setup(quarters(2), { original });
+      // Halfway through beat 2 of bar 2: 4.5 beats at 120 bpm = 2.25 s.
+      await player.playFrom(480 * 4.5);
+      await run(0.4);
+      const [rec] = ctx.sources.filter((s) => s.buffer === original);
+      expect(rec.started).toMatchObject({ offset: expect.closeTo(2.25, 6) });
+      // The first note heard is the next one: beat 6 (index 5), half a beat later.
+      const [first] = notes(ctx, original);
+      expect(when(first) - (rec.started as { when: number }).when).toBeCloseTo(0.25, 6);
+      expect(cursor[0]).toBe(5);
+    });
+
+    it('jumps when asked to play from elsewhere while playing', async () => {
+      const original = clickTrack(5);
+      const { ctx, player, run } = setup(quarters(2), { original });
+      await player.play();
+      await run(0.3);
+      await player.playFrom(480 * 6);
+      await run(0.1);
+      const recs = ctx.sources.filter((s) => s.buffer === original);
+      expect(recs[0].stopAt).toBeDefined();
+      expect(recs.at(-1)?.started).toMatchObject({ offset: expect.closeTo(3, 6) });
+      expect(player.state).toBe('playing');
+    });
+
     it('starts the recording on the same clock, aligned to the beats', async () => {
       const original = clickTrack(4);
       const beats = { beatTimesSec: [0.3, 0.8, 1.3, 1.8, 2.3], barStartBeat: 0 };

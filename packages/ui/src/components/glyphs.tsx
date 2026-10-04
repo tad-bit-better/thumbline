@@ -33,6 +33,22 @@ export const LoopGlyph = (p: GlyphProps) => (
   </svg>
 );
 
+/** Back one step: a bar line, then a triangle pointing back. */
+export const BackGlyph = (p: GlyphProps) => (
+  <svg {...base} {...p}>
+    <path d="M6 5.5v13" />
+    <path d="M18 6.5v11L9.5 12z" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+/** Forward one step: a triangle, then a bar line. */
+export const ForwardGlyph = (p: GlyphProps) => (
+  <svg {...base} {...p}>
+    <path d="M18 5.5v13" />
+    <path d="M6 6.5v11l8.5-5.5z" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const CloseGlyph = (p: GlyphProps) => (
   <svg {...base} {...p}>
     <path d="M6 6l12 12M18 6L6 18" />

@@ -14,7 +14,7 @@ vi.mock('@thumbline/playback', () => ({
   createPlayer: (opts: Opts) => {
     const p = {
       opts,
-      play: vi.fn(async () => opts.onStateChange?.('playing')),
+      playFrom: vi.fn(async () => opts.onStateChange?.('playing')),
       stop: vi.fn(() => opts.onStateChange?.('idle')),
       setMix: vi.fn(),
       setTempoRatio: vi.fn(async () => undefined),
@@ -116,7 +116,7 @@ describe('Sheet screen', () => {
     const { container } = render(<Sheet />);
     await startPlaying();
     expect(players).toHaveLength(1);
-    expect(players[0].play).toHaveBeenCalled();
+    expect(players[0].playFrom).toHaveBeenCalledWith(0);
     expect(players[0].setMix).toHaveBeenCalledWith('both');
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
     act(() => players[0].opts.onCursor(3));
@@ -154,11 +154,61 @@ describe('Sheet screen', () => {
   it('has keyboard shortcuts', async () => {
     render(<Sheet />);
     fireEvent.keyDown(window, { key: ' ' });
-    await waitFor(() => expect(players[0]?.play).toHaveBeenCalled());
+    await waitFor(() => expect(players[0]?.playFrom).toHaveBeenCalled());
     fireEvent.keyDown(window, { key: '3' });
     expect(songStore.getState().prefs.level).toBe('advanced');
     fireEvent.keyDown(window, { key: 'l' });
     expect(screen.getByRole('button', { name: 'Loop' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('resumes from where it was paused', async () => {
+    render(<Sheet />);
+    await startPlaying();
+    const events = (players[0].opts.arrangement as unknown as { events: Array<{ tick: number }> }).events;
+    act(() => players[0].opts.onCursor(5));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Pause' })));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Play' })));
+    expect(players[0].playFrom).toHaveBeenLastCalledWith(events[5].tick);
+  });
+
+  it('plays from where you click on the tab', async () => {
+    const { container } = render(<Sheet />);
+    const second = container.querySelectorAll('[data-system]')[1] as SVGSVGElement;
+    second.getBoundingClientRect = () => ({ left: 0, top: 0, width: 960, height: 162, right: 960, bottom: 162, x: 0, y: 0, toJSON: () => ({}) });
+    await act(async () => fireEvent.click(second, { clientX: 40 }));
+    await waitFor(() => expect(players[0]?.playFrom).toHaveBeenCalled());
+    const tick = players[0].playFrom.mock.calls[0][0] as number;
+    expect(tick).toBeGreaterThanOrEqual(4 * 1920); // the second system starts at bar 5 or later
+  });
+
+  it('moves a bar back and forward while paused, without playing', async () => {
+    render(<Sheet />);
+    const slider = screen.getByRole('slider', { name: 'Position in song' });
+    expect(slider.getAttribute('aria-valuetext')).toBe('Bar 1 of 8');
+    fireEvent.click(screen.getByRole('button', { name: 'Forward one bar' }));
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(slider.getAttribute('aria-valuetext')).toBe('Bar 3 of 8');
+    fireEvent.click(screen.getByRole('button', { name: 'Back one bar' }));
+    expect(slider.getAttribute('aria-valuetext')).toBe('Bar 2 of 8');
+    expect(players).toHaveLength(0);
+    // Play starts from there.
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Play' })));
+    await waitFor(() => expect(players[0]?.playFrom).toHaveBeenCalledWith(1920));
+  });
+
+  it('jumps while playing', async () => {
+    render(<Sheet />);
+    await startPlaying();
+    await act(async () => fireEvent.change(screen.getByRole('slider', { name: 'Position in song' }), { target: { value: '6' } }));
+    expect(players[0].playFrom).toHaveBeenLastCalledWith(6 * 1920);
+  });
+
+  it('does not celebrate a play that skipped ahead', async () => {
+    render(<Sheet />);
+    await startPlaying();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Forward one bar' })));
+    act(() => players[0].opts.onEnd?.());
+    expect(screen.queryByText(/Nice!/)).toBeNull();
   });
 
   it('starts a new song after confirming', async () => {

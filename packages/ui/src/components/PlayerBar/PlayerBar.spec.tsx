@@ -82,4 +82,39 @@ describe('PlayerBar', () => {
     );
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  describe('seeking', () => {
+    it('moves a bar back and forward', () => {
+      const onSeek = vi.fn();
+      setup({ position: { bar: 4, bars: 32 }, onSeek });
+      fireEvent.click(screen.getByRole('button', { name: 'Back one bar' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Forward one bar' }));
+      expect(onSeek.mock.calls).toEqual([[3], [5]]);
+    });
+
+    it('can’t go before the first bar or past the last', () => {
+      setup({ position: { bar: 0, bars: 1 }, onSeek: vi.fn() });
+      expect((screen.getByRole('button', { name: 'Back one bar' }) as HTMLButtonElement).disabled).toBe(true);
+      expect((screen.getByRole('button', { name: 'Forward one bar' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('jumps with the slider and says where it is', () => {
+      const onSeek = vi.fn();
+      setup({ position: { bar: 4, bars: 32 }, onSeek });
+      const slider = screen.getByRole('slider', { name: 'Position in song' });
+      expect(slider.getAttribute('aria-valuetext')).toBe('Bar 5 of 32');
+      fireEvent.change(slider, { target: { value: '20' } });
+      expect(onSeek).toHaveBeenCalledWith(20);
+    });
+
+    it('is hidden without a position', () => {
+      setup();
+      expect(screen.queryByRole('slider')).toBeNull();
+    });
+
+    it('has no axe violations with the seek row', async () => {
+      setup({ position: { bar: 4, bars: 32 }, onSeek: vi.fn() });
+      expect(await axeViolations(document.body)).toEqual([]);
+    });
+  });
 });

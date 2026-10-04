@@ -123,14 +123,17 @@ export default function SheetPage() {
     }
   }, [effective, prefs.style, prefs.level, pattern]);
 
-  const onEnd = useCallback(() => {
-    if (!arrangement || loop) return;
-    const key = `${meta?.name}:${arrangement.patternId}`;
-    if (celebrated.current.has(key)) return;
-    celebrated.current.add(key);
-    // First full play (moment #8); the confetti dotLottie arrives in M8.
-    toast({ message: 'Nice! You played the whole song.', tone: 'success' });
-  }, [arrangement, loop, meta?.name, toast]);
+  const onEnd = useCallback(
+    (wholeSong: boolean) => {
+      if (!arrangement || loop || !wholeSong) return;
+      const key = `${meta?.name}:${arrangement.patternId}`;
+      if (celebrated.current.has(key)) return;
+      celebrated.current.add(key);
+      // First full play (moment #8); the confetti dotLottie arrives in M8.
+      toast({ message: 'Nice! You played the whole song.', tone: 'success' });
+    },
+    [arrangement, loop, meta?.name, toast],
+  );
 
   const player = useSheetPlayer({
     arrangement,
@@ -147,13 +150,12 @@ export default function SheetPage() {
     onEnd,
   });
 
-  const currentBar = () => {
-    if (!arrangement || player.cursor === undefined) return 0;
-    return Math.floor(
-      arrangement.events[player.cursor].tick /
-        (arrangement.meter.beatsPerBar * 480),
+  const barTicks = (arrangement?.meter.beatsPerBar ?? 4) * 480;
+  const currentBar = Math.floor(player.position / barTicks);
+  const seekBar = (bar: number) =>
+    void player.seek(
+      Math.min((arrangement?.bars ?? 1) - 1, Math.max(0, bar)) * barTicks,
     );
-  };
 
   const keys = useRef<(e: KeyboardEvent) => void>(() => undefined);
   keys.current = (e) => {
@@ -170,15 +172,12 @@ export default function SheetPage() {
       songStore.getState().setLevel(LEVELS[Number(e.key) - 1].value);
     else if (
       (e.key === 'ArrowRight' || e.key === 'ArrowLeft') &&
-      player.state === 'playing' &&
-      arrangement
+      arrangement &&
+      !document.activeElement?.matches('input[type="range"]')
     ) {
+      // A bar back or forward, playing or paused (the slider handles its own arrows).
       e.preventDefault();
-      const bar = Math.min(
-        arrangement.bars - 1,
-        Math.max(0, currentBar() + (e.key === 'ArrowRight' ? 1 : -1)),
-      );
-      void player.play(bar);
+      seekBar(currentBar + (e.key === 'ArrowRight' ? 1 : -1));
     }
   };
   useEffect(() => {
@@ -310,6 +309,7 @@ export default function SheetPage() {
                       width={tabWidth}
                       cursorIndex={player.cursor}
                       label={`${STYLE_NAMES[prefs.style]} tab`}
+                      onSeek={(tick) => void player.seek(tick, true)}
                     />
                   </div>
                   <TabLegend arrangement={arrangement} />
@@ -333,6 +333,12 @@ export default function SheetPage() {
             onSpeedChange={(s) => songStore.getState().setSpeed(s)}
             loop={loop}
             onLoopChange={setLoop}
+            position={
+              arrangement
+                ? { bar: currentBar, bars: arrangement.bars }
+                : undefined
+            }
+            onSeek={seekBar}
           />
         </div>
       </main>

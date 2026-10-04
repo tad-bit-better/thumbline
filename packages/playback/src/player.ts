@@ -2,7 +2,7 @@ import type { Arrangement } from '@thumbline/engine';
 import { type Scheduler, createScheduler } from './scheduler.js';
 import { timeStretchAsync } from './stretch.js';
 import { golpeBurst, midiOf, noteGain, nylonPluck, roomImpulse, strumOffsets } from './synth.js';
-import { type Beats, createTimeline } from './timeline.js';
+import { type Beats, TICKS_PER_BEAT, createTimeline } from './timeline.js';
 
 export type Mix = 'sheet' | 'original' | 'both';
 export type PlayerState = 'idle' | 'preparing' | 'playing';
@@ -25,7 +25,10 @@ export type PlayerOptions = {
 };
 
 export type Player = {
+  /** Play from the start of bar `fromBar` (0-based). */
   play: (fromBar?: number) => Promise<void>;
+  /** Play from any point in the song, in arrangement ticks (restarts if already playing). */
+  playFrom: (tick: number) => Promise<void>;
   stop: () => void;
   /** 0.5–1. Pitch is unchanged; the original is time-stretched first if needed. */
   setTempoRatio: (ratio: number) => Promise<void>;
@@ -269,6 +272,24 @@ export function createPlayer(options: PlayerOptions): Player {
     finish();
   };
 
+  const barTicks = a.meter.beatsPerBar * TICKS_PER_BEAT;
+  const playFrom = async (fromTick: number) => {
+    if (state !== 'idle') stop();
+    setState('preparing');
+    await ctx.resume();
+    prepareSynth();
+    await ensureOriginal(ratio);
+    if (state !== 'preparing') return; // stopped while preparing
+    scheduler = createScheduler({ eventSec, endSec: timeline.endSec });
+    scheduler.setLoop(loop);
+    const at = Math.max(0, Math.min(fromTick, a.bars * barTicks));
+    scheduler.start(ctx.currentTime + START_DELAY_SEC, timeline.tickToSec(at), ratio);
+    setState('playing');
+    tick();
+    timer = setInterval(tick, TICK_MS);
+    cancelFrame = nextFrame(frame);
+  };
+
   return {
     get state() {
       return state;
@@ -276,21 +297,8 @@ export function createPlayer(options: PlayerOptions): Player {
     get tempoRatio() {
       return ratio;
     },
-    async play(fromBar = 0) {
-      if (state !== 'idle') stop();
-      setState('preparing');
-      await ctx.resume();
-      prepareSynth();
-      await ensureOriginal(ratio);
-      if (state !== 'preparing') return; // stopped while preparing
-      scheduler = createScheduler({ eventSec, endSec: timeline.endSec });
-      scheduler.setLoop(loop);
-      scheduler.start(ctx.currentTime + START_DELAY_SEC, timeline.barToSec(fromBar), ratio);
-      setState('playing');
-      tick();
-      timer = setInterval(tick, TICK_MS);
-      cancelFrame = nextFrame(frame);
-    },
+    play: (fromBar = 0) => playFrom(fromBar * barTicks),
+    playFrom,
     stop,
     async setTempoRatio(next) {
       const r = Math.min(1, Math.max(MIN_RATIO, next));

@@ -123,6 +123,38 @@
   gap: var(--space-3);
 }
 
+/* Seek row: back, slider, forward, "Bar 5 of 32". Full width under the controls. */
+.seek {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.slider {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  accent-color: var(--color-violet);
+  cursor: pointer;
+}
+
+.slider:focus-visible {
+  outline: none;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--ring-focus);
+}
+
+.where {
+  flex: none;
+  color: var(--color-ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .bar[data-reduced-motion] .play {
   transition: none;
 }

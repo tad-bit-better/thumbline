@@ -169,6 +169,7 @@ createPlayer({
   context?: AudioContext,            // share one; otherwise the player owns it
 }) → {
   play(fromBar?): Promise<void>,
+  playFrom(tick): Promise<void>,      // any point in the song (restarts if playing); powers click-to-seek
   stop(),
   setTempoRatio(0.5–1): Promise<void>,   // pitch unchanged
   setLoop(barStart, barEnd) | setLoop(null),  // 0-based, inclusive

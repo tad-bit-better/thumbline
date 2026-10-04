@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { layoutSheet } from '../layout/layout';
 import { axeViolations } from '../testing/axe';
 import { sheet, techniqueSheet } from '../testing/fixtures';
@@ -7,6 +7,23 @@ import { TabSheet } from './TabSheet';
 const pop = sheet('G | D | Em | C | G | D | C | C');
 
 describe('TabSheet', () => {
+  it('reports the tick under a click, scaled to the drawn size', () => {
+    const onSeek = vi.fn();
+    render(<TabSheet arrangement={pop} width={1200} onSeek={onSeek} />);
+    const [, second] = screen.getAllByRole('img');
+    const l = layoutSheet(pop, 1200);
+    // Drawn at half size: a click at 50 px is layout x 100, inside bar 5 (the second system's first bar).
+    second.getBoundingClientRect = () => ({ left: 0, top: 0, width: l.width / 2, height: 81, right: l.width / 2, bottom: 81, x: 0, y: 0, toJSON: () => ({}) });
+    fireEvent.click(second, { clientX: 50 });
+    const tick = onSeek.mock.calls[0][0] as number;
+    expect(Math.floor(tick / l.barTicks)).toBe(4);
+  });
+
+  it('is not clickable without onSeek', () => {
+    const { container } = render(<TabSheet arrangement={pop} width={1200} />);
+    expect(container.querySelector('[data-seekable]')).toBeNull();
+  });
+
   it('draws one labelled image per system', () => {
     render(<TabSheet arrangement={pop} width={1200} />);
     const systems = screen.getAllByRole('img');

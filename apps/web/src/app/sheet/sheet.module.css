@@ -125,8 +125,21 @@
   gap: var(--space-5);
 }
 
+/* Sticky here, not on PlayerBar itself: a sticky element can't leave its parent,
+   and this wrapper's parent is the whole page. */
 .player {
+  position: sticky;
+  bottom: var(--space-4);
+  z-index: 5;
   margin-top: var(--space-8);
+}
+
+/* DESIGN-REVIEW: on phones the bar wraps to ~270px, a third of the screen, so it
+   stays at the end of the page there. A compact phone layout would let it stick. */
+@media (max-width: 560px) {
+  .player {
+    position: static;
+  }
 }
 
 .navLink {

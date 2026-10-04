@@ -63,6 +63,7 @@ export type SheetLayout = {
   height: number;
   /** Ticks per column: an eighth, or a sixteenth when the pattern needs it. */
   step: number;
+  barTicks: number;
   colWidth: number;
   barWidth: number;
   barsPerSystem: number;
@@ -202,5 +203,19 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
   }
 
   const height = systemCount ? systemCount * G.systemHeight + (systemCount - 1) * G.systemGap : 0;
-  return { width: sheetWidth, height, step, colWidth, barWidth, barsPerSystem, systems, positions };
+  return { width: sheetWidth, height, step, barTicks, colWidth, barWidth, barsPerSystem, systems, positions };
+}
+
+/**
+ * The tick under `x` in a system: the start of the column there, clamped to
+ * the system's bars. Inverse of where notes are placed. Null left of the first bar line.
+ */
+export function tickAtX(layout: SheetLayout, system: SystemLayout, x: number): number | null {
+  const G = GEOMETRY;
+  if (x < G.left) return null;
+  const bar = Math.min(system.barCount - 1, Math.floor((x - G.left) / layout.barWidth));
+  const inBar = x - G.left - bar * layout.barWidth - G.barPad;
+  const cols = layout.barTicks / layout.step;
+  const col = Math.max(0, Math.min(cols - 1, Math.floor(inBar / layout.colWidth)));
+  return (system.firstBar + bar) * layout.barTicks + col * layout.step;
 }

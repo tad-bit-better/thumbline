@@ -1,5 +1,5 @@
 import { longSheet, sheet, techniqueSheet } from '../testing/fixtures';
-import { GEOMETRY, layoutSheet } from './layout';
+import { GEOMETRY, layoutSheet, tickAtX } from './layout';
 
 const G = GEOMETRY;
 
@@ -175,5 +175,29 @@ describe('layoutSheet', () => {
     const ms = performance.now() - t0;
     expect(l.systems).toHaveLength(50);
     expect(ms).toBeLessThan(25);
+  });
+});
+
+describe('tickAtX', () => {
+  const pop = sheet('G | D | Em | C | G | D | C | C');
+  const l = layoutSheet(pop, 1200);
+
+  it('finds the tick of every note from its x (inverse of placement)', () => {
+    pop.events.forEach((e, i) => {
+      const { system, x } = l.positions[i];
+      expect(tickAtX(l, l.systems[system], x)).toBe(e.tick - (e.tick % l.step));
+    });
+  });
+
+  it('counts bars from the system’s first bar', () => {
+    const second = l.systems[1];
+    expect(tickAtX(l, second, G.left + 1)).toBe(second.firstBar * l.barTicks);
+  });
+
+  it('clamps past the last bar line, and gives null left of the first', () => {
+    const [first] = l.systems;
+    const end = tickAtX(l, first, l.width + 50) as number;
+    expect(end).toBe((first.barCount * l.barTicks) - l.step);
+    expect(tickAtX(l, first, G.left - 5)).toBeNull();
   });
 });

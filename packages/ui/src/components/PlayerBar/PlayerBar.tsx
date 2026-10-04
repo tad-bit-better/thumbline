@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { LOOP_MS, usePageVisible, useReducedMotion } from '../../motion';
-import { LoopGlyph, PauseGlyph, PlayGlyph } from '../glyphs';
+import { BackGlyph, ForwardGlyph, LoopGlyph, PauseGlyph, PlayGlyph } from '../glyphs';
 import { IconButton } from '../IconButton/IconButton';
 import { SegmentedControl } from '../SegmentedControl/SegmentedControl';
 import styles from './PlayerBar.module.css';
@@ -25,6 +25,13 @@ export type PlayerBarProps = {
   onSpeedChange: (speed: PlayerSpeed) => void;
   loop: boolean;
   onLoopChange: (loop: boolean) => void;
+  /**
+   * Where the song is, by bar (0-based), for the back/forward buttons and the
+   * position slider. Omit to hide them.
+   */
+  position?: { bar: number; bars: number };
+  /** Jump to a bar (0-based). */
+  onSeek?: (bar: number) => void;
   className?: string;
 };
 
@@ -54,6 +61,8 @@ export function PlayerBar({
   onSpeedChange,
   loop,
   onLoopChange,
+  position,
+  onSeek,
   className,
 }: PlayerBarProps) {
   const reduced = useReducedMotion();
@@ -94,6 +103,32 @@ export function PlayerBar({
         />
         <IconButton label="Loop" icon={<LoopGlyph />} pressed={loop} onClick={() => onLoopChange(!loop)} />
       </div>
+      {position && onSeek && position.bars > 0 && (
+        // DESIGN-REVIEW: not in screens.md; a seek row under the controls, full width so the slider is usable.
+        <div className={styles['seek']}>
+          <IconButton label="Back one bar" icon={<BackGlyph />} disabled={position.bar <= 0} onClick={() => onSeek(Math.max(0, position.bar - 1))} />
+          <input
+            type="range"
+            className={styles['slider']}
+            aria-label="Position in song"
+            aria-valuetext={`Bar ${position.bar + 1} of ${position.bars}`}
+            min={0}
+            max={Math.max(0, position.bars - 1)}
+            step={1}
+            value={Math.min(position.bar, position.bars - 1)}
+            onChange={(e) => onSeek(Number(e.currentTarget.value))}
+          />
+          <IconButton
+            label="Forward one bar"
+            icon={<ForwardGlyph />}
+            disabled={position.bar >= position.bars - 1}
+            onClick={() => onSeek(Math.min(position.bars - 1, position.bar + 1))}
+          />
+          <span className={styles['where']} aria-hidden="true">
+            Bar {position.bar + 1} of {position.bars}
+          </span>
+        </div>
+      )}
     </section>
   );
 }

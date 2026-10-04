@@ -1,7 +1,7 @@
 import type { Arrangement } from '@thumbline/engine';
 import { Reveal, useReducedMotion } from '@thumbline/ui';
 import { memo, useEffect, useMemo, useRef } from 'react';
-import { GEOMETRY, type SheetLayout, type SystemLayout, layoutSheet } from '../layout/layout';
+import { GEOMETRY, type SheetLayout, type SystemLayout, layoutSheet, tickAtX } from '../layout/layout';
 import styles from './TabSheet.module.css';
 import { Technique } from './Techniques';
 
@@ -23,6 +23,8 @@ export type TabSheetProps = {
   reveal?: boolean;
   /** Name of the scrollable tab region. */
   label?: string;
+  /** Click anywhere on the tab: the tick there (start of that column). */
+  onSeek?: (tick: number) => void;
   className?: string;
 };
 
@@ -42,6 +44,7 @@ type SystemViewProps = {
   activeTick?: number;
   arrangement: Arrangement;
   glow: boolean;
+  onSeek?: (tick: number) => void;
 };
 
 const SystemView = memo(function SystemView({
@@ -54,6 +57,7 @@ const SystemView = memo(function SystemView({
   activeTick,
   arrangement,
   glow,
+  onSeek,
 }: SystemViewProps) {
   const stringEnd = s.barLines[s.barLines.length - 1];
   const notes = s.notes.map((n) => {
@@ -78,6 +82,17 @@ const SystemView = memo(function SystemView({
   return (
     <svg
       className={styles['system']}
+      data-seekable={onSeek ? '' : undefined}
+      onClick={
+        onSeek &&
+        ((e) => {
+          // The SVG can be scaled by CSS: map the click back to layout units.
+          const box = e.currentTarget.getBoundingClientRect();
+          const x = (e.clientX - box.left) * (box.width ? layout.width / box.width : 1);
+          const tick = tickAtX(layout, s, x);
+          if (tick !== null) onSeek(tick);
+        })
+      }
       width={layout.width}
       height={GEOMETRY.systemHeight}
       viewBox={`0 0 ${layout.width} ${GEOMETRY.systemHeight}`}
@@ -143,6 +158,7 @@ export function TabSheet({
   showTechniques = true,
   reveal = true,
   label = 'Tab',
+  onSeek,
   className,
 }: TabSheetProps) {
   const layout = useMemo(() => layoutSheet(arrangement, width), [arrangement, width]);
@@ -192,6 +208,7 @@ export function TabSheet({
             activeTick={here ? activeTick : undefined}
             arrangement={arrangement}
             glow={!reduced}
+            onSeek={onSeek}
           />
         );
       })}

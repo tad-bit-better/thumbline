@@ -2,11 +2,12 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { PlayerBar, type PlayerMix, type PlayerSpeed } from './PlayerBar';
 
-function Demo({ initialPlaying = false, preparing = false, mixDisabled = false }) {
+function Demo({ initialPlaying = false, preparing = false, mixDisabled = false, initialBar = 0 }) {
   const [playing, setPlaying] = useState(initialPlaying);
   const [mix, setMix] = useState<PlayerMix>(mixDisabled ? 'sheet' : 'both');
   const [speed, setSpeed] = useState<PlayerSpeed>(1);
   const [loop, setLoop] = useState(false);
+  const [bar, setBar] = useState(initialBar);
   return (
     <div style={{ width: 'min(1100px, 100vw - 32px)', padding: 'var(--space-6) 0' }}>
       <PlayerBar
@@ -22,6 +23,8 @@ function Demo({ initialPlaying = false, preparing = false, mixDisabled = false }
         onSpeedChange={setSpeed}
         loop={loop}
         onLoopChange={setLoop}
+        position={{ bar, bars: 32 }}
+        onSeek={setBar}
       />
     </div>
   );
@@ -35,6 +38,8 @@ export const Playing: StoryObj = { render: () => <Demo initialPlaying /> };
 export const Preparing: StoryObj = { render: () => <Demo preparing /> };
 /** Without the original recording only the sheet can play. */
 export const SheetOnly: StoryObj = { render: () => <Demo mixDisabled /> };
+export const MidSong: StoryObj = { render: () => <Demo initialPlaying initialBar={11} /> };
+export const LastBar: StoryObj = { render: () => <Demo initialBar={31} /> };
 export const Focus: StoryObj = {
   render: () => <Demo />,
   play: ({ canvasElement }) => {
