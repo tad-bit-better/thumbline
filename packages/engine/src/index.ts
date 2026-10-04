@@ -4,3 +4,6 @@ export * from './chords.js';
 export * from './voicings.js';
 export * from './capo.js';
 export * from './bass.js';
+export * from './runner.js';
+export * from './patterns/index.js';
+export * from './arrange.js';

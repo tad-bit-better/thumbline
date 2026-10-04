@@ -21,8 +21,10 @@ export function capoCost(chords: readonly ChordLabel[], capo: number): number {
  * Capo fret (0–7) with the lowest cost; the lower fret wins a tie.
  * Costs use Moderate voicings: Basic substitutions are applied after the capo is chosen.
  */
-// MUSIC-REVIEW: at Basic, Am F C G picks capo 5 (Em C G D) although capo 0 with
-// F→Fmaj7 is also barre-free. Should Basic cost substitutions as open shapes?
+// MUSIC-REVIEW: one barre (3) outweighs up to 14 capo frets (0.2 each), so the
+// optimiser moves the capo far to dodge a single barre: D-major waltz → capo 7,
+// C ballad → capo 5 (losing its Am/G walking bass). It also ignores dropped slash
+// chords, and at Basic it doesn't see that F→Fmaj7 would avoid the barre anyway.
 export function bestCapo(chords: readonly ChordLabel[]): number {
   let best = 0;
   let bestCost = Infinity;
