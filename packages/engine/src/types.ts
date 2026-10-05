@@ -183,6 +183,8 @@ export type NoteEvent = {
   melody?: true;
   /** a chord tone harmonising the tune note above it (M11) */
   harmony?: true;
+  /** a short run into the next tune note, where the tune rests (M11) */
+  fill?: true;
 };
 
 export type ChordMark = { tick: number; voicing: Voicing; soundingName: string };

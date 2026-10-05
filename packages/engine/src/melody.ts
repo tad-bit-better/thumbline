@@ -94,6 +94,29 @@ export function melodyShift(line: readonly MelodyLineNote[], capo: number): numb
   return 12 * Math.round((TARGET_MEDIAN - median) / 12);
 }
 
+/**
+ * Where a single line note goes (the tune, a fill): strings 2–5, as near the
+ * chord shape's hand position as it can be (one fret of stretch is free),
+ * preferring the shape's own note, higher strings, and small moves from the
+ * previous note, on a string not in `avoid` (taken by the thumb, say).
+ */
+export function placeNear(midi: number, span: ChordSpan, prev?: { fret: number }, avoid: ReadonlySet<number> = new Set()): { string: number; fret: number } | undefined {
+  const fretted = span.voicing.frets.filter((f) => f > 0);
+  const lo = fretted.length ? Math.min(...fretted) : 1;
+  const hi = fretted.length ? Math.max(...fretted) : 3;
+  let best: { string: number; fret: number; cost: number } | undefined;
+  for (const string of MELODY_STRINGS) {
+    const fret = midi - OPEN_MIDI[string];
+    if (fret < 0 || fret > MAX_FRET || avoid.has(string)) continue;
+    let cost = (5 - string) * 0.5;
+    if (fret > 0) cost += 3 * Math.max(0, lo - 1 - fret, fret - hi - 1);
+    if (span.voicing.frets[string] === fret) cost -= 1;
+    if (prev && prev.fret > 0 && fret > 0) cost += 0.3 * Math.abs(fret - prev.fret);
+    if (!best || cost < best.cost) best = { string, fret, cost };
+  }
+  return best && { string: best.string, fret: best.fret };
+}
+
 const spanAt = (spans: readonly ChordSpan[], tick: number) => {
   let found: ChordSpan | undefined;
   for (const s of spans) {
@@ -123,19 +146,7 @@ export function placeMelody(line: readonly MelodyLineNote[], spans: readonly Cho
     while (midi > HIGHEST) midi -= 12;
     const span = spanAt(spans, n.tick);
     if (!span) continue;
-    const fretted = span.voicing.frets.filter((f) => f > 0);
-    const lo = fretted.length ? Math.min(...fretted) : 1;
-    const hi = fretted.length ? Math.max(...fretted) : 3;
-    let best: { string: number; fret: number; cost: number } | undefined;
-    for (const string of MELODY_STRINGS) {
-      const fret = midi - OPEN_MIDI[string];
-      if (fret < 0 || fret > MAX_FRET) continue;
-      let cost = (5 - string) * 0.5;
-      if (fret > 0) cost += 3 * Math.max(0, lo - 1 - fret, fret - hi - 1);
-      if (span.voicing.frets[string] === fret) cost -= 1;
-      if (prev && prev.fret > 0 && fret > 0) cost += 0.3 * Math.abs(fret - prev.fret);
-      if (!best || cost < best.cost) best = { string, fret, cost };
-    }
+    const best = placeNear(midi, span, prev);
     if (!best) continue;
     const finger: Finger = best.string === 2 ? 'i' : (['a', 'm'] as const)[fingerIndex++ % 2];
     const note: NoteEvent = { tick: n.tick, dur: n.dur, string: best.string, fret: best.fret, finger, velocity: MELODY_VELOCITY, melody: true };
