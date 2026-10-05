@@ -47,6 +47,8 @@ export function applyTouch(events: NoteEvent[], mood: MoodLabel | Mood, beatsPer
     if (e.accent && !driving && e.tick % bar !== 0) delete e.accent;
     if (e.fret < 0) continue;
     if (e.tech === 'palm-mute' && !driving) delete e.tech;
+    // A strum rings: its strings stop when the next note on them starts.
+    if (e.tech?.startsWith('brush')) continue;
     if ((e.finger === 'p' && driving) || crisp) e.dur = Math.min(e.dur, eighth);
   }
 }

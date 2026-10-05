@@ -54,7 +54,7 @@ describe('TabSheet', () => {
     const notes = container.querySelectorAll('[data-note]');
     expect(notes).toHaveLength(pop.events.length);
     const bass = container.querySelectorAll('[data-note][data-bass]');
-    expect(bass).toHaveLength(pop.events.filter((e) => e.finger === 'p').length);
+    expect(bass).toHaveLength(pop.events.filter((e) => e.finger === 'p' && !e.tech?.startsWith('brush')).length);
   });
 
   it('shows the sounding chord next to the shape under a capo', () => {

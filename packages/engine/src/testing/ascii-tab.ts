@@ -42,7 +42,10 @@ export function asciiTab(a: Arrangement): string {
         const mark = a.chordMarks.find((m) => m.tick === tick);
         chords += cell(mark ? mark.voicing.name : '', ' ');
         const here = a.events.filter((e) => e.tick === tick);
-        fingers += cell(here.map((e) => e.finger).join(''), ' ');
+        // A slow strum reads as one stroke: ↑ for a brush down (low to high, Guitar Pro style), ↓ for up.
+        const brush = here.find((e) => e.tech === 'brush-down' || e.tech === 'brush-up');
+        const plain = here.filter((e) => !e.tech?.startsWith('brush')).map((e) => e.finger);
+        fingers += cell(brush ? `${brush.tech === 'brush-down' ? '↑' : '↓'}${brush.finger}${plain.join('')}` : plain.join(''), ' ');
         for (let s = 0; s < 6; s++) {
           const n = here.find((e) => e.string === s);
           rows[s] += cell(n ? noteText(n) : '', '-');

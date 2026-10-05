@@ -79,6 +79,14 @@ const TECHNIQUES: Record<string, Arrangement> = {
     { tick: 960, string: 3, fret: 2 },
     { tick: 1200, string: 3, fret: 0, tech: 'pull' },
   ]),
+  // M11: a thumb roll opening the bar, index brushes on 2 and 4 with a flick up after 4.
+  slowStrums: techniqueSheet([
+    ...EM.map((fret, string) => ({ tick: 0, string, fret, tech: 'brush-down' as const, finger: 'p' as const })),
+    ...[3, 4, 5].map((string) => ({ tick: 480, string, fret: EM[string], tech: 'brush-down' as const, finger: 'i' as const })),
+    { tick: 960, string: 0, fret: 0, finger: 'p' as const },
+    ...[3, 4, 5].map((string) => ({ tick: 1440, string, fret: EM[string], tech: 'brush-down' as const, finger: 'i' as const })),
+    ...[4, 5].map((string) => ({ tick: 1680, string, fret: EM[string], tech: 'brush-up' as const, finger: 'i' as const })),
+  ]),
   rasgueado: techniqueSheet([...strum(0, 'rasgueo-down'), ...strum(480, 'rasgueo-up'), ...strum(960, 'rasgueo-down'), ...strum(1440, 'rasgueo-down')]),
   golpe: techniqueSheet([
     { tick: 0, string: 0, fret: 0, finger: 'p', accent: true },
@@ -113,6 +121,7 @@ const TECHNIQUES: Record<string, Arrangement> = {
 
 export const HammerOnAndPullOff: Story = { args: { arrangement: TECHNIQUES['hammerAndPull'] } };
 export const Rasgueado: Story = { args: { arrangement: TECHNIQUES['rasgueado'] } };
+export const SlowStrums: Story = { args: { arrangement: TECHNIQUES['slowStrums'] } };
 export const Golpe: Story = { args: { arrangement: TECHNIQUES['golpe'] } };
 export const Accents: Story = { args: { arrangement: TECHNIQUES['accents'] } };
 export const Apoyando: Story = { args: { arrangement: TECHNIQUES['apoyando'] } };

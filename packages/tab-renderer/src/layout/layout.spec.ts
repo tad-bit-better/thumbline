@@ -49,11 +49,12 @@ describe('layoutSheet', () => {
   });
 
   it('marks thumb notes as bass', () => {
+    // A thumb strum (the phrase-opening roll) is a stroke, not a bass note.
+    const picked = (i: number) => pop.events[i].finger === 'p' && !pop.events[i].tech?.startsWith('brush');
     const notes = layoutSheet(pop, 1200).systems[0].notes;
-    const first = notes.find((n) => n.eventIndex === 0);
-    expect(pop.events[0].finger).toBe('p');
-    expect(first?.bass).toBe(true);
-    expect(notes.filter((n) => !n.bass).every((n) => pop.events[n.eventIndex].finger !== 'p')).toBe(true);
+    const thumb = notes.find((n) => picked(n.eventIndex));
+    expect(thumb?.bass).toBe(true);
+    expect(notes.filter((n) => !n.bass).every((n) => !picked(n.eventIndex))).toBe(true);
   });
 
   it('labels chords at their tick, with the sounding name under a capo', () => {
@@ -82,6 +83,16 @@ describe('layoutSheet', () => {
   it('lists a strumming finger once per stroke', () => {
     const t = techniqueSheet([0, 1, 2, 3, 4, 5].map((s) => ({ tick: 0, string: s, fret: 0, tech: 'rasgueo-down' as const, finger: 'i' as const })));
     expect(layoutSheet(t, 1200).systems[0].fingers.map((f) => f.text)).toEqual(['i']);
+  });
+
+  it('marks a slow strum once, with its direction, and no bass chips on its strings', () => {
+    const t = techniqueSheet([0, 1, 2, 3, 4].map((s) => ({ tick: 0, string: s, fret: [3, 2, 0, 0, 0][s], tech: 'brush-down' as const, finger: 'p' as const })));
+    const sys = layoutSheet(t, 1200).systems[0];
+    const brushes = sys.techniques.filter((m) => m.kind === 'brush');
+    expect(brushes).toHaveLength(1);
+    expect(brushes[0]).toMatchObject({ direction: 'down' });
+    expect(sys.notes.some((n) => n.bass)).toBe(false);
+    expect(sys.fingers.map((f) => f.text)).toEqual(['p']);
   });
 
   it('gives every event a playhead position', () => {

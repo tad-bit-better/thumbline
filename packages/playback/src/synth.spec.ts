@@ -144,6 +144,11 @@ describe('feelOf', () => {
     expect([sad.crisp, happy.crisp]).toEqual([false, true]);
   });
 
+  it('rolls a calm song’s slow strums slower than a driving song’s', () => {
+    expect(feelOf({ energy: 0.25, valence: 0.5 }).brushMs).toBeGreaterThan(feelOf({ energy: 0.75, valence: 0.5 }).brushMs);
+    expect(feelOf({ energy: 0.25, valence: 0.5 }).brushMs).toBeGreaterThan(feelOf({ energy: 0.25, valence: 0.5 }).strumMs * 2);
+  });
+
   it('moves smoothly with the sliders', () => {
     expect(feelOf({ energy: 0.4, valence: 0.5 }).strumMs).toBeLessThan(feelOf({ energy: 0.1, valence: 0.5 }).strumMs);
   });
@@ -316,6 +321,14 @@ describe('strumOffsets', () => {
     const o = strumOffsets(events);
     expect(o.get(5)).toBe(0);
     expect(o.get(0)).toBeCloseTo((5 * STRUM_STEP_MS) / 1000);
+  });
+
+  it('rolls a slow strum (brush) at its own, slower step, and flicks up faster', () => {
+    const down = strumOffsets([0, 1, 2, 3].map((s) => ev(s, 'brush-down')), 12, 40);
+    expect([0, 1, 2, 3].map((i) => down.get(i))).toEqual([0, 0.04, 0.08, 0.12].map((x) => expect.closeTo(x, 6)));
+    const up = strumOffsets([4, 5].map((s) => ev(s, 'brush-up')), 12, 40);
+    expect(up.get(1)).toBe(0);
+    expect(up.get(0)).toBeCloseTo(0.024);
   });
 
   it('uses an explicit stagger from the engine', () => {

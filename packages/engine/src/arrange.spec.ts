@@ -149,8 +149,10 @@ describe('patternCandidates', () => {
     expect(patternCandidates('fingerstyle', 'advanced', 4, 'fingerstyle.advanced.syncopated').map((p) => p.id)).toEqual([
       'fingerstyle.advanced.syncopated',
       'fingerstyle.advanced.travis-hammer',
+      'fingerstyle.advanced.pop-groove',
       'fingerstyle.advanced.ballad',
       'fingerstyle.moderate.travis-pinch',
+      'fingerstyle.moderate.thumb-brush',
       'fingerstyle.moderate.travis',
       'fingerstyle.moderate.boom-chick',
       'fingerstyle.moderate.ballad',
@@ -164,7 +166,8 @@ describe('patternCandidates', () => {
       'fingerstyle.moderate.ballad',
       'fingerstyle.moderate.travis-pinch',
     ]);
-    expect(patternCandidates('fingerstyle', 'moderate', 4, undefined, undefined, 'upbeat')[0].id).toBe('fingerstyle.moderate.travis-pinch');
+    expect(patternCandidates('fingerstyle', 'moderate', 4, undefined, undefined, 'upbeat')[0].id).toBe('fingerstyle.moderate.thumb-brush');
+    expect(patternCandidates('fingerstyle', 'moderate', 4, undefined, undefined, 'intense')[0].id).toBe('fingerstyle.moderate.travis-pinch');
   });
 
   it('defaults to the first pattern of the level', () => {

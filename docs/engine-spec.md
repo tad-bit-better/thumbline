@@ -85,6 +85,7 @@ type Target =
 type Technique =
   | 'tirando' | 'apoyando'          // free stroke / rest stroke
   | 'rasgueo-down' | 'rasgueo-up'   // flamenco rasgueado strokes
+  | 'brush-down' | 'brush-up'       // fingerstyle slow strums (M11): a roll or brush down across the strings, a light flick up the top strings
   | 'golpe'                         // tap on the top, no pitch
   | 'tremolo'                       // repeated note p-a-m-i
   | 'hammer' | 'pull'               // left-hand legato from the previous note on that string
@@ -197,6 +198,8 @@ function arrange(input: AnalysisResult, opts: {
 
 **Playability check.** Reject a pattern for a chord if any simultaneous notes need a fret span > 4 or more than 4 fretted fingers; fall back to the next pattern at the same level, then the level below.
 
+**Rolls (M11).** A guitarist opens a phrase, and ends the song, with a slow strum that lets the chord ring. Before the tune is merged (not flamenco): the chord starting on the first bar of each phrase (every 4 bars; every 8 when the mood's energy is 0.5+) and the song's last chord open with a thumb `brush-down` across every string of the shape, replacing the plucks on that tick; a string with a hammer-on or pull-off in the chord's first beat keeps its own note. Velocity: 0.75 × the loudest pluck it replaced. The roll lasts up to two beats; the last chord's rings to the end. The tune then takes its string as usual. Patterns may also use brushes (index down across t3–t1, up across t1–t2). Brushes are left out of the moving top line, keep their length under the mood's touch, and weigh ×0.7 in the dynamics.
+
 **Dynamics (M9).** After the tune is merged and before the mood's touch, not every note weighs the same. Pattern notes: the thumb ×0.82, inner fingers ×0.66; then the downbeat ×1.1, the middle of the bar ×1.04, off-eighths ×0.92, off-sixteenths ×0.85. The tune, phrase by phrase (a rest of a beat or more starts a new one): it swells from ×0.8 at its first note to ×1.05 at its highest and falls back after; ±1.5% a semitone from the phrase's middle pitch; ×1.05 for a note held a beat or more; ×0.9 for the phrase's last note. Golpes, slaps and apagados keep their weight; velocities stay within 0.2..1.
 
 **Mood (M10).** The label is the quadrant of the mood's values split at 0.5: melancholic (calm, dark), warm (calm, bright), intense (driving, dark), upbeat (driving, bright). `ArrangeOptions.mood` overrides the detected mood with a preset (its quadrant's centre: 0.25 or 0.75 on each axis) or with slider values. The arrangement reports both (`mood`, `feel`). Without a mood (clips analysed before M10, no override) nothing below applies.
@@ -239,6 +242,6 @@ createPlayer({
 - Slower speeds play a WSOLA time-stretched copy of the original (pitch unchanged), prepared in the background and cached per ratio.
 - Tempo, loop and mix changes take effect within the 150 ms lookahead.
 
-**Feel (M10).** From `Arrangement.feel` (energy e, valence v): strum step 20 − 12e ms between strings, reverb send 0.34 − 0.18e, a high shelf at 3 kHz of −5 + 8v dB, and when e ≥ 0.5 pattern notes stop at their written length (the tune always rings). Without a feel: 12 ms, 0.22, 0 dB, ringing.
+**Feel (M10).** From `Arrangement.feel` (energy e, valence v): strum step 20 − 12e ms between strings (rasgueado), slow-strum step 55 − 30e ms (brushes; an up-brush ×0.6 and ×0.8 gain), reverb send 0.34 − 0.18e, a high shelf at 3 kHz of −5 + 8v dB, and when e ≥ 0.5 pattern notes stop at their written length (the tune always rings). Without a feel: 12 ms, 40 ms, 0.22, 0 dB, ringing.
 
 **Humanising (M9).** Playback plays like a person unless told not to: each moment (notes struck together move together) is nudged by a jitter of up to ±9 ms plus a phrase-long push and pull (±7 ms over 8 bars), divided by the speed ratio; each note's loudness varies by ±22%, ×1.08 on a beat and ×0.9 on an off-sixteenth. A string's previous note is damped over 30 ms when the next one starts. Touch: a note's gain is 0.72 × velocity^1.6 (so the dynamics in §4 are heard), ×1.3 for the tune; non-tune notes on the top three strings ×0.78. The pluck itself follows the velocity in three levels (under 0.5, under 0.78, above): a soft pluck rises over 9 ms with its excitation low-passed at 5× the pitch, a hard one over 1.5 ms at 11×. The tone (§ synth) is a nylon Karplus-Strong pluck with a pitch-scaled excitation and a loop low-pass (stronger on low strings), tuned so a note's spectral centroid sits near 1–1.5 kHz like fingerstyle recordings. The room's impulse is noise through a two-pole low-pass that closes from warm to dark over its 1.8 s, plus softened early reflections: about as bright as a note (the old one was nearly white noise and added ~0.9 kHz of fizz to the mix).

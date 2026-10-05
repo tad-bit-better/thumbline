@@ -236,8 +236,8 @@ function renderFull(analysis, line, mono, capo0) {
   const fn = ({ style, level, mood }) => {
     const a = arrange(analysis, { style, level, ...(mood ? { mood } : {}) });
     const tl = createTimeline(a, { beatTimesSec: analysis.beatTimesSec, barStartBeat: analysis.barStartBeat });
-    const feel = a.feel ? feelOf(a.feel) : { strumMs: 12, reverb: 0.22, shelfDb: 0, crisp: false };
-    const strum = strumOffsets(a.events, feel.strumMs);
+    const feel = a.feel ? feelOf(a.feel) : { strumMs: 12, brushMs: 40, reverb: 0.22, shelfDb: 0, crisp: false };
+    const strum = strumOffsets(a.events, feel.strumMs, feel.brushMs);
     const human = humanize(a.events, a.meter.beatsPerBar);
     bus[0].fill(0);
     bus[1].fill(0);

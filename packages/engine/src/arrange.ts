@@ -6,6 +6,7 @@ import { type ChordSpan, isPlayable, runSegment } from './runner.js';
 import { shapeDynamics } from './dynamics.js';
 import { mergeMelody, placeMelody, quantiseMelody } from './melody.js';
 import { applySections, applyTouch, moodLabelOf, moodValuesOf, sectionsOf } from './mood.js';
+import { addRolls } from './rolls.js';
 import { moveTopLine } from './topline.js';
 import type {
   AnalysisResult,
@@ -191,12 +192,14 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   });
 
   events.sort((a, b) => a.tick - b.tick || a.string - b.string);
+  // A slow roll opens each phrase and ends the song (M11); flamenco has its own strums.
+  const rolled = opts.style === 'flamenco' ? events : addRolls(events, spans, beatsPerBar, feel);
   // The tune on top (M9) when we have one; otherwise an invented top line (M6b).
   const tune = opts.melody !== false && input.melody?.length ? placeMelody(quantiseMelody(input, opts.level, songEnd), spans, capo, opts.level) : [];
-  let notes = events;
-  if (tune.length) notes = mergeMelody(events, tune, spans);
+  let notes = rolled;
+  if (tune.length) notes = mergeMelody(rolled, tune, spans);
   // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
-  else if (opts.style !== 'flamenco') moveTopLine(events, spans, opts.level, toShape(input.key));
+  else if (opts.style !== 'flamenco') moveTopLine(rolled, spans, opts.level, toShape(input.key));
 
   // Not every note weighs the same: the tune leads, the thumb holds, inner notes stay under (M9).
   shapeDynamics(notes, beatsPerBar);

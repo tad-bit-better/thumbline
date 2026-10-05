@@ -35,6 +35,22 @@ export function Technique({ mark, colWidth }: { mark: TechMark; colWidth: number
         </g>
       );
     }
+    case 'brush': {
+      // A slow strum: the arpeggio "roll" wave beside the strings, with the stroke's arrow (same convention as rasgueado).
+      const x = mark.x - colWidth * 0.42;
+      const [from, to] = mark.direction === 'down' ? [mark.y2 + 4, mark.y1 - 6] : [mark.y1 - 4, mark.y2 + 6];
+      const dir = Math.sign(to - from);
+      const end = to - dir * 5;
+      const waves = Math.max(1, Math.round(Math.abs(end - from) / 8));
+      const step = (end - from) / waves;
+      const wave = Array.from({ length: waves }, (_, k) => `Q${x + (k % 2 ? -3 : 3)} ${from + step * (k + 0.5)} ${x} ${from + step * (k + 1)}`).join('');
+      return (
+        <g data-tech="brush" data-direction={mark.direction}>
+          <path className={styles['slur']} d={`M${x} ${from}${wave}`} />
+          <path className={styles['head']} d={`M${x - 3.5} ${to - dir * 5}L${x + 3.5} ${to - dir * 5}L${x} ${to}Z`} />
+        </g>
+      );
+    }
     case 'golpe':
     case 'slap':
     case 'apagado':

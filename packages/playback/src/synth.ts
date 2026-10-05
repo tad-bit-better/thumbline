@@ -5,6 +5,10 @@ const OPEN_MIDI = [40, 45, 50, 55, 59, 64] as const;
 
 /** Gap between strings in a rasgueado stroke. */
 export const STRUM_STEP_MS = 12;
+/** A slow strum (fingerstyle brush): ms between strings without a mood. */
+export const BRUSH_STEP_MS = 40;
+/** An up-brush flicks across fewer strings, faster. */
+const BRUSH_UP_RATIO = 0.6;
 
 export const midiOf = (string: number, fret: number, capo: number) => OPEN_MIDI[string] + capo + fret;
 
@@ -312,31 +316,34 @@ export function humanize(events: readonly NoteEvent[], beatsPerBar: number, seed
 }
 
 /** Seconds to delay each strummed note, by event index (rasgueado only). */
-export function strumOffsets(events: readonly NoteEvent[], stepMs = STRUM_STEP_MS): Map<number, number> {
+export function strumOffsets(events: readonly NoteEvent[], stepMs = STRUM_STEP_MS, brushMs = BRUSH_STEP_MS): Map<number, number> {
   const offsets = new Map<number, number>();
   const groups = new Map<string, number[]>();
   events.forEach((e, i) => {
-    if (e.tech !== 'rasgueo-down' && e.tech !== 'rasgueo-up') return;
+    if (e.tech !== 'rasgueo-down' && e.tech !== 'rasgueo-up' && e.tech !== 'brush-down' && e.tech !== 'brush-up') return;
     const key = `${e.tick}:${e.tech}`;
     const g = groups.get(key) ?? [];
     g.push(i);
     groups.set(key, g);
   });
   for (const indexes of groups.values()) {
-    const up = events[indexes[0]].tech === 'rasgueo-up';
+    const tech = events[indexes[0]].tech;
+    const up = tech === 'rasgueo-up' || tech === 'brush-up';
+    const step = tech === 'brush-down' ? brushMs : tech === 'brush-up' ? brushMs * BRUSH_UP_RATIO : stepMs;
     const order = [...indexes].sort((a, b) => (up ? events[b].string - events[a].string : events[a].string - events[b].string));
     order.forEach((i, rank) => {
       const explicit = events[i].strumOffsetMs;
-      offsets.set(i, (explicit ?? rank * stepMs) / 1000);
+      offsets.set(i, (explicit ?? rank * step) / 1000);
     });
   }
   return offsets;
 }
 
-export type Feel = { strumMs: number; reverb: number; shelfDb: number; crisp: boolean };
+export type Feel = { strumMs: number; brushMs: number; reverb: number; shelfDb: number; crisp: boolean };
 
 /**
  * engine-spec §6 feel, from the mood's values: strum speed (ms between strings),
+ * slow-strum (brush) speed,
  * reverb send, a high shelf at 3 kHz (darker or brighter), and whether pattern
  * notes stop at their written length (crisp, when driving) or ring on.
  * Calm songs strum slower with more room; bright songs sound brighter.
@@ -344,6 +351,7 @@ export type Feel = { strumMs: number; reverb: number; shelfDb: number; crisp: bo
 export function feelOf({ energy, valence }: Mood): Feel {
   return {
     strumMs: Math.round(20 - 12 * energy),
+    brushMs: Math.round(55 - 30 * energy),
     reverb: Math.round((0.34 - 0.18 * energy) * 100) / 100,
     shelfDb: Math.round((-5 + 8 * valence) * 10) / 10,
     crisp: energy >= 0.5,
@@ -364,6 +372,7 @@ export function noteGain(e: NoteEvent): number {
   if (e.accent) g *= 1.25;
   if (e.tech === 'hammer' || e.tech === 'pull') g *= 0.7;
   if (e.tech === 'apagado') g *= 0.8;
+  if (e.tech === 'brush-up') g *= 0.8; // a light flick
   // Treble strings are brighter and carry; the tune lives up there and keeps its lift.
   if (e.string > 2 && !e.melody) g *= 0.78;
   return Math.min(1, g);

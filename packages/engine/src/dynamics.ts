@@ -7,6 +7,8 @@ const OPEN_MIDI = [40, 45, 50, 55, 59, 64] as const;
 /** Voice weights: the tune leads, the thumb holds the floor, the inner fingers stay under both. */
 const BASS_WEIGHT = 0.82;
 const INNER_WEIGHT = 0.66;
+/** A slow strum's strings blend under the tune. */
+const BRUSH_WEIGHT = 0.7;
 /** Where a pattern note falls in the bar. */
 const DOWNBEAT = 1.1;
 const MID_BAR = 1.04;
@@ -27,7 +29,7 @@ const midiOf = (e: NoteEvent) => OPEN_MIDI[e.string] + e.fret;
 
 /**
  * engine-spec §4 dynamics: not every note weighs the same.
- * - Pattern: the thumb ×0.82, inner fingers ×0.66; then by place in the bar:
+ * - Pattern: the thumb ×0.82, inner fingers ×0.66, a slow strum's strings ×0.7; then by place in the bar:
  *   the downbeat ×1.1, the middle of the bar ×1.04, off-eighths ×0.92, off-sixteenths ×0.85.
  * - The tune, phrase by phrase (a gap of a beat or more starts a new one): it swells
  *   from ×0.8 at the first note to ×1.05 at the phrase's highest note and falls back
@@ -40,7 +42,7 @@ export function shapeDynamics(events: NoteEvent[], beatsPerBar: BeatsPerBar): vo
   const half = beatsPerBar % 2 === 0 ? bar / 2 : -1;
   for (const e of events) {
     if (e.melody || e.fret < 0) continue;
-    const voice = e.finger === 'p' ? BASS_WEIGHT : INNER_WEIGHT;
+    const voice = e.tech?.startsWith('brush') ? BRUSH_WEIGHT : e.finger === 'p' ? BASS_WEIGHT : INNER_WEIGHT;
     const at = e.tick % bar;
     const place = at === 0 ? DOWNBEAT : at === half ? MID_BAR : at % TICKS_PER_BEAT === 0 ? 1 : at % (TICKS_PER_BEAT / 2) === 0 ? OFF_EIGHTH : OFF_SIXTEENTH;
     e.velocity = clamp(e.velocity * voice * place);

@@ -85,14 +85,14 @@ describe('arrange with a mood', () => {
 
   it('opens with the pattern that suits the mood', () => {
     expect(arrange({ ...base, mood: { energy: 0.2, valence: 0.1 } }, { style: 'fingerstyle', level: 'moderate' }).patternId).toBe('fingerstyle.moderate.ballad');
-    expect(arrange({ ...base, mood: { energy: 0.9, valence: 0.9 } }, { style: 'fingerstyle', level: 'moderate' }).patternId).toBe('fingerstyle.moderate.travis-pinch');
+    expect(arrange({ ...base, mood: { energy: 0.9, valence: 0.9 } }, { style: 'fingerstyle', level: 'moderate' }).patternId).toBe('fingerstyle.moderate.thumb-brush');
   });
 
   it('lets the user override the mood with a preset or slider values, and reports both', () => {
     const a = arrange({ ...base, mood: { energy: 0.2, valence: 0.1 } }, { style: 'fingerstyle', level: 'moderate', mood: 'upbeat' });
     expect(a.mood).toBe('upbeat');
     expect(a.feel).toEqual({ energy: 0.75, valence: 0.75 });
-    expect(a.patternId).toBe('fingerstyle.moderate.travis-pinch');
+    expect(a.patternId).toBe('fingerstyle.moderate.thumb-brush');
     const b = arrange(base, { style: 'fingerstyle', level: 'moderate', mood: { energy: 0.3, valence: 0.9 } });
     expect([b.mood, b.feel]).toEqual(['warm', { energy: 0.3, valence: 0.9 }]);
   });

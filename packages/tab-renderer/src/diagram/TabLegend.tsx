@@ -73,6 +73,17 @@ const ENTRIES: Entry[] = [
     text: 'Rasgueado: strum the strings in the arrow’s direction',
   },
   {
+    key: 'brush',
+    when: (t) => t.has('brush-down') || t.has('brush-up'),
+    symbol: (
+      <g>
+        <path className={sheet['slur']} d="M14 18Q17 15.5 14 13Q11 10.5 14 8" />
+        <path className={sheet['head']} d="M10.5 7L17.5 7L14 2Z" />
+      </g>
+    ),
+    text: 'Slow strum: brush across the strings in the arrow’s direction and let them ring',
+  },
+  {
     key: 'golpe',
     when: (t) => t.has('golpe'),
     symbol: (

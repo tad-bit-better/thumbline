@@ -37,6 +37,8 @@ export type TechMark =
   | { kind: 'slur'; label: 'h' | 'p'; x1: number; x2: number; y: number }
   | { kind: 'accent'; x: number }
   | { kind: 'rasgueo'; direction: 'down' | 'up'; x: number; y1: number; y2: number }
+  /** A slow strum (fingerstyle brush): a wavy roll line with the stroke's arrow */
+  | { kind: 'brush'; direction: 'down' | 'up'; x: number; y1: number; y2: number }
   | { kind: 'golpe' | 'slap' | 'apagado'; x: number }
   | { kind: 'palm-mute'; x: number }
   | { kind: 'pinch'; x: number; y1: number; y2: number }
@@ -124,7 +126,7 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
   const positions: SheetLayout['positions'] = [];
   const lastOnString: Array<{ system: number; x: number } | undefined> = [];
   const accented = new Set<string>();
-  const groups = new Map<string, { kind: 'rasgueo' | 'pinch'; system: number; x: number; lo: number; hi: number; n: number; direction: 'down' | 'up' }>();
+  const groups = new Map<string, { kind: 'rasgueo' | 'brush' | 'pinch'; system: number; x: number; lo: number; hi: number; n: number; direction: 'down' | 'up' }>();
   let column: { tick: number; system: number; x: number; fingers: Finger[] } | undefined;
   const flushColumn = () => {
     if (column) systems[column.system].fingers.push({ x: column.x, text: column.fingers.join('') });
@@ -149,7 +151,7 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
       return;
     }
     // A thumb strum (alzapúa) is a stroke, not a bass note: no bass chip.
-    const strum = e.tech === 'rasgueo-down' || e.tech === 'rasgueo-up';
+    const strum = e.tech === 'rasgueo-down' || e.tech === 'rasgueo-up' || e.tech === 'brush-down' || e.tech === 'brush-up';
     // A natural harmonic is written as its node fret in angle brackets: <12>.
     const text = e.tech === 'harmonic' ? `<${e.fret}>` : String(e.fret);
     sys.notes.push({ eventIndex: i, x: pos.x, y, text, bass: e.finger === 'p' && !strum, melody: e.melody === true });
@@ -175,8 +177,10 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
         break;
       case 'rasgueo-down':
       case 'rasgueo-up':
+      case 'brush-down':
+      case 'brush-up':
       case 'pinch': {
-        const kind = e.tech === 'pinch' ? 'pinch' : 'rasgueo';
+        const kind = e.tech === 'pinch' ? 'pinch' : e.tech.startsWith('brush') ? 'brush' : 'rasgueo';
         const key = `${kind}:${e.tick}`;
         const g = groups.get(key);
         if (g) {
@@ -191,7 +195,7 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
             lo: e.string,
             hi: e.string,
             n: 1,
-            direction: e.tech === 'rasgueo-up' ? 'up' : 'down',
+            direction: e.tech === 'rasgueo-up' || e.tech === 'brush-up' ? 'up' : 'down',
           });
         }
         break;
@@ -209,7 +213,7 @@ export function layoutSheet(a: Arrangement, width: number): SheetLayout {
 
   for (const g of groups.values()) {
     const [y1, y2] = [STRING_Y[g.hi], STRING_Y[g.lo]];
-    if (g.kind === 'rasgueo') systems[g.system].techniques.push({ kind: 'rasgueo', direction: g.direction, x: g.x, y1, y2 });
+    if (g.kind === 'rasgueo' || g.kind === 'brush') systems[g.system].techniques.push({ kind: g.kind, direction: g.direction, x: g.x, y1, y2 });
     else if (g.n > 1) systems[g.system].techniques.push({ kind: 'pinch', x: g.x, y1, y2 });
   }
 

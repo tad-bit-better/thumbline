@@ -108,7 +108,10 @@ export type Technique =
   | 'palm-mute'
   | 'slap'
   | 'harmonic'
-  | 'apagado';
+  | 'apagado'
+  /** A slow strum across the strings (fingerstyle): down = low to high, up = a light flick back up the top strings */
+  | 'brush-down'
+  | 'brush-up';
 
 export type PatternEvent = {
   /** start, relative to the start of the chord segment or bar (see anchor) */
