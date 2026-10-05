@@ -146,7 +146,10 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
 
   const chords = segments.flatMap((s) => (s.chord ? [s.chord] : []));
   const capo = opts.style === 'flamenco' && (opts.capo === undefined || opts.capo === 'auto') ? flamencoCapo(chords, input.key) : resolveCapo(opts.capo, chords);
-  const shapeKey = { ...input.key, pc: (input.key.pc - capo + 12) % 12 };
+  // The key of each bar (M10b: songs may change key), in shape space.
+  const toShape = (key: AnalysisResult['key']) => ({ ...key, pc: (key.pc - capo + 12) % 12 });
+  const shapeKeys = (input.keys?.length ? input.keys : [{ bar: 0, key: input.key }]).map((k) => ({ bar: k.bar, key: toShape(k.key) }));
+  const shapeKeyAt = (bar: number) => shapeKeys.reduce((found, k) => (k.bar <= bar ? k.key : found), shapeKeys[0].key);
 
   const warnings = new Warnings();
   const chordMarks: ChordMark[] = [];
@@ -182,7 +185,7 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     }
 
     chordMarks.push({ tick: start, voicing, soundingName });
-    const span = { start, end, voicing, played, key: shapeKey };
+    const span = { start, end, voicing, played, key: shapeKeyAt(segment.bar) };
     spans.push(span);
     events.push(...renderSpan(candidates, span, beatsPerBar));
   });
@@ -193,7 +196,7 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   let notes = events;
   if (tune.length) notes = mergeMelody(events, tune, spans);
   // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
-  else if (opts.style !== 'flamenco') moveTopLine(events, spans, opts.level, { ...input.key, pc: (input.key.pc - capo + 12) % 12 });
+  else if (opts.style !== 'flamenco') moveTopLine(events, spans, opts.level, toShape(input.key));
 
   // Not every note weighs the same: the tune leads, the thumb holds, inner notes stay under (M9).
   shapeDynamics(notes, beatsPerBar);

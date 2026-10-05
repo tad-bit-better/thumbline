@@ -46,6 +46,12 @@ export type AnalysisResult = {
   key: { pc: number; mode: 'major' | 'minor' | 'phrygian' };
   /** sorted by (bar, beat) */
   chords: ChordSegment[];
+  /**
+   * Where the key changes (bar 0 first, sorted by bar); absent when the key never
+   * changes (or the clip was analysed before M10b): then `key` holds everywhere.
+   * When present, `key` is the one held longest.
+   */
+  keys?: KeySpan[];
   /** The tune (lead voice), cleaned but not quantised; absent for clips analysed before M9 */
   melody?: MelodyNote[];
   /** How the song feels; absent for clips analysed before M10 */
@@ -53,6 +59,9 @@ export type AnalysisResult = {
   /** Loudness per beat (index as beatTimesSec), 0..1 with the loud end of the song at 1 */
   beatEnergy?: number[];
 };
+
+/** The key from `bar` on, until the next span. */
+export type KeySpan = { bar: number; key: AnalysisResult['key'] };
 
 /** 0..1 each: energy calm → driving, valence dark → bright. */
 export type Mood = { energy: number; valence: number };

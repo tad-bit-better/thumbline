@@ -1,8 +1,8 @@
 import type { EssentiaLike, EssentiaVector } from './essentia.js';
-import { type BeatFeatures, detectMeter, extendBeats, lowBandAlternation, refineMode, toSegments } from './postprocess.js';
+import { type BeatFeatures, detectMeter, extendBeats, keySections, lowBandAlternation, refineMode, toSegments } from './postprocess.js';
 import { cleanMelody, trackMelody } from './melody.js';
 import { beatEnergyOf, moodOf } from './mood.js';
-import type { AnalysisResult } from './types.js';
+import type { AnalysisResult, KeySpan } from './types.js';
 
 export const ANALYSIS_SAMPLE_RATE = 44100;
 
@@ -223,9 +223,19 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   });
   const meter = detectMeter(features);
   const brightnessHz = brightness(e, samples, sampleRate);
-  const chords = toSegments(features, meter.beatsPerBar, meter.firstDownbeat, key);
+  const firstPass = toSegments(features, meter.beatsPerBar, meter.firstDownbeat, key);
   // The key finder confuses relative keys (C major / A minor): the chords say which is home.
-  const homeKey = refineMode(key, chords, meter.beatsPerBar);
+  // Songs that change key (M10b): find where, then choose the chords again with each section's key.
+  const found = keySections(firstPass, meter.beatsPerBar, refineMode(key, firstPass, meter.beatsPerBar));
+  const chords = found.length > 1 ? toSegments(features, meter.beatsPerBar, meter.firstDownbeat, found) : firstPass;
+  const keys = found.length > 1 ? keySections(chords, meter.beatsPerBar, found[0].key) : found;
+  const homeKey = longestKey(keys, chords.at(-1)?.bar ?? 0);
+  const keyAtSec = (sec: number) => {
+    let beat = 0;
+    while (beat + 1 < beatTimesSec.length && beatTimesSec[beat + 1] <= sec) beat++;
+    const bar = Math.floor((beat - meter.firstDownbeat) / meter.beatsPerBar);
+    return [...keys].reverse().find((k) => k.bar <= bar)?.key ?? keys[0].key;
+  };
 
   // The tune (M9): one pass over the whole clip, so progress jumps once.
   report({ step: 'melody', fraction: 0.82, detail: { bpm, beatsPerBar: meter.beatsPerBar } });
@@ -233,7 +243,7 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   checkAborted(signal);
   let melody: AnalysisResult['melody'];
   try {
-    melody = cleanMelody(trackMelody(e, samples, sampleRate), key);
+    melody = cleanMelody(trackMelody(e, samples, sampleRate), keys.length > 1 ? keyAtSec : homeKey);
   } catch {
     melody = undefined; // a sheet without the tune beats no sheet
   }
@@ -248,10 +258,22 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     meter: { beatsPerBar: meter.beatsPerBar },
     key: homeKey,
     chords,
+    ...(keys.length > 1 ? { keys } : {}),
     ...(melody?.length ? { melody } : {}),
     ...(feel && brightnessHz !== undefined ? { mood: moodOf({ bpm, ...feel, brightnessHz, mode: homeKey.mode, chords }) } : {}),
     beatEnergy: beatEnergyOf(features.map((f) => f.energy)),
   };
+}
+
+/** The key held for the most bars (the first on a tie). */
+function longestKey(keys: readonly KeySpan[], lastBar: number): KeySpan['key'] {
+  let best = keys[0];
+  let bestBars = -1;
+  keys.forEach((k, i) => {
+    const bars = (keys[i + 1]?.bar ?? lastBar + 1) - k.bar;
+    if (bars > bestBars) [best, bestBars] = [k, bars];
+  });
+  return best.key;
 }
 
 /** Mean spectral centroid (Hz) over one frame every half second: how bright the mix sounds. */

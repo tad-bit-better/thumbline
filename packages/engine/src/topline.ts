@@ -78,7 +78,8 @@ function neighbourOf(base: Option, chord: Option[], inKey: Option[]): Option | u
  * A top line that moves (M6b C1): within each chord, notes on the top
  * string alternate between a chord tone (the one closest to where the line
  * was) and a neighbour (see neighbourOf), so the sheet carries a tune
- * instead of repeating one note. `key` is in shape space (capo removed).
+ * instead of repeating one note. `key` is in shape space (capo removed); a
+ * span's own key, when it has one, wins (songs that change key).
  * Basic sheets keep the shape's own note.
  * Notes in a hammer-on or pull-off are left alone.
  */
@@ -102,7 +103,7 @@ export function moveTopLine(events: NoteEvent[], spans: readonly ChordSpan[], le
       continue;
     }
     const base: Option = last === null ? own : nearest(options, last, own);
-    const neighbour = neighbourOf(base, options, topOptions(span, scale)) ?? base;
+    const neighbour = neighbourOf(base, options, topOptions(span, span.key ? scaleOf(span.key) : scale)) ?? base;
     notes.forEach((n, i) => {
       n.fret = i % 2 === 0 ? base.fret : neighbour.fret;
     });

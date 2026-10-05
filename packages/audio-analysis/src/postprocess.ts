@@ -1,4 +1,4 @@
-import type { ChordLabel, ChordSegment, Quality } from './types.js';
+import type { ChordLabel, ChordSegment, KeySpan, Quality } from './types.js';
 
 /**
  * One detected beat: chroma (12 bins, C = 0) of the mix, of its bass band
@@ -202,18 +202,28 @@ export function toSegments(
   beats: readonly BeatFeatures[],
   beatsPerBar: number,
   firstDownbeat: number,
-  key?: { pc: number; mode: 'major' | 'minor' },
+  key?: { pc: number; mode: 'major' | 'minor' } | readonly KeySpan[],
 ): ChordSegment[] {
   const perBeat = beats.map(beatScores);
   const loud = Math.max(...beats.map((b) => b.energy), 0);
   const slotsPerBar = beatsPerBar === 4 ? 2 : 1;
   const slotLen = beatsPerBar / slotsPerBar;
-  const scale = key ? scaleOf(key) : null;
-  const inKey = TEMPLATES.map((t) => (scale && t.tones.every((pc) => scale.has(pc)) ? KEY_BONUS_PER_BEAT : 0));
+  // The bonus follows the key of the bar when the song changes key.
+  const spans: readonly KeySpan[] = !key ? [] : Array.isArray(key) ? key : [{ bar: 0, key: key as { pc: number; mode: 'major' | 'minor' } }];
+  const bonuses = spans.map(({ key: k }) => {
+    const scale = scaleOf(k as { pc: number; mode: 'major' | 'minor' });
+    return TEMPLATES.map((t) => (t.tones.every((pc) => scale.has(pc)) ? KEY_BONUS_PER_BEAT : 0));
+  });
+  const none = TEMPLATES.map(() => 0);
+  const inKeyAt = (bar: number) => {
+    let i = -1;
+    while (i + 1 < spans.length && spans[i + 1].bar <= bar) i++;
+    return i < 0 ? (bonuses[0] ?? none) : bonuses[i];
+  };
   const N = TEMPLATES.length;
   const SILENT = N; // the extra state: no chord
 
-  type Slot = { bar: number; beat: number; sums: Float64Array; beats: number; silent: boolean };
+  type Slot = { bar: number; beat: number; sums: Float64Array; beats: number; silent: boolean; inKey: number[] };
   const slots: Slot[] = [];
   for (let start = firstDownbeat, bar = 0; start < beats.length; start += beatsPerBar, bar++) {
     for (let slot = 0; slot < slotsPerBar; slot++) {
@@ -226,12 +236,12 @@ export function toSegments(
         energy += beats[b].energy / (to - from);
         for (let k = 0; k < N; k++) sums[k] += perBeat[b][k];
       }
-      slots.push({ bar, beat: slot * slotLen, sums, beats: to - from, silent: energy < loud * SILENCE_RATIO });
+      slots.push({ bar, beat: slot * slotLen, sums, beats: to - from, silent: energy < loud * SILENCE_RATIO, inKey: inKeyAt(bar) });
     }
   }
   if (!slots.length) return [];
 
-  const emit = (s: Slot, k: number) => (k === SILENT ? (s.silent ? 0 : -Infinity) : s.silent ? -Infinity : s.sums[k] + inKey[k] * s.beats);
+  const emit = (s: Slot, k: number) => (k === SILENT ? (s.silent ? 0 : -Infinity) : s.silent ? -Infinity : s.sums[k] + s.inKey[k] * s.beats);
   let score = Array.from({ length: N + 1 }, (_, k) => emit(slots[0], k));
   const back: Int16Array[] = [];
   for (let i = 1; i < slots.length; i++) {
@@ -350,4 +360,87 @@ export function refineMode(
   if (key.mode === 'major' && minor > major * MODE_FLIP_MARGIN) return { pc: minorPc, mode: 'minor' };
   if (key.mode === 'minor' && major > minor * MODE_FLIP_MARGIN) return { pc: majorPc, mode: 'major' };
   return key;
+}
+
+/** A chord that doesn't fit a key costs this much (per beat, all its notes outside) to switch key over. */
+const KEY_SWITCH_COST = 6;
+/** A key section shorter than this joins its neighbour. */
+const MIN_KEY_BARS = 8;
+/** Per beat, for the key's own home chord (I, or vi for its relative minor). */
+const TONIC_BONUS = 0.1;
+
+/**
+ * engine-spec §1 key changes (M10b): songs often move key (My Heart Will Go On
+ * steps up a half step for its last chorus), and one key for the whole song
+ * bends the tune and the fills toward the wrong scale. Each bar scores the
+ * twelve scales (a major key with its relative minor, the minor's raised 7th
+ * included) by how many chord notes fall outside, per beat; a path through
+ * the bars may change scale at a cost of KEY_SWITCH_COST, and a section
+ * under MIN_KEY_BARS joins its neighbour. Each section then chooses between
+ * the major key and its relative minor as refineMode does. `key` is the
+ * song's own (it wins when a section shares its notes).
+ */
+export function keySections(
+  chords: readonly ChordSegment[],
+  beatsPerBar: number,
+  key: { pc: number; mode: 'major' | 'minor' },
+): Array<KeySpan & { key: { pc: number; mode: 'major' | 'minor' } }> {
+  const voiced = chords.filter((c) => c.chord);
+  if (!voiced.length) return [{ bar: 0, key }];
+  const bars = chords[chords.length - 1].bar + 1;
+  const at = (s: ChordSegment) => s.bar * beatsPerBar + s.beat;
+  const scales = Array.from({ length: 12 }, (_, pc) => scaleOf({ pc, mode: 'major' }));
+  const fit = Array.from({ length: bars }, () => new Float64Array(12));
+  voiced.forEach((s, i) => {
+    const c = s.chord as ChordLabel;
+    const tones = (QUALITIES.find((q) => q.quality === c.quality)?.tones ?? [[0, 1]]).map(([iv]) => (c.pc + iv) % 12);
+    const end = i + 1 < voiced.length ? at(voiced[i + 1]) : (s.bar + 1) * beatsPerBar;
+    for (let f = 0; f < 12; f++) {
+      const outside = tones.filter((t) => !scales[f].has(t)).length / tones.length;
+      const home = (c.pc === f && MAJOR_FAMILY.has(c.quality)) || (c.pc === (f + 9) % 12 && MINOR_FAMILY.has(c.quality));
+      const perBeat = (home ? TONIC_BONUS : 0) - outside;
+      for (let b = at(s); b < end; b++) fit[Math.floor(b / beatsPerBar)][f] += perBeat;
+    }
+  });
+
+  // The best path through the bars (ties keep the scale it is on).
+  let score = Array.from(fit[0]);
+  const back: Int8Array[] = [];
+  for (let bar = 1; bar < bars; bar++) {
+    let best = 0;
+    for (let f = 1; f < 12; f++) if (score[f] > score[best]) best = f;
+    const from = new Int8Array(12);
+    score = score.map((v, f) => {
+      const stay = v >= score[best] - KEY_SWITCH_COST;
+      from[f] = stay ? f : best;
+      return (stay ? v : score[best] - KEY_SWITCH_COST) + fit[bar][f];
+    });
+    back.push(from);
+  }
+  const path = new Array<number>(bars);
+  path[bars - 1] = score.indexOf(Math.max(...score));
+  for (let bar = bars - 1; bar > 0; bar--) path[bar - 1] = back[bar - 1][path[bar]];
+
+  // Sections, short ones joined to the one before (the first to the one after).
+  const runs: Array<{ bar: number; end: number; scale: number }> = [];
+  path.forEach((f, bar) => (runs.at(-1)?.scale === f ? ((runs.at(-1) as { end: number }).end = bar + 1) : runs.push({ bar, end: bar + 1, scale: f })));
+  for (let i = 0; i < runs.length; ) {
+    if (runs.length > 1 && runs[i].end - runs[i].bar < MIN_KEY_BARS) {
+      if (i > 0) runs[i - 1].end = runs[i].end;
+      else runs[1].bar = runs[0].bar;
+      runs.splice(i, 1);
+      if (i > 0 && i < runs.length && runs[i - 1].scale === runs[i].scale) {
+        runs[i - 1].end = runs[i].end;
+        runs.splice(i, 1);
+      }
+      i = Math.max(0, i - 1);
+    } else i++;
+  }
+
+  const ownScale = key.mode === 'major' ? key.pc : (key.pc + 3) % 12;
+  return runs.map((r) => {
+    const inside = chords.filter((c) => c.bar >= r.bar && c.bar < r.end);
+    const seed = r.scale === ownScale ? key : { pc: r.scale, mode: 'major' as const };
+    return { bar: r.bar, key: refineMode(seed, inside, beatsPerBar) };
+  });
 }

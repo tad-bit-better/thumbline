@@ -31,4 +31,15 @@ describe('cleanMelody', () => {
     const out = cleanMelody([n(0, 0.2, 70), n(0.5, 0.6, 68)], A_MINOR);
     expect(midis(out)).toEqual([69, 68]);
   });
+
+  it('snaps into the key of the moment when the song changes key', () => {
+    // F major until 10 s, then F# major: a short A is at home in F, a short A# at home in F#.
+    const keyAt = (sec: number) => (sec < 10 ? { pc: 5, mode: 'major' as const } : { pc: 6, mode: 'major' as const });
+    const out = cleanMelody([n(1, 0.2, 69), n(2, 0.2, 66), n(11, 0.2, 70), n(12, 0.2, 69)], keyAt);
+    // A stays; F# (not in F) moves to F or G; A# stays; A (not in F#) moves to G# or A#.
+    expect(midis(out)[0]).toBe(69);
+    expect([65, 67]).toContain(midis(out)[1]);
+    expect(midis(out)[2]).toBe(70);
+    expect([68, 70]).toContain(midis(out)[3]);
+  });
 });

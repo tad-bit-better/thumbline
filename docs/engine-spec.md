@@ -33,10 +33,13 @@ type AnalysisResult = {
   meter: { beatsPerBar: 3 | 4 | 12; accents?: number[] }; // accents used from v1.5
   key: { pc: number; mode: 'major' | 'minor' | 'phrygian' };
   chords: ChordSegment[];      // sorted by (bar, beat)
+  keys?: KeySpan[];            // where the key changes, bar 0 first; absent when it never does (then `key` holds everywhere); `key` = the longest-held
   melody?: MelodyNote[];       // the tune; absent for clips analysed before M9
   mood?: Mood;                 // how the song feels; absent before M10
   beatEnergy?: number[];       // loudness per beat (as beatTimesSec), 0..1, the loud end of the song = 1
 };
+
+type KeySpan = { bar: number; key: AnalysisResult['key'] }; // the key from `bar` until the next span
 
 type Mood = { energy: number; valence: number }; // 0..1: calm → driving, dark → bright
 
@@ -49,6 +52,8 @@ type MelodyNote = {
 ```
 
 **Key mode (M10).** The key finder can't tell a key from its relative (C major / A minor share every note). After the chords are found, each chord counts for its length in beats (the first and last twice); if the relative's tonic chord (major family vs m, m7) outweighs the key's own by 1.2×, the key moves to the relative. The mood uses this key.
+
+**Key changes (M10b).** Songs often change key (My Heart Will Go On steps up a half step). After a first pass of chords, each bar scores the twelve scales (a major key with its relative minor, the minor's raised 7th included): per beat, minus the share of the chord's notes outside the scale, plus 0.1 when the chord is the scale's home (I, or vi as the relative minor's i). The best path through the bars may change scale at a cost of 6; a section under 8 bars joins its neighbour. Each section then picks major or relative minor as above. With more than one section the chords are chosen again with each bar's key, the sections found again, and `keys` lists them; `key` becomes the one held for the most bars. Tune cleanup snaps into the key of the moment, and the engine uses the key of each chord's bar (scale walker, hammer-ons, drone, pedal, moving top line).
 
 **Mood (M10).** energy = 40% tempo (60→140 bpm), 30% onset rate (1.5→5 per s), 30% danceability (0.8→2); valence = 55% a major key, 25% the share of major chords (maj, 7, maj7, 6, add9), 20% brightness (spectral centroid 1200→3000 Hz). Each part is clamped to 0..1. `beatEnergy` is each beat's RMS over the 95th percentile, clamped to 1.
 

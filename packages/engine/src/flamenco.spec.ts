@@ -115,6 +115,18 @@ describe('scale walker (picado)', () => {
     expect(notes.every((n) => n.fret === 0 || (n.fret >= 7 && n.fret <= 10))).toBe(true);
   });
 
+  it('follows a key change: the run takes the key of its own bar (M10b)', () => {
+    // Am throughout; A minor for two bars, then D minor (B becomes Bb).
+    const song: AnalysisResult = { ...progression('Am | Am | Am | Am'), key: minor(9), keys: [{ bar: 0, key: minor(9) }, { bar: 2, key: minor(2) }] };
+    const a = arrange(song, { style: 'flamenco', level: 'advanced', palo: 'tangos', patternId: 'flamenco.advanced.tangos-picado', capo: 0 });
+    const runPcs = (fromBar: number, toBar: number) =>
+      new Set(a.events.filter((e) => e.tick >= fromBar * 1920 && e.tick < toBar * 1920 && e.tech === 'apoyando' && e.fret >= 0).map((e) => (OPEN_MIDI[e.string] + e.fret) % 12));
+    expect(runPcs(0, 2).has(11)).toBe(true);
+    expect(runPcs(0, 2).has(10)).toBe(false);
+    expect(runPcs(2, 4).has(10)).toBe(true);
+    expect(runPcs(2, 4).has(11)).toBe(false);
+  });
+
   it('starts on the root, climbs, and turns back at the top', () => {
     const run: PatternDef = {
       id: 'test.picado',

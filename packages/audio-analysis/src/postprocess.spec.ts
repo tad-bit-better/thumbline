@@ -2,6 +2,7 @@ import {
   type BeatFeatures,
   detectMeter,
   extendBeats,
+  keySections,
   lowBandAlternation,
   rankChords,
   refineMode,
@@ -226,5 +227,52 @@ describe('refineMode', () => {
   it('leaves the key alone when neither home chord clearly wins', () => {
     const torn = [seg(0, 0, 'maj'), seg(1, 9, 'm'), seg(2, 0, 'maj'), seg(3, 9, 'm')];
     expect(refineMode({ pc: 0, mode: 'major' }, torn, 4)).toEqual({ pc: 0, mode: 'major' });
+  });
+});
+
+describe('keySections', () => {
+  type Q = 'maj' | 'm' | '7';
+  const parse = (name: string): [number, Q] => {
+    const m = /^([A-G][b#]?)(m|7)?$/.exec(name) as RegExpExecArray;
+    return [PC[m[1]], (m[2] ?? 'maj') as Q];
+  };
+  /** One chord per bar from `from`. */
+  const bars = (names: string[], from = 0): ChordSegment[] =>
+    names.map((n, i) => {
+      const [pc, quality] = parse(n);
+      return { bar: from + i, beat: 0, chord: { pc, quality }, confidence: 1, alternatives: [] };
+    });
+  const inF = ['F', 'C', 'Bb', 'Dm', 'Gm', 'C', 'F', 'F', 'Dm', 'Bb', 'C', 'F', 'Gm', 'Bb', 'C', 'F'];
+  const inFSharp = ['F#', 'C#', 'B', 'D#m', 'G#m', 'C#', 'F#', 'F#', 'D#m', 'B', 'C#', 'F#', 'G#m', 'B', 'C#', 'F#'];
+
+  it("finds a half-step key change (My Heart Will Go On: F, then F#), whatever the whole song's key said", () => {
+    const chords = [...bars(inF), ...bars(inFSharp, 16)];
+    expect(keySections(chords, 4, { pc: 1, mode: 'major' })).toEqual([
+      { bar: 0, key: { pc: 5, mode: 'major' } },
+      { bar: 16, key: { pc: 6, mode: 'major' } },
+    ]);
+  });
+
+  it('keeps one key for a song that stays home', () => {
+    const pop = bars(['C', 'G', 'Am', 'F', 'C', 'G', 'Am', 'F', 'C', 'G', 'F', 'C']);
+    expect(keySections(pop, 4, { pc: 0, mode: 'major' })).toEqual([{ bar: 0, key: { pc: 0, mode: 'major' } }]);
+  });
+
+  it('keeps the key through a short borrowed passage', () => {
+    const song = bars(['C', 'G', 'Am', 'F', 'C', 'G', 'Bb', 'Eb', 'C', 'G', 'Am', 'F', 'C', 'G', 'F', 'C']);
+    expect(keySections(song, 4, { pc: 0, mode: 'major' })).toEqual([{ bar: 0, key: { pc: 0, mode: 'major' } }]);
+  });
+
+  it('lets each section choose between a key and its relative', () => {
+    const minor = bars(['Am', 'E7', 'Am', 'Dm', 'Am', 'E7', 'Am', 'G', 'C', 'E7', 'Am', 'Dm', 'E7', 'Am', 'E7', 'Am']);
+    const major = bars(['D', 'A', 'Bm', 'G', 'D', 'A', 'G', 'D', 'D', 'A', 'Bm', 'G', 'D', 'G', 'A', 'D'], 16);
+    expect(keySections([...minor, ...major], 4, { pc: 0, mode: 'major' })).toEqual([
+      { bar: 0, key: { pc: 9, mode: 'minor' } },
+      { bar: 16, key: { pc: 2, mode: 'major' } },
+    ]);
+  });
+
+  it('has nothing to say without chords', () => {
+    expect(keySections([], 4, { pc: 7, mode: 'major' })).toEqual([{ bar: 0, key: { pc: 7, mode: 'major' } }]);
   });
 });

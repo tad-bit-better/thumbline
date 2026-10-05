@@ -18,12 +18,15 @@ const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 const MINOR = [0, 2, 3, 5, 7, 8, 10];
 const pcOf = (midi: number) => ((Math.round(midi) % 12) + 12) % 12;
 
+type Key = { pc: number; mode: 'major' | 'minor' | 'phrygian' };
+
 /**
  * engine-spec §1 melody cleanup, in order: drop blips; fix octave slips
  * against the median of the neighbours; merge a held note split in two;
- * snap short out-of-key notes a semitone into the key.
+ * snap short out-of-key notes a semitone into the key. `key` is the song's,
+ * or, for a song that changes key, the key at a moment (seconds).
  */
-export function cleanMelody(raw: readonly MelodyNote[], key: { pc: number; mode: 'major' | 'minor' | 'phrygian' }): MelodyNote[] {
+export function cleanMelody(raw: readonly MelodyNote[], key: Key | ((sec: number) => Key)): MelodyNote[] {
   const notes = raw.filter((n) => n.durSec >= MIN_NOTE_SEC).map((n) => ({ ...n, midi: Math.round(n.midi) }));
 
   const fixed = notes.map((n, i) => {
@@ -45,9 +48,12 @@ export function cleanMelody(raw: readonly MelodyNote[], key: { pc: number; mode:
     } else merged.push({ ...n });
   }
 
-  const scale = new Set((key.mode === 'major' ? MAJOR : MINOR).map((s) => (key.pc + s) % 12));
+  const keyAt = typeof key === 'function' ? key : () => key;
+  const scaleOf = (k: Key) => new Set((k.mode === 'major' ? MAJOR : MINOR).map((s) => (k.pc + s) % 12));
   for (const n of merged) {
-    if (scale.has(pcOf(n.midi)) || n.durSec >= SNAP_BELOW_SEC) continue;
+    if (n.durSec >= SNAP_BELOW_SEC) continue;
+    const scale = scaleOf(keyAt(n.startSec));
+    if (scale.has(pcOf(n.midi))) continue;
     n.midi += scale.has(pcOf(n.midi - 1)) ? -1 : 1;
   }
   return merged;

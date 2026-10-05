@@ -23,10 +23,14 @@ export type AnalysisResult = {
   meter: { beatsPerBar: 3 | 4 | 12; accents?: number[] };
   key: { pc: number; mode: 'major' | 'minor' | 'phrygian' };
   chords: ChordSegment[];
+  keys?: KeySpan[];
   melody?: MelodyNote[];
   mood?: Mood;
   beatEnergy?: number[];
 };
+
+/** The key from `bar` on, until the next span. */
+export type KeySpan = { bar: number; key: AnalysisResult['key'] };
 
 /** 0..1 each: energy calm → driving, valence dark → bright. */
 export type Mood = { energy: number; valence: number };
