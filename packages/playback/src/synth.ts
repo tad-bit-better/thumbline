@@ -1,4 +1,4 @@
-import type { MoodLabel, NoteEvent } from '@thumbline/engine';
+import type { Mood, NoteEvent } from '@thumbline/engine';
 
 /** engine-spec: MIDI of each open string, string 0 = low E. */
 const OPEN_MIDI = [40, 45, 50, 55, 59, 64] as const;
@@ -243,17 +243,22 @@ export function strumOffsets(events: readonly NoteEvent[], stepMs = STRUM_STEP_M
   return offsets;
 }
 
+export type Feel = { strumMs: number; reverb: number; shelfDb: number; crisp: boolean };
+
 /**
- * engine-spec §6 feel by mood: strum speed (ms between strings), reverb send,
- * a high shelf (dB at 3 kHz: darker or brighter), and whether pattern notes
- * stop at their written length (crisp) or ring on.
+ * engine-spec §6 feel, from the mood's values: strum speed (ms between strings),
+ * reverb send, a high shelf at 3 kHz (darker or brighter), and whether pattern
+ * notes stop at their written length (crisp, when driving) or ring on.
+ * Calm songs strum slower with more room; bright songs sound brighter.
  */
-export const FEEL: Record<MoodLabel, { strumMs: number; reverb: number; shelfDb: number; crisp: boolean }> = {
-  melancholic: { strumMs: 18, reverb: 0.32, shelfDb: -4, crisp: false },
-  warm: { strumMs: 14, reverb: 0.26, shelfDb: -2, crisp: false },
-  intense: { strumMs: 11, reverb: 0.2, shelfDb: 0, crisp: true },
-  upbeat: { strumMs: 9, reverb: 0.18, shelfDb: 2, crisp: true },
-};
+export function feelOf({ energy, valence }: Mood): Feel {
+  return {
+    strumMs: Math.round(20 - 12 * energy),
+    reverb: Math.round((0.34 - 0.18 * energy) * 100) / 100,
+    shelfDb: Math.round((-5 + 8 * valence) * 10) / 10,
+    crisp: energy >= 0.5,
+  };
+}
 
 /** The tune sits on top of the pattern. */
 const MELODY_LIFT = 1.3;

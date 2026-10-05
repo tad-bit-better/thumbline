@@ -1,7 +1,7 @@
 import type { Arrangement } from '@thumbline/engine';
 import { type Scheduler, createScheduler } from './scheduler.js';
 import { timeStretchAsync } from './stretch.js';
-import { FEEL, type NoteSound, STRUM_STEP_MS, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
+import { type NoteSound, STRUM_STEP_MS, feelOf, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 import { type Beats, TICKS_PER_BEAT, createTimeline } from './timeline.js';
 
 export type Mix = 'sheet' | 'original' | 'both';
@@ -87,7 +87,7 @@ export function createPlayer(options: PlayerOptions): Player {
   const ownsContext = !options.context;
   const ctx = options.context ?? new AudioContext({ latencyHint: 'interactive' });
 
-  const feel = a.mood ? FEEL[a.mood] : { strumMs: STRUM_STEP_MS, reverb: REVERB_SEND, shelfDb: 0, crisp: false };
+  const feel = a.feel ? feelOf(a.feel) : { strumMs: STRUM_STEP_MS, reverb: REVERB_SEND, shelfDb: 0, crisp: false };
   const master = ctx.createGain();
   const sheetBus = ctx.createGain();
   const originalBus = ctx.createGain();

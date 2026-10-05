@@ -13,8 +13,8 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join, parse as parsePath } from 'node:path';
 import { arrange } from '../../packages/engine/dist/index.js';
 import {
-  FEEL,
   apagadoChunk,
+  feelOf,
   createTimeline,
   golpeBurst,
   harmonicTone,
@@ -161,7 +161,7 @@ function renderFull(analysis, line, mono, capo0) {
   const fn = ({ style, level, mood }) => {
     const a = arrange(analysis, { style, level, ...(mood ? { mood } : {}) });
     const tl = createTimeline(a, { beatTimesSec: analysis.beatTimesSec, barStartBeat: analysis.barStartBeat });
-    const feel = a.mood ? FEEL[a.mood] : { strumMs: 12, reverb: 0.22, shelfDb: 0, crisp: false };
+    const feel = a.feel ? feelOf(a.feel) : { strumMs: 12, reverb: 0.22, shelfDb: 0, crisp: false };
     const strum = strumOffsets(a.events, feel.strumMs);
     bus[0].fill(0);
     bus[1].fill(0);

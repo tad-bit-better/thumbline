@@ -1,5 +1,5 @@
 import type { NoteEvent } from '@thumbline/engine';
-import { FEEL, STRUM_STEP_MS, apagadoChunk, golpeBurst, harmonicTone, midiOf, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
+import { STRUM_STEP_MS, feelOf, apagadoChunk, golpeBurst, harmonicTone, midiOf, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 
 const SR = 44100;
 
@@ -128,11 +128,18 @@ describe('golpeBurst', () => {
   });
 });
 
-describe('FEEL', () => {
-  it('strums a sad song slower and darker than a happy one', () => {
-    expect(FEEL.melancholic.strumMs).toBeGreaterThan(FEEL.upbeat.strumMs);
-    expect(FEEL.melancholic.shelfDb).toBeLessThan(FEEL.upbeat.shelfDb);
-    expect(FEEL.melancholic.reverb).toBeGreaterThan(FEEL.upbeat.reverb);
+describe('feelOf', () => {
+  it('strums a sad song slower, darker and roomier than a happy one', () => {
+    const sad = feelOf({ energy: 0.25, valence: 0.25 });
+    const happy = feelOf({ energy: 0.75, valence: 0.75 });
+    expect(sad.strumMs).toBeGreaterThan(happy.strumMs);
+    expect(sad.shelfDb).toBeLessThan(happy.shelfDb);
+    expect(sad.reverb).toBeGreaterThan(happy.reverb);
+    expect([sad.crisp, happy.crisp]).toEqual([false, true]);
+  });
+
+  it('moves smoothly with the sliders', () => {
+    expect(feelOf({ energy: 0.4, valence: 0.5 }).strumMs).toBeLessThan(feelOf({ energy: 0.1, valence: 0.5 }).strumMs);
   });
 
   it('spaces the strings of a strum by the mood’s step', () => {
