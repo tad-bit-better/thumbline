@@ -159,7 +159,8 @@ type Arrangement = {
   chordMarks: ChordMark[];
   events: NoteEvent[];    // sorted by tick, then string
   warnings: Array<{ code: 'simplified' | 'barre' | 'unsupported-chord' | 'slash-dropped'; message: string }>;
-  mood?: 'melancholic' | 'warm' | 'intense' | 'upbeat'; // what it was arranged for (detected, or chosen by the user)
+  mood?: 'melancholic' | 'warm' | 'intense' | 'upbeat'; // its quadrant, which picked the pattern
+  feel?: { energy: number; valence: number };           // the values (detected, a preset, or the sliders)
   sections?: Array<'soft' | 'normal' | 'full'>;          // per bar, how much it plays
 };
 
@@ -187,9 +188,9 @@ function arrange(input: AnalysisResult, opts: {
 
 **Playability check.** Reject a pattern for a chord if any simultaneous notes need a fret span > 4 or more than 4 fretted fingers; fall back to the next pattern at the same level, then the level below.
 
-**Mood (M10).** The label is the quadrant of `AnalysisResult.mood` split at 0.5: melancholic (calm, dark), warm (calm, bright), intense (driving, dark), upbeat (driving, bright). `ArrangeOptions.mood` overrides it. Without a mood (clips analysed before M10) nothing below applies.
-- *Pattern:* a level's patterns are listed with the ones whose `moods` include the mood first, otherwise in their usual order; the first is the default.
-- *Touch* (pattern notes only; the tune keeps its own): melancholic ×0.85 velocity, warm ×0.92, both keep only the accents on a bar's first beat; intense cuts thumb notes to an eighth; upbeat cuts all pattern notes to an eighth. Playback sets tone, room and strum speed from `Arrangement.mood` (§6).
+**Mood (M10).** The label is the quadrant of the mood's values split at 0.5: melancholic (calm, dark), warm (calm, bright), intense (driving, dark), upbeat (driving, bright). `ArrangeOptions.mood` overrides the detected mood with a preset (its quadrant's centre: 0.25 or 0.75 on each axis) or with slider values. The arrangement reports both (`mood`, `feel`). Without a mood (clips analysed before M10, no override) nothing below applies.
+- *Pattern:* a level's patterns are listed with the ones whose `moods` include the label first, otherwise in their usual order; the first is the default.
+- *Touch* (pattern notes only; the tune keeps its own), from the values: velocity × (0.8 + 0.25 × energy), at most 1; when calm (energy under 0.5) only the accent on a bar's first beat stays; when driving the thumb is cut to an eighth; when driving and bright every pattern note is. Playback sets tone, room and strum speed from `Arrangement.feel` (§6).
 
 **Sections (M10).** From `beatEnergy`: each bar's loudness is the mean of its beats, averaged over 4-bar phrases from bar 0. The song's own quiet and loud levels are the 20th and 80th percentile of its phrases; if they are less than 0.08 apart, every bar is normal. Otherwise a phrase in the quietest quarter of that spread is soft and one in the loudest quarter is full (relative, so a mastered verse only a little quieter than its chorus still reads). Soft bars keep the tune, thumb notes, golpes and notes on a beat, at ×0.8 velocity; full bars play everything at ×1.1 with the bar's first beat accented.
 
@@ -226,3 +227,5 @@ createPlayer({
 - Sheet notes and the original share one Web Audio clock. Playback is a series of passes (one per loop pass or tempo change); in each, a note at song time `s` plays at `audioStart + (s − songStart) / ratio` and the original starts at `songStart / ratio` in its time-stretched copy, so they cannot drift.
 - Slower speeds play a WSOLA time-stretched copy of the original (pitch unchanged), prepared in the background and cached per ratio.
 - Tempo, loop and mix changes take effect within the 150 ms lookahead.
+
+**Feel (M10).** From `Arrangement.feel` (energy e, valence v): strum step 20 − 12e ms between strings, reverb send 0.34 − 0.18e, a high shelf at 3 kHz of −5 + 8v dB, and when e ≥ 0.5 pattern notes stop at their written length (the tune always rings). Without a feel: 12 ms, 0.22, 0 dB, ringing.

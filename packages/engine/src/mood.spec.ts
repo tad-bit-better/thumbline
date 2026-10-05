@@ -15,20 +15,29 @@ describe('moodLabelOf', () => {
 });
 
 describe('applyTouch', () => {
-  it('plays a melancholic song softer, accenting only the bar’s first beat, and lets notes ring', () => {
+  it('plays a sad song softer, accenting only the bar’s first beat, and lets notes ring', () => {
     const e = [n(0, { accent: true }), n(480, { accent: true })];
     applyTouch(e, 'melancholic', 4);
+    // 0.8 × (0.8 + 0.25 × 0.25)
     expect(e.map((x) => [x.velocity, x.accent, x.dur])).toEqual([
-      [0.68, true, 960],
-      [0.68, undefined, 960],
+      [0.69, true, 960],
+      [0.69, undefined, 960],
     ]);
   });
 
-  it('cuts an upbeat song’s pattern notes short so it bounces, but leaves the tune alone', () => {
+  it('cuts a happy song’s pattern notes short so it bounces, but leaves the tune alone', () => {
     const e = [n(0), n(0, { finger: 'p', string: 0 }), n(240, { melody: true, string: 5 })];
     applyTouch(e, 'upbeat', 4);
     expect(e.map((x) => x.dur)).toEqual([240, 240, 960]);
     expect(e[2].velocity).toBe(0.8);
+  });
+
+  it('follows slider values continuously', () => {
+    const soft = [n(0)];
+    const harder = [n(0)];
+    applyTouch(soft, { energy: 0.1, valence: 0.5 }, 4);
+    applyTouch(harder, { energy: 0.4, valence: 0.5 }, 4);
+    expect(harder[0].velocity).toBeGreaterThan(soft[0].velocity);
   });
 });
 
@@ -70,10 +79,13 @@ describe('arrange with a mood', () => {
     expect(arrange({ ...base, mood: { energy: 0.9, valence: 0.9 } }, { style: 'fingerstyle', level: 'moderate' }).patternId).toBe('fingerstyle.moderate.travis-pinch');
   });
 
-  it('lets the user override the mood and reports it', () => {
+  it('lets the user override the mood with a preset or slider values, and reports both', () => {
     const a = arrange({ ...base, mood: { energy: 0.2, valence: 0.1 } }, { style: 'fingerstyle', level: 'moderate', mood: 'upbeat' });
     expect(a.mood).toBe('upbeat');
+    expect(a.feel).toEqual({ energy: 0.75, valence: 0.75 });
     expect(a.patternId).toBe('fingerstyle.moderate.travis-pinch');
+    const b = arrange(base, { style: 'fingerstyle', level: 'moderate', mood: { energy: 0.3, valence: 0.9 } });
+    expect([b.mood, b.feel]).toEqual(['warm', { energy: 0.3, valence: 0.9 }]);
   });
 
   it('builds with the song: fewer notes in the quiet half', () => {

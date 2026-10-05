@@ -191,8 +191,10 @@ export type Arrangement = {
   /** sorted by tick, then string */
   events: NoteEvent[];
   warnings: Array<{ code: WarningCode; message: string }>;
-  /** the mood it was arranged for, when known (playback sets tone, room and strum speed from it) */
+  /** the mood it was arranged for, when known: its quadrant, which picked the pattern */
   mood?: MoodLabel;
+  /** the mood's values (playback sets tone, room and strum speed from them) */
+  feel?: Mood;
   /** per bar, how much it plays */
   sections?: SectionLevel[];
 };
@@ -205,6 +207,6 @@ export type ArrangeOptions = {
   palo?: string;
   /** Put the tune on top when the analysis has one (default true). */
   melody?: boolean;
-  /** Override the detected mood. */
-  mood?: MoodLabel;
+  /** Override the detected mood: a preset, or the sliders' values. */
+  mood?: MoodLabel | Mood;
 };

@@ -4,7 +4,7 @@ import { TICKS_PER_BEAT } from './constants.js';
 import { LEVELS, PALOS, getPattern, patternsFor } from './patterns/index.js';
 import { type ChordSpan, isPlayable, runSegment } from './runner.js';
 import { mergeMelody, placeMelody, quantiseMelody } from './melody.js';
-import { applySections, applyTouch, moodLabelOf, sectionsOf } from './mood.js';
+import { applySections, applyTouch, moodLabelOf, moodValuesOf, sectionsOf } from './mood.js';
 import { moveTopLine } from './topline.js';
 import type {
   AnalysisResult,
@@ -134,7 +134,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   const { beatsPerBar } = input.meter;
   const barTicks = beatsPerBar * TICKS_PER_BEAT;
   const palo = resolvePalo(opts);
-  const mood = opts.mood ?? (input.mood ? moodLabelOf(input.mood) : undefined);
+  const feel = opts.mood !== undefined ? moodValuesOf(opts.mood) : input.mood;
+  const mood = feel ? moodLabelOf(feel) : undefined;
   const candidates = patternCandidates(opts.style, opts.level, beatsPerBar, opts.patternId, palo, mood);
 
   const segments = input.chords;
@@ -194,7 +195,7 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   else if (opts.style !== 'flamenco') moveTopLine(events, spans, opts.level, { ...input.key, pc: (input.key.pc - capo + 12) % 12 });
 
   // The vibe (M10): the mood's touch, then sections that build and breathe with the song.
-  if (mood) applyTouch(notes, mood, beatsPerBar);
+  if (feel) applyTouch(notes, feel, beatsPerBar);
   const sections = input.beatEnergy?.length ? sectionsOf(input, beatsPerBar, bars) : undefined;
   if (sections) notes = applySections(notes, sections, beatsPerBar);
 
@@ -209,7 +210,7 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     chordMarks,
     events: notes,
     warnings: warnings.list,
-    ...(mood ? { mood } : {}),
+    ...(mood && feel ? { mood, feel } : {}),
     ...(sections ? { sections } : {}),
   };
 }

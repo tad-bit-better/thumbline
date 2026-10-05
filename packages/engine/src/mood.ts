@@ -14,31 +14,38 @@ export function moodLabelOf(m: Mood): MoodLabel {
   return bright ? 'warm' : 'melancholic';
 }
 
-/** How each mood touches the strings (engine side; playback adds tone, room and strum speed). */
-const TOUCH: Record<MoodLabel, { velocity: number; accents: 'downbeat' | 'all'; maxDur?: number; bassMaxDur?: number }> = {
-  // Soft, only the bar's first beat leans; everything rings.
-  melancholic: { velocity: 0.85, accents: 'downbeat' },
-  warm: { velocity: 0.92, accents: 'downbeat' },
-  // Full weight; the thumb is short so the bass pulses.
-  intense: { velocity: 1, accents: 'all', bassMaxDur: TICKS_PER_BEAT / 2 },
-  // Crisp: pattern notes are cut to an eighth so the groove bounces.
-  upbeat: { velocity: 1, accents: 'all', maxDur: TICKS_PER_BEAT / 2, bassMaxDur: TICKS_PER_BEAT / 2 },
+/** The middle of each mood's quadrant: what a preset sets the sliders to. */
+export const MOOD_CENTRES: Readonly<Record<MoodLabel, Mood>> = {
+  melancholic: { energy: 0.25, valence: 0.25 },
+  warm: { energy: 0.25, valence: 0.75 },
+  intense: { energy: 0.75, valence: 0.25 },
+  upbeat: { energy: 0.75, valence: 0.75 },
 };
 
+/** A label or values → values (a label is its quadrant's centre). */
+export const moodValuesOf = (m: MoodLabel | Mood): Mood => (typeof m === 'string' ? MOOD_CENTRES[m] : m);
+
 /**
- * engine-spec §4 touch: velocity, which accents stay, and how long pattern
- * notes last, by mood. The tune keeps its own length and weight.
+ * engine-spec §4 touch, from the mood's values (pattern notes only; the tune
+ * keeps its own length and weight):
+ * - velocity × (0.8 + 0.25 × energy), at most 1: calm songs play softer;
+ * - calm (energy under 0.5): only the accent on a bar's first beat stays;
+ * - driving: the thumb is cut to an eighth so the bass pulses;
+ * - driving and bright: every pattern note is cut to an eighth so it bounces.
  */
-export function applyTouch(events: NoteEvent[], mood: MoodLabel, beatsPerBar: BeatsPerBar): void {
-  const t = TOUCH[mood];
+export function applyTouch(events: NoteEvent[], mood: MoodLabel | Mood, beatsPerBar: BeatsPerBar): void {
+  const { energy, valence } = moodValuesOf(mood);
+  const velocity = 0.8 + 0.25 * energy;
+  const driving = energy >= MIDDLE;
+  const crisp = driving && valence >= MIDDLE;
+  const eighth = TICKS_PER_BEAT / 2;
   const bar = beatsPerBar * TICKS_PER_BEAT;
   for (const e of events) {
     if (e.melody) continue;
-    e.velocity = Math.min(1, Math.round(e.velocity * t.velocity * 100) / 100);
-    if (e.accent && t.accents === 'downbeat' && e.tick % bar !== 0) delete e.accent;
+    e.velocity = Math.min(1, Math.round(e.velocity * velocity * 100) / 100);
+    if (e.accent && !driving && e.tick % bar !== 0) delete e.accent;
     if (e.fret < 0) continue;
-    const max = e.finger === 'p' ? t.bassMaxDur : t.maxDur;
-    if (max !== undefined) e.dur = Math.min(e.dur, max);
+    if ((e.finger === 'p' && driving) || crisp) e.dur = Math.min(e.dur, eighth);
   }
 }
 
