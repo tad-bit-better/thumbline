@@ -1,5 +1,5 @@
 import type { EssentiaLike, EssentiaVector } from './essentia.js';
-import { type BeatFeatures, detectMeter, extendBeats, keySections, lowBandAlternation, refineMode, toSegments } from './postprocess.js';
+import { type BeatFeatures, detectMeter, extendBeats, foldBeats, keySections, lowBandAlternation, refineMode, toSegments } from './postprocess.js';
 import { cleanMelody, trackMelody } from './melody.js';
 import { beatEnergyOf, moodOf } from './mood.js';
 import type { AnalysisResult, KeySpan } from './types.js';
@@ -138,7 +138,8 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     free(signalVec);
     throw new AnalysisError('too-short', 'This clip is too short to find a beat.');
   }
-  const beatTimesSec = extendBeats(ticks);
+  // Rubato stretches counted on another pulse fold back to the song's beat (M10b), so bar lines don't slip.
+  const beatTimesSec = extendBeats(foldBeats(ticks));
   const intervals = beatTimesSec.slice(1).map((t, i) => t - beatTimesSec[i]).sort((a, b) => a - b);
   const bpm = Math.round((60 / intervals[Math.floor(intervals.length / 2)]) * 10) / 10;
 

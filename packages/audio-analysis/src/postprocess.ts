@@ -281,6 +281,51 @@ export function toSegments(
   return out;
 }
 
+/** A stretch whose beats are this much faster (or 1/x slower) than the song's is counted on another pulse. */
+const OFF_TEMPO = 0.85;
+/** Intervals either side that vote on the local beat. */
+const LOCAL_SPAN = 2;
+/** Shortest off-tempo stretch to fold, in intervals. */
+const MIN_FOLD = 4;
+
+/**
+ * engine-spec §1 free time (M10b): in rubato stretches (a free intro, a
+ * bridge) the tracker often locks onto another pulse, 1.5× or 2× the song's,
+ * so the pattern rushes and every bar line after it slips. Where the local
+ * beat (median of the 5 intervals around) stays outside 0.85–1.18× the song's
+ * median beat for 4+ intervals, the stretch's beats are re-spaced evenly at
+ * the nearest whole number of the song's beats, keeping its first and last.
+ */
+export function foldBeats(times: readonly number[]): number[] {
+  if (times.length < 2 * LOCAL_SPAN + 2) return [...times];
+  const gaps = times.slice(1).map((t, i) => t - times[i]);
+  const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+  const beat = median(gaps);
+  const off = gaps.map((_, i) => {
+    const local = median(gaps.slice(Math.max(0, i - LOCAL_SPAN), i + LOCAL_SPAN + 1)) / beat;
+    return local < OFF_TEMPO || local > 1 / OFF_TEMPO;
+  });
+  const out: number[] = [];
+  let i = 0;
+  while (i < gaps.length) {
+    let end = i;
+    while (end < gaps.length && off[end]) end++;
+    if (end - i >= MIN_FOLD) {
+      // Beats i..end become n + 1 evenly spaced ones.
+      const from = times[i];
+      const to = times[end];
+      const n = Math.max(1, Math.round((to - from) / beat));
+      for (let k = 0; k < n; k++) out.push(from + ((to - from) * k) / n);
+      i = end;
+    } else {
+      out.push(times[i]);
+      i++;
+    }
+  }
+  out.push(times[times.length - 1]);
+  return out;
+}
+
 /** Fill in beats the tracker missed before the music's first detected beat. */
 export function extendBeats(times: readonly number[]): number[] {
   if (times.length < 2) return [...times];

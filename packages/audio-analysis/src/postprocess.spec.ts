@@ -2,6 +2,7 @@ import {
   type BeatFeatures,
   detectMeter,
   extendBeats,
+  foldBeats,
   keySections,
   lowBandAlternation,
   rankChords,
@@ -157,6 +158,42 @@ describe('toSegments', () => {
     const clear = toSegments(beats(['C', 'C', 'C', 'C']), 4, 0)[0].confidence;
     const mixed = beats(['C', 'C', 'C', 'C']).map((b, i) => ({ ...b, chroma: Array.from(b.chroma, (v, k) => v + chroma('Am', i)[k] * 0.9) }));
     expect(toSegments(mixed, 4, 0)[0].confidence).toBeLessThan(clear);
+  });
+});
+
+describe('foldBeats', () => {
+  const steady = (from: number, step: number, n: number) => Array.from({ length: n }, (_, i) => from + i * step);
+  const gaps = (t: number[]) => t.slice(1).map((x, i) => x - t[i]);
+
+  it('leaves a steady song alone', () => {
+    const t = steady(0, 0.5, 40);
+    expect(foldBeats(t)).toEqual(t);
+  });
+
+  it('leaves a gentle slow-down alone', () => {
+    const t = [0];
+    for (let i = 1; i < 40; i++) t.push(t[i - 1] + 0.5 * (1 + 0.004 * i)); // up to ~16% slower
+    expect(foldBeats(t)).toEqual(t);
+  });
+
+  it('folds a stretch counted 1.5× too fast back to the song’s beat (My Heart Will Go On’s free-time intro)', () => {
+    // 20 beats at 0.5 s, 12 at 0.333 s (4 s: 8 real beats), then 20 at 0.5 s.
+    const fast = steady(9.5 + 1 / 3, 1 / 3, 12);
+    const t = [...steady(0, 0.5, 20), ...fast, ...steady(13.5 + 0.5, 0.5, 20)].map((x) => Math.round(x * 1e6) / 1e6);
+    const out = foldBeats(t);
+    expect(out.length).toBe(t.length - 4);
+    expect(Math.max(...gaps(out))).toBeLessThan(0.56);
+    expect(Math.min(...gaps(out))).toBeGreaterThan(0.44);
+    expect(out[0]).toBe(0);
+    expect(out.at(-1)).toBe(t.at(-1));
+  });
+
+  it('folds a stretch counted twice too fast', () => {
+    const t = [...steady(0, 0.5, 20), ...steady(10, 0.25, 16), ...steady(14, 0.5, 20)];
+    const out = foldBeats(t);
+    expect(out.length).toBe(t.length - 8);
+    expect(Math.max(...gaps(out))).toBeLessThan(0.56);
+    expect(Math.min(...gaps(out))).toBeGreaterThan(0.44);
   });
 });
 
