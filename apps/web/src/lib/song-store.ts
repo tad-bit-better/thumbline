@@ -1,4 +1,4 @@
-import type { AnalysisResult, ChordLabel, ChordSegment, Level, MoodLabel, Style } from '@thumbline/engine';
+import { type AnalysisResult, type ChordLabel, type ChordSegment, type Level, MOOD_CENTRES, type Mood, type MoodLabel, type Style } from '@thumbline/engine';
 
 /** The flamenco palos v1 plays. */
 export type Palo = 'rumba' | 'tangos';
@@ -16,8 +16,8 @@ export type Edits = {
   /** Segment indexes the user confirmed. */
   confirmed: number[];
   beatsPerBar?: 3 | 4;
-  /** The mood the user chose over the detected one (M10). */
-  mood?: MoodLabel;
+  /** The mood the user set over the detected one (M10): a preset's values or the sliders'. */
+  mood?: Mood;
 };
 
 export type Speed = 0.5 | 0.75 | 1;
@@ -50,7 +50,9 @@ export type SongState = Saved & {
   relisten: () => void;
   setChord: (segment: number, chord: ChordLabel | null) => void;
   setMeter: (beatsPerBar: 3 | 4) => void;
-  setMood: (mood: MoodLabel) => void;
+  setMood: (mood: Mood) => void;
+  /** Go back to the mood we heard. */
+  resetMood: () => void;
   setStyle: (style: Style) => void;
   setLevel: (level: Level) => void;
   setPalo: (palo: Palo) => void;
@@ -130,6 +132,10 @@ export function createSongStore(storage: Storage) {
       },
       setMeter: (beatsPerBar) => update({ edits: { ...getState().edits, beatsPerBar } }),
       setMood: (mood) => update({ edits: { ...getState().edits, mood } }),
+      resetMood: () => {
+        const { mood: _dropped, ...rest } = getState().edits;
+        update({ edits: rest });
+      },
       setStyle: (style) => update({ prefs: { ...getState().prefs, style } }),
       setLevel: (level) => update({ prefs: { ...getState().prefs, level } }),
       setPalo: (palo) => update({ prefs: { ...getState().prefs, palo } }),
@@ -155,7 +161,7 @@ export function createSongStore(storage: Storage) {
                 // Older saves kept the Blob beside the song.
                 file: clip ? new Blob([clip.bytes], { type: clip.type }) : (saved.file ?? null),
                 analysis: saved.analysis ?? null,
-                edits: saved.edits ?? EMPTY_EDITS,
+                edits: migrateEdits(saved.edits),
                 prefs: { ...DEFAULT_PREFS, ...saved.prefs },
               }
             : {}),
@@ -165,6 +171,13 @@ export function createSongStore(storage: Storage) {
     };
   });
   return store;
+}
+
+/** Saves from the first M10 build kept the mood as a label; it is now the label's values. */
+function migrateEdits(edits: Edits | undefined): Edits {
+  if (!edits) return EMPTY_EDITS;
+  const mood = edits.mood as Mood | MoodLabel | undefined;
+  return typeof mood === 'string' ? { ...edits, mood: MOOD_CENTRES[mood] } : edits;
 }
 
 /** Re-bar a segment for a new meter, keeping its absolute beat. */

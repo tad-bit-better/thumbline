@@ -1,6 +1,6 @@
 'use client';
 
-import { type ChordLabel, chordName } from '@thumbline/engine';
+import { type ChordLabel, chordName, moodLabelOf } from '@thumbline/engine';
 import {
   Button,
   Card,
@@ -22,7 +22,7 @@ import {
   toBars,
 } from '../../lib/bars';
 import { formatClock } from '../../lib/format';
-import { MOOD_OPTIONS, detectedMood, effectiveMood, moodName } from '../../lib/mood';
+import { MOOD_OPTIONS, detectedMood, effectiveMood, moodName, presetValues } from '../../lib/mood';
 import { LOTTIE } from '../../lib/lottie';
 import { findSections, hasRepeats } from '../../lib/sections';
 import { effectiveAnalysis, songStore, useSong } from '../../lib/song-store';
@@ -139,7 +139,8 @@ export default function Review() {
   );
   const bars = useMemo(() => (effective ? toBars(effective) : []), [effective]);
   const heard = analysis ? detectedMood(analysis) : undefined;
-  const mood = analysis ? effectiveMood(analysis, edits) : undefined;
+  const moodValues = analysis ? effectiveMood(analysis, edits) : undefined;
+  const mood = moodValues ? moodLabelOf(moodValues) : undefined;
   const spans = useMemo(
     () => (effective ? barSpans(effective, bars.length) : []),
     [effective, bars.length],
@@ -336,7 +337,7 @@ export default function Review() {
                   fullWidth
                   options={MOOD_OPTIONS}
                   value={mood}
-                  onChange={(v) => songStore.getState().setMood(v)}
+                  onChange={(v) => songStore.getState().setMood(presetValues(v))}
                 />
                 {heard && (
                   <span className={styles.heardMood}>

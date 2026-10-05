@@ -3,12 +3,16 @@
 import {
   type Arrangement,
   type Level,
+  type Mood,
   type Style,
   arrange,
+  moodLabelOf,
   patternsFor,
 } from '@thumbline/engine';
 import { ChordShapes, TabLegend, TabSheet } from '@thumbline/tab-renderer';
 import {
+  ArrowDownGlyph,
+  ArrowUpGlyph,
   Button,
   Card,
   Chip,
@@ -16,6 +20,7 @@ import {
   LottieMoment,
   PlayerBar,
   SegmentedControl,
+  Slider,
   StyleCard,
   useReducedMotion,
   useToast,
@@ -31,9 +36,18 @@ import {
   useState,
 } from 'react';
 import { AppShell } from '../../components/AppShell';
-import { effectiveMood } from '../../lib/mood';
+import {
+  MOOD_OPTIONS,
+  colourWords,
+  detectedMood,
+  effectiveMood,
+  energyWords,
+  moodName,
+  presetValues,
+} from '../../lib/mood';
 import { effectiveAnalysis, songStore, useSong } from '../../lib/song-store';
 import { LOTTIE } from '../../lib/lottie';
+import { useFollowPlayhead } from '../../lib/use-follow-playhead';
 import { useSheetPlayer } from '../../lib/use-sheet-player';
 import { useWidth } from '../../lib/use-width';
 import styles from './sheet.module.css';
@@ -61,6 +75,12 @@ const STYLE_CARDS = [
     hint: 'A steady thumb with the fingers playing around it.',
   },
 ] as const;
+/** The sticky player bar's gap from the bottom of the window (sheet.module.css: --space-4). */
+const STICKY_GAP_PX = 16;
+
+/** How long a mood slider rests before the sheet re-arranges (a debounce, not an animation). */
+const MOOD_SETTLE_MS = 300;
+
 const PALOS = [
   { value: 'rumba', label: 'Rumba' },
   { value: 'tangos', label: 'Tangos' },
@@ -113,7 +133,22 @@ export default function SheetPage() {
     prefs.style === 'flamenco' && !flamencoOk ? 'arpeggio' : prefs.style;
   const palo = style === 'flamenco' ? prefs.palo : undefined;
   // The mood orders the patterns (the default is one that suits it) and sets the touch (M10).
-  const mood = analysis ? effectiveMood(analysis, edits) : undefined;
+  const moodValues = analysis ? effectiveMood(analysis, edits) : undefined;
+  // Slider drags update this at once; the sheet re-arranges once the hand rests (MOOD_SETTLE_MS).
+  const [moodDraft, setMoodDraft] = useState<Mood | null>(null);
+  const moodTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(moodTimer.current), []);
+  const shownMood = moodDraft ?? moodValues;
+  const nudgeMood = (next: Mood) => {
+    setMoodDraft(next);
+    clearTimeout(moodTimer.current);
+    moodTimer.current = setTimeout(() => {
+      songStore.getState().setMood(next);
+      setMoodDraft(null);
+    }, MOOD_SETTLE_MS);
+  };
+  const heardMood = analysis ? detectedMood(analysis) : undefined;
+  const mood = moodValues ? moodLabelOf(moodValues) : undefined;
   const patterns = useMemo(
     () =>
       effective
@@ -134,12 +169,12 @@ export default function SheetPage() {
         level: prefs.level,
         patternId: pattern.id,
         palo,
-        mood,
+        mood: moodValues,
       });
     } catch {
       return null;
     }
-  }, [effective, style, prefs.level, pattern, palo, mood]);
+  }, [effective, style, prefs.level, pattern, palo, moodValues]);
 
   const onEnd = useCallback(
     (wholeSong: boolean) => {
@@ -171,10 +206,26 @@ export default function SheetPage() {
 
   const barTicks = (arrangement?.meter.beatsPerBar ?? 4) * 480;
   const currentBar = Math.floor(player.position / barTicks);
-  const seekBar = (bar: number) =>
+  const follow = useFollowPlayhead();
+  // The sticky player bar covers the bottom of the window (not on phones, where it isn't sticky).
+  const playerRef = useRef<HTMLDivElement>(null);
+  const [playerHeight, setPlayerHeight] = useState(0);
+  useEffect(() => {
+    const el = playerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setPlayerHeight(getComputedStyle(el).position === 'sticky' ? el.getBoundingClientRect().height + STICKY_GAP_PX : 0);
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, [effective]);
+  // Seeking means "take me there": the sheet follows again.
+  const seekBar = (bar: number) => {
+    follow.resume();
     void player.seek(
       Math.min((arrangement?.bars ?? 1) - 1, Math.max(0, bar)) * barTicks,
     );
+  };
 
   const keys = useRef<(e: KeyboardEvent) => void>(() => undefined);
   keys.current = (e) => {
@@ -185,6 +236,7 @@ export default function SheetPage() {
     );
     if (e.key === ' ' && !onButton) {
       e.preventDefault();
+      if (player.state !== 'playing') follow.resume();
       void player.toggle();
     } else if (e.key === 'l' || e.key === 'L') setLoop((l) => !l);
     else if (e.key === '1' || e.key === '2' || e.key === '3')
@@ -297,6 +349,49 @@ export default function SheetPage() {
               onChange={(v) => songStore.getState().setPalo(v)}
             />
           )}
+          {shownMood && (
+            <Card padding="sm" className={styles.feel}>
+              <SegmentedControl
+                label="Mood"
+                tone="secondary"
+                fullWidth
+                options={MOOD_OPTIONS}
+                value={moodLabelOf(shownMood)}
+                onChange={(v) => nudgeMood(presetValues(v))}
+              />
+              <Slider
+                label="Energy"
+                minLabel="Calm"
+                maxLabel="Driving"
+                value={shownMood.energy}
+                valueText={(v) => `${Math.round(v * 100)}%, ${energyWords(v)}`}
+                onChange={(energy) => nudgeMood({ ...shownMood, energy })}
+              />
+              <Slider
+                label="Colour"
+                minLabel="Dark"
+                maxLabel="Bright"
+                value={shownMood.valence}
+                valueText={(v) => `${Math.round(v * 100)}%, ${colourWords(v)}`}
+                onChange={(valence) => nudgeMood({ ...shownMood, valence })}
+              />
+              {heardMood && edits.mood && (
+                <p className={styles.feelNote}>
+                  It sounded {moodName(heardMood).toLowerCase()} to us.{' '}
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      clearTimeout(moodTimer.current);
+                      setMoodDraft(null);
+                      songStore.getState().resetMood();
+                    }}
+                  >
+                    Use what we heard
+                  </Button>
+                </p>
+              )}
+            </Card>
+          )}
           {pattern && (
             <Card padding="sm" className={styles.pattern}>
               <div>
@@ -366,7 +461,14 @@ export default function SheetPage() {
                       width={tabWidth}
                       cursorIndex={player.cursor}
                       label={`${STYLE_NAMES[style]} tab`}
-                      onSeek={(tick) => void player.seek(tick, true)}
+                      onSeek={(tick) => {
+                        follow.resume();
+                        void player.seek(tick, true);
+                      }}
+                      follow={follow.following}
+                      jumpKey={follow.jumpKey}
+                      onPlayheadView={follow.onPlayheadView}
+                      coveredBottom={playerHeight}
                     />
                   </div>
                   <TabLegend arrangement={arrangement} />
@@ -376,7 +478,29 @@ export default function SheetPage() {
           </>
         )}
 
-        <div className={styles.player}>
+        <div className={styles.player} ref={playerRef}>
+          {arrangement &&
+            !follow.following &&
+            follow.where !== 'visible' &&
+            (playing || player.position > 0) && (
+              // The reader scrolled away: one tap (or F) brings the playhead back into view.
+              <div className={styles.follow}>
+                <Button
+                  variant="secondary"
+                  icon={
+                    follow.where === 'above' ? (
+                      <ArrowUpGlyph />
+                    ) : (
+                      <ArrowDownGlyph />
+                    )
+                  }
+                  onClick={follow.back}
+                  aria-keyshortcuts="F"
+                >
+                  Back to the playhead
+                </Button>
+              </div>
+            )}
           {burst > 0 && (
             <LottieMoment
               src={LOTTIE.firstPlay}
@@ -391,7 +515,10 @@ export default function SheetPage() {
           <PlayerBar
             playing={playing}
             preparing={player.state === 'preparing'}
-            onTogglePlay={() => void player.toggle()}
+            onTogglePlay={() => {
+              if (!playing) follow.resume();
+              void player.toggle();
+            }}
             title={`${STYLE_NAMES[style]}${palo ? ` (${PALOS.find((p) => p.value === palo)?.label})` : ''}, ${LEVELS.find((l) => l.value === prefs.level)?.label}`}
             subtitle={`${Math.round(effective.bpm)} bpm, ${MIX_TEXT[file ? prefs.mix : 'sheet']}${prefs.speed < 1 ? `, ${prefs.speed * 100}% speed` : ''}`}
             mix={file ? prefs.mix : 'sheet'}
