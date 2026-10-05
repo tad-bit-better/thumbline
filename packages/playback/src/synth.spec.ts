@@ -105,6 +105,12 @@ describe('roomImpulse', () => {
     expect(energyDb(l, 1.6, 1.8) - energyDb(l, 0, 0.2)).toBeLessThan(-30);
   });
 
+  it('is about as warm as a guitar note, so it warms the sound instead of fizzing over it', () => {
+    // A note measures about 0.9–1.4 kHz; the old room was nearly white noise (~2.5 kHz).
+    // With this room the full Tum Hi Ho mix measures ~1.0 kHz (references: 1.1–1.5 kHz).
+    expect(centroidHz(l)).toBeLessThan(1700);
+  });
+
   it('differs between channels, for width', () => {
     let lr = 0;
     let ll = 0;

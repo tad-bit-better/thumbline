@@ -14,6 +14,7 @@ import { join, parse as parsePath } from 'node:path';
 import { arrange } from '../../packages/engine/dist/index.js';
 import {
   TOUCH_LEVELS,
+  roomImpulse,
   apagadoChunk,
   feelOf,
   humanize,
@@ -29,7 +30,10 @@ import {
 import { analyzeSamples } from '../../packages/audio-analysis/dist/index.js';
 import { OUT, ROOT, SR, beatsAndKey, clean, e, melodyOf, onePerBeat, room } from './melody-spike.mjs';
 
-const APP = process.argv.includes('--app') || process.argv.includes('--moods');
+const EXPERIMENT = process.argv.includes('--experiment');
+const APP = process.argv.includes('--app') || process.argv.includes('--moods') || EXPERIMENT;
+/** Experiment switches: which voices to render, and whether to add the room. */
+const MIX = { voices: 'all', room: true };
 // --moods: the app's Fingerstyle Moderate in each of the four moods (M10), to hear the vibe change.
 const MOODS = process.argv.includes('--moods');
 const RENDERS = [
@@ -155,6 +159,62 @@ function mixVoice(bus, buf, { start, end, gain, pan = 0, skip = 0, rise = 1, vib
 
 const OPEN_MIDI = [40, 45, 50, 55, 59, 64];
 
+/** In-place radix-2 FFT (re, im of length 2^k). */
+function fft(re, im, inverse = false) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = ((inverse ? 2 : -2) * Math.PI) / len;
+    const wr = Math.cos(ang);
+    const wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1;
+      let ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const ar = re[i + k + len / 2] * cr - im[i + k + len / 2] * ci;
+        const ai = re[i + k + len / 2] * ci + im[i + k + len / 2] * cr;
+        re[i + k + len / 2] = re[i + k] - ar;
+        im[i + k + len / 2] = im[i + k] - ai;
+        re[i + k] += ar;
+        im[i + k] += ai;
+        [cr, ci] = [cr * wr - ci * wi, cr * wi + ci * wr];
+      }
+    }
+  }
+  if (inverse) for (let i = 0; i < n; i++) (re[i] /= n), (im[i] /= n);
+}
+
+/** x convolved with ir (overlap-add): the app's ConvolverNode, offline. */
+function convolve(x, ir) {
+  const block = 1 << 16;
+  let size = 1;
+  while (size < block + ir.length) size <<= 1;
+  const hr = new Float64Array(size);
+  const hi = new Float64Array(size);
+  hr.set(ir);
+  fft(hr, hi);
+  const out = new Float32Array(x.length + ir.length);
+  for (let start = 0; start < x.length; start += block) {
+    const re = new Float64Array(size);
+    const im = new Float64Array(size);
+    re.set(x.subarray(start, Math.min(x.length, start + block)));
+    fft(re, im);
+    for (let k = 0; k < size; k++) [re[k], im[k]] = [re[k] * hr[k] - im[k] * hi[k], re[k] * hi[k] + im[k] * hr[k]];
+    fft(re, im, true);
+    for (let i = 0; i < size && start + i < out.length; i++) out[start + i] += re[i];
+  }
+  return out.subarray(0, x.length);
+}
+const IR = roomImpulse(SR);
+
 function renderFull(analysis, line, mono, capo0) {
   const length = mono.length;
   const bus = [new Float32Array(length), new Float32Array(length)];
@@ -194,6 +254,7 @@ function renderFull(analysis, line, mono, capo0) {
     const voices = [];
     const ringing = [];
     a.events.forEach((n, i) => {
+      if ((MIX.voices === 'melody' && !n.melody) || (MIX.voices === 'pattern' && n.melody)) return;
       const sec = tl.tickToSec(n.tick) + (strum.get(i) ?? 0) + (APP ? human[i].offsetSec : (rand() - 0.5) * 0.012);
       const start = Math.max(0, Math.floor(sec * SR));
       const s = soundOf(n, a.capo);
@@ -241,7 +302,9 @@ function renderFull(analysis, line, mono, capo0) {
       });
     });
 
-    // Guitar body, the song's dynamics, a room, then normalise.
+    // The app's room: sent from the sheet bus before the body EQ (player.ts), convolved with its impulse.
+    const wetSend = MIX.room ? bus.map((ch, c) => convolve(ch, IR[c])) : null;
+    // Guitar body, the song's dynamics, then the room joins, then normalise.
     for (const ch of bus) {
       peak(ch, 105, 5, 2);
       peak(ch, 230, 2.5, 1.4);
@@ -249,8 +312,8 @@ function renderFull(analysis, line, mono, capo0) {
       peak(ch, 4500, feel.shelfDb, 0.5); // the mood's colour (a broad bell standing in for the app's high shelf)
       for (let i = 0; i < ch.length; i++) ch[i] *= loud(i);
     }
-    const wet = feel.reverb * 1.4;
-    const out = [room(bus[0], wet), room(bus[1].map((v, i) => (i > 300 ? bus[1][i - 300] * 0.15 + v : v)), wet)];
+    const out = [bus[0].slice(), bus[1].slice()];
+    if (wetSend) for (let c = 0; c < 2; c++) for (let i = 0; i < out[c].length; i++) out[c][i] += feel.reverb * wetSend[c][i] * loud(i);
     let max = 0;
     for (const ch of out) for (const v of ch) max = Math.max(max, Math.abs(v));
     for (const ch of out) for (let i = 0; i < ch.length; i++) ch[i] *= 0.89 / (max || 1);
@@ -283,6 +346,29 @@ for (const clip of clips) {
   const line = clean(notes, beats, scale, mono.length / SR);
   const basicLine = onePerBeat(line, beats);
   if (analysis.mood) console.log(`  mood: energy ${analysis.mood.energy}, valence ${analysis.mood.valence}`);
+  if (EXPERIMENT) {
+    const centroidOf = ([l, r]) => {
+      let sum = 0;
+      let n = 0;
+      for (let i = 0; i + 2048 < l.length; i += SR / 2) {
+        const frame = new Float32Array(2048);
+        for (let k = 0; k < 2048; k++) frame[k] = (l[i + k] + r[i + k]) / 2;
+        const w = e.Windowing(e.arrayToVector(frame), true, 2048, 'hann');
+        const c = e.Centroid(e.Spectrum(w.frame, 2048).spectrum, SR / 2).centroid;
+        if (Number.isFinite(c) && c > 0) {
+          sum += c;
+          n++;
+        }
+      }
+      return Math.round(sum / n);
+    };
+    for (const [label, voices, withRoom] of [['everything', 'all', true], ['no room', 'all', false], ['tune only, no room', 'melody', false], ['pattern only, no room', 'pattern', false]]) {
+      Object.assign(MIX, { voices, room: withRoom });
+      const { out } = renderFull(analysis, line, mono)({ style: 'fingerstyle', level: 'moderate' });
+      console.log(`  ${label.padEnd(24)} ${centroidOf(out)} Hz`);
+    }
+    continue;
+  }
   const jobs = MOODS ? ['melancholic', 'warm', 'intense', 'upbeat'].map((mood) => ['fingerstyle', 'moderate', mood]) : RENDERS;
   for (const [style, level, mood] of jobs) {
     if (style === 'flamenco' && analysis.meter.beatsPerBar !== 4) continue;

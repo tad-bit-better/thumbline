@@ -142,6 +142,11 @@ export const TOUCH_LEVELS = [0.35, 0.65, 0.9] as const;
 /** Which touch level a note's velocity calls for. */
 export const touchLevelOf = (velocity: number): number => (velocity < 0.5 ? 0 : velocity < 0.78 ? 1 : 2);
 
+/** The room's damping (one-pole coefficients): warm at the start, dark by the end, and the walls' own softening. */
+const ROOM_DAMP_START = 0.8;
+const ROOM_DAMP_END = 0.97;
+const ROOM_WALLS = 0.6;
+
 /**
  * A small room's impulse response, one array per channel: a few early
  * reflections, then a decaying noise tail that darkens as it fades.
@@ -159,14 +164,23 @@ export function roomImpulse(sampleRate: number, { seconds = 1.8, decay = 1.4, se
     const rand = random(seed);
     const out = new Float32Array(length);
     let lp = 0;
+    let lp2 = 0;
     for (let i = 0; i < length; i++) {
       const t = i / sampleRate;
-      // Low-pass that closes over time: a damped tail sounds like a room, not a hiss.
-      const k = Math.min(0.95, 0.2 + t / seconds);
+      // A two-pole low-pass that starts warm and closes over time: in a room the highs die
+      // first, so the reverb is about as bright as a guitar note instead of fizzing over it.
+      const k = Math.min(ROOM_DAMP_END, ROOM_DAMP_START + ((ROOM_DAMP_END - ROOM_DAMP_START) * t) / seconds);
       lp = k * lp + (1 - k) * (rand() * 2 - 1);
-      out[i] = lp * 10 ** ((-3 * t) / decay) * Math.min(1, t / 0.008);
+      lp2 = k * lp2 + (1 - k) * lp;
+      out[i] = lp2 * 10 ** ((-3 * t) / decay) * Math.min(1, t / 0.008);
     }
     for (const [at, g] of reflections) out[Math.floor((at + skew) * sampleRate)] += g * (rand() < 0.5 ? -1 : 1);
+    // Walls soak up the highs too: the early reflections are soft thuds, not clicks.
+    let y = 0;
+    for (let i = 0; i < length; i++) {
+      y = ROOM_WALLS * y + (1 - ROOM_WALLS) * out[i];
+      out[i] = y;
+    }
     return normalise(out, 0.5);
   };
   return [channel(seed, 0), channel(seed + 1, 0.003)];
