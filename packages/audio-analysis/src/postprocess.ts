@@ -180,9 +180,13 @@ function close(seg: Open): ChordSegment {
   };
 }
 
-/** Diatonic pitch classes: the major scale, or natural minor plus the raised 7th (so E is at home in A minor). */
+/**
+ * Pitch classes at home in the key: natural minor plus the raised 7th (so E is at home in A minor),
+ * or the major scale plus the relative minor's raised 7th (G# in C: E7 → Am is everywhere in pop,
+ * and a minor song misread as its relative major keeps its E7 instead of turning it into Em7).
+ */
 function scaleOf(key: { pc: number; mode: 'major' | 'minor' }): Set<number> {
-  const steps = key.mode === 'minor' ? [0, 2, 3, 5, 7, 8, 10, 11] : [0, 2, 4, 5, 7, 9, 11];
+  const steps = key.mode === 'minor' ? [0, 2, 3, 5, 7, 8, 10, 11] : [0, 2, 4, 5, 7, 8, 9, 11];
   return new Set(steps.map((s) => (key.pc + s) % 12));
 }
 
