@@ -185,6 +185,8 @@ export type NoteEvent = {
   harmony?: true;
   /** a short run into the next tune note, where the tune rests (M11) */
   fill?: true;
+  /** a bass passing note walking into the next chord (M11) */
+  walk?: true;
 };
 
 export type ChordMark = { tick: number; voicing: Voicing; soundingName: string };

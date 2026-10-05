@@ -9,6 +9,7 @@ import { applySections, applyTouch, moodLabelOf, moodValuesOf, sectionsOf } from
 import { addFills } from './fills.js';
 import { harmonise } from './harmony.js';
 import { addRolls } from './rolls.js';
+import { walkBass } from './walk.js';
 import { moveTopLine } from './topline.js';
 import type {
   AnalysisResult,
@@ -195,7 +196,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
 
   events.sort((a, b) => a.tick - b.tick || a.string - b.string);
   // A slow roll opens each phrase and ends the song (M11); flamenco has its own strums.
-  const rolled = opts.style === 'flamenco' ? events : addRolls(events, spans, beatsPerBar, feel);
+  // ...and the thumb walks into the next chord (M11).
+  const rolled = opts.style === 'flamenco' ? events : walkBass(addRolls(events, spans, beatsPerBar, feel), spans, opts.level);
   // The tune on top (M9) when we have one; otherwise an invented top line (M6b).
   const tune = opts.melody !== false && input.melody?.length ? placeMelody(quantiseMelody(input, opts.level, songEnd), spans, capo, opts.level) : [];
   let notes = rolled;
