@@ -5,6 +5,7 @@ export {
   type SegmentOption,
   type SegmentedControlProps,
 } from './SegmentedControl/SegmentedControl';
+export { Slider, type SliderProps } from './Slider/Slider';
 export { Card, type CardProps } from './Card/Card';
 export { ChordBlock, type ChordBlockProps, type ChordBlockStatus } from './ChordBlock/ChordBlock';
 export { Chip, type ChipProps, type ChipTone } from './Chip/Chip';
