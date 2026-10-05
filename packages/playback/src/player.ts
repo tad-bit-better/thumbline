@@ -1,7 +1,7 @@
 import type { Arrangement } from '@thumbline/engine';
 import { type Scheduler, createScheduler } from './scheduler.js';
 import { timeStretchAsync } from './stretch.js';
-import { type NoteSound, STRUM_STEP_MS, feelOf, humanize, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
+import { type NoteSound, STRUM_STEP_MS, TOUCH_LEVELS, feelOf, humanize, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 import { type Beats, TICKS_PER_BEAT, createTimeline } from './timeline.js';
 
 export type Mix = 'sheet' | 'original' | 'both';
@@ -148,7 +148,7 @@ export function createPlayer(options: PlayerOptions): Player {
 
   const sounds = a.events.map((e) => soundOf(e, a.capo));
   const buffers = new Map<string, AudioBuffer>();
-  const soundKey = (n: NoteSound) => ('midi' in n ? `${n.kind === 'legato' ? 'pluck' : n.kind}:${n.midi}` : n.kind);
+  const soundKey = (n: NoteSound) => ('midi' in n ? `${n.kind === 'legato' ? 'pluck' : n.kind}:${n.midi}:${n.touch}` : n.kind);
   const toBuffer = (data: Float32Array) => {
     const b = ctx.createBuffer(1, data.length, ctx.sampleRate);
     b.copyToChannel(data as Float32Array<ArrayBuffer>, 0);
@@ -166,10 +166,10 @@ export function createPlayer(options: PlayerOptions): Player {
       case 'harmonic':
         return harmonicTone(n.midi, sr);
       case 'muted':
-        return nylonPluck(n.midi, sr, { muted: true });
+        return nylonPluck(n.midi, sr, { muted: true, touch: TOUCH_LEVELS[n.touch] });
       case 'pluck':
       case 'legato':
-        return nylonPluck(n.midi, sr);
+        return nylonPluck(n.midi, sr, { touch: TOUCH_LEVELS[n.touch] });
     }
   };
   const prepareSynth = () => {

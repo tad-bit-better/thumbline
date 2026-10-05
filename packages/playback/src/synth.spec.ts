@@ -211,6 +211,16 @@ describe('humanize', () => {
   });
 });
 
+describe('touch', () => {
+  it('starts a soft pluck slower and darker than a hard one', () => {
+    const soft = nylonPluck(64, SR, { touch: 0.35 });
+    const hard = nylonPluck(64, SR, { touch: 0.9 });
+    const early = (x: Float32Array) => rms(x, 0, Math.floor(SR * 0.003)) / rms(x, 0, Math.floor(SR * 0.03));
+    expect(early(soft)).toBeLessThan(early(hard));
+    expect(centroidHz(soft)).toBeLessThan(centroidHz(hard));
+  });
+});
+
 describe('tone', () => {
   // Fingerstyle recordings measure about 1.1–1.5 kHz; the M6 pluck was 1.4–2.2 kHz, brightest on the low E.
   it.each([45, 52, 64])('is warm, not brittle, at MIDI %i', (midi) => {
@@ -258,18 +268,22 @@ describe('soundOf', () => {
   const note = (extra: Partial<NoteEvent>): NoteEvent => ({ tick: 0, dur: 240, string: 5, fret: 0, finger: 'i', velocity: 0.8, ...extra });
 
   it('maps techniques to sounds', () => {
-    expect(soundOf(note({ fret: 3 }), 2)).toEqual({ kind: 'pluck', midi: 69 });
-    expect(soundOf(note({ string: 0, fret: 3, tech: 'palm-mute' }), 0)).toEqual({ kind: 'muted', midi: 43 });
-    expect(soundOf(note({ fret: 2, tech: 'hammer' }), 0)).toEqual({ kind: 'legato', midi: 66 });
-    expect(soundOf(note({ fret: -1, tech: 'golpe' }), 0)).toEqual({ kind: 'golpe' });
-    expect(soundOf(note({ fret: -1, tech: 'slap' }), 0)).toEqual({ kind: 'slap' });
-    expect(soundOf(note({ fret: -1, tech: 'apagado' }), 0)).toEqual({ kind: 'apagado' });
+    expect(soundOf(note({ fret: 3 }), 2)).toMatchObject({ kind: 'pluck', midi: 69 });
+    expect(soundOf(note({ string: 0, fret: 3, tech: 'palm-mute' }), 0)).toMatchObject({ kind: 'muted', midi: 43 });
+    expect(soundOf(note({ fret: 2, tech: 'hammer' }), 0)).toMatchObject({ kind: 'legato', midi: 66 });
+    expect(soundOf(note({ fret: -1, tech: 'golpe' }), 0)).toMatchObject({ kind: 'golpe' });
+    expect(soundOf(note({ fret: -1, tech: 'slap' }), 0)).toMatchObject({ kind: 'slap' });
+    expect(soundOf(note({ fret: -1, tech: 'apagado' }), 0)).toMatchObject({ kind: 'apagado' });
+  });
+
+  it('picks a touch level from the velocity: soft, medium or hard', () => {
+    expect([0.3, 0.6, 0.95].map((velocity) => (soundOf(note({ velocity }), 0) as { touch: number }).touch)).toEqual([0, 1, 2]);
   });
 
   it('sounds a harmonic an octave (fret 12) or an octave and a fifth (fret 7) above the open string', () => {
-    expect(soundOf(note({ fret: 12, tech: 'harmonic' }), 0)).toEqual({ kind: 'harmonic', midi: 76 });
-    expect(soundOf(note({ fret: 7, tech: 'harmonic' }), 0)).toEqual({ kind: 'harmonic', midi: 83 });
-    expect(soundOf(note({ fret: 12, tech: 'harmonic' }), 3)).toEqual({ kind: 'harmonic', midi: 79 });
+    expect(soundOf(note({ fret: 12, tech: 'harmonic' }), 0)).toMatchObject({ kind: 'harmonic', midi: 76 });
+    expect(soundOf(note({ fret: 7, tech: 'harmonic' }), 0)).toMatchObject({ kind: 'harmonic', midi: 83 });
+    expect(soundOf(note({ fret: 12, tech: 'harmonic' }), 3)).toMatchObject({ kind: 'harmonic', midi: 79 });
   });
 });
 

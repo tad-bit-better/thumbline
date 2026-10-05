@@ -13,6 +13,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join, parse as parsePath } from 'node:path';
 import { arrange } from '../../packages/engine/dist/index.js';
 import {
+  TOUCH_LEVELS,
   apagadoChunk,
   feelOf,
   humanize,
@@ -180,12 +181,12 @@ function renderFull(analysis, line, mono, capo0) {
     // Accompaniment: voices per string, each stops when the next note on that string starts.
     const cache = new Map();
     const bufOf = (s) => {
-      const key = 'midi' in s ? `${s.kind}:${s.midi}` : s.kind;
+      const key = 'midi' in s ? `${s.kind}:${s.midi}:${s.touch ?? 1}` : s.kind;
       if (!cache.has(key)) {
         cache.set(
           key,
           s.kind === 'golpe' ? golpeBurst(SR) : s.kind === 'slap' ? slapBurst(SR) : s.kind === 'apagado' ? apagadoChunk(SR)
-            : s.kind === 'harmonic' ? harmonicTone(s.midi, SR) : s.kind === 'muted' ? nylonPluck(s.midi, SR, { muted: true }) : nylonPluck(s.midi, SR),
+            : s.kind === 'harmonic' ? harmonicTone(s.midi, SR) : s.kind === 'muted' ? nylonPluck(s.midi, SR, { muted: true, touch: TOUCH_LEVELS[s.touch] }) : nylonPluck(s.midi, SR, { touch: TOUCH_LEVELS[s.touch] }),
         );
       }
       return cache.get(key);

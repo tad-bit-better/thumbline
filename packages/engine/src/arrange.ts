@@ -3,6 +3,7 @@ import { chordName, transpose } from './chords.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import { LEVELS, PALOS, getPattern, patternsFor } from './patterns/index.js';
 import { type ChordSpan, isPlayable, runSegment } from './runner.js';
+import { shapeDynamics } from './dynamics.js';
 import { mergeMelody, placeMelody, quantiseMelody } from './melody.js';
 import { applySections, applyTouch, moodLabelOf, moodValuesOf, sectionsOf } from './mood.js';
 import { moveTopLine } from './topline.js';
@@ -194,6 +195,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
   else if (opts.style !== 'flamenco') moveTopLine(events, spans, opts.level, { ...input.key, pc: (input.key.pc - capo + 12) % 12 });
 
+  // Not every note weighs the same: the tune leads, the thumb holds, inner notes stay under (M9).
+  shapeDynamics(notes, beatsPerBar);
   // The vibe (M10): the mood's touch, then sections that build and breathe with the song.
   if (feel) applyTouch(notes, feel, beatsPerBar);
   const sections = input.beatEnergy?.length ? sectionsOf(input, beatsPerBar, bars) : undefined;

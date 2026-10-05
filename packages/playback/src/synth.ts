@@ -46,6 +46,8 @@ export type PluckOptions = {
   seed?: number;
   /** Palm-muted: the heel of the hand damps the string, so it dies in a fraction of a second and sounds darker. */
   muted?: boolean;
+  /** How hard the finger plucks, 0..1 (default 0.65): soft plucks start slower and darker, hard ones quicker and brighter. */
+  touch?: number;
 };
 
 /** Ring time of a palm-muted note. */
@@ -55,8 +57,13 @@ const MUTED_T60 = 0.22;
 const rangePos = (hz: number) => Math.min(1, Math.max(0, Math.log2(hz / 82) / Math.log2(1300 / 82)));
 
 /** The finger's excitation is low-passed at this multiple of the note's pitch: a soft pulse, not a bright click. */
-const EXCITE_CUTOFF_X = 8;
+const EXCITE_CUTOFF_SOFT_X = 5;
+const EXCITE_CUTOFF_HARD_X = 11;
 const MUTED_EXCITE_CUTOFF_X = 4;
+/** The flesh of the finger: the attack takes this long to arrive, slower for a soft pluck. */
+const ATTACK_HARD_MS = 1.5;
+const ATTACK_SOFT_MS = 9;
+const DEFAULT_TOUCH = 0.65;
 /** Loop low-pass (one-pole coefficient) from the low E to the top of the neck: highs fade in time, not per round trip. */
 const LOOP_DAMP_LOW = 0.6;
 const LOOP_DAMP_HIGH = 0.1;
@@ -70,7 +77,7 @@ const LOOP_DAMP_HIGH = 0.1;
  * whose upper harmonics otherwise linger) darkens the ring; its delay and
  * gain at the fundamental are compensated, so tuning and t60 hold.
  */
-export function nylonPluck(midi: number, sampleRate: number, { seconds, seed = midi, muted = false }: PluckOptions = {}): Float32Array {
+export function nylonPluck(midi: number, sampleRate: number, { seconds, seed = midi, muted = false, touch = DEFAULT_TOUCH }: PluckOptions = {}): Float32Array {
   seconds ??= muted ? 0.6 : 4;
   const hz = hzOf(midi);
   const w0 = (2 * Math.PI * hz) / sampleRate;
@@ -91,7 +98,8 @@ export function nylonPluck(midi: number, sampleRate: number, { seconds, seed = m
   const rand = random(seed);
   const line = new Float32Array(n);
   // The finger: noise low-passed relative to the pitch (a damped string starts darker still).
-  const ex = Math.exp((-2 * Math.PI * Math.min(6000, (muted ? MUTED_EXCITE_CUTOFF_X : EXCITE_CUTOFF_X) * hz)) / sampleRate);
+  const cutoffX = muted ? MUTED_EXCITE_CUTOFF_X : EXCITE_CUTOFF_SOFT_X + (EXCITE_CUTOFF_HARD_X - EXCITE_CUTOFF_SOFT_X) * touch;
+  const ex = Math.exp((-2 * Math.PI * Math.min(6000, cutoffX * hz)) / sampleRate);
   let lp = 0;
   let mean = 0;
   for (let i = 0; i < n; i++) {
@@ -122,8 +130,17 @@ export function nylonPluck(midi: number, sampleRate: number, { seconds, seed = m
   }
   const fade = Math.floor(sampleRate * Math.min(0.25, seconds / 4));
   for (let i = 0; i < fade; i++) out[length - fade + i] *= 1 - (i + 1) / fade;
+  // The finger rolls off the string rather than snapping it: a short rounded rise.
+  const rise = Math.floor((sampleRate * (ATTACK_SOFT_MS + (ATTACK_HARD_MS - ATTACK_SOFT_MS) * touch)) / 1000);
+  for (let i = 0; i < rise; i++) out[i] *= Math.sin((Math.PI / 2) * (i / rise));
   return normalise(out, 0.9);
 }
+
+/** Touch levels the synth renders (soft, medium, hard), so a sheet needs at most three buffers a pitch. */
+export const TOUCH_LEVELS = [0.35, 0.65, 0.9] as const;
+
+/** Which touch level a note's velocity calls for. */
+export const touchLevelOf = (velocity: number): number => (velocity < 0.5 ? 0 : velocity < 0.78 ? 1 : 2);
 
 /**
  * A small room's impulse response, one array per channel: a few early
@@ -229,17 +246,18 @@ export function apagadoChunk(sampleRate: number, seed = 5): Float32Array {
 const HARMONIC_INTERVAL: Record<number, number> = { 12: 12, 7: 19, 5: 24 };
 
 export type NoteSound =
-  | { kind: 'pluck' | 'muted' | 'harmonic' | 'legato'; midi: number }
+  | { kind: 'pluck' | 'muted' | 'harmonic' | 'legato'; midi: number; touch: number }
   | { kind: 'golpe' | 'slap' | 'apagado' };
 
 /** Which sound a note makes, and at what pitch (engine-spec §3 techniques). */
 export function soundOf(e: NoteEvent, capo: number): NoteSound {
   if (e.fret < 0) return { kind: e.tech === 'slap' ? 'slap' : e.tech === 'apagado' ? 'apagado' : 'golpe' };
-  if (e.tech === 'harmonic') return { kind: 'harmonic', midi: midiOf(e.string, 0, capo) + (HARMONIC_INTERVAL[e.fret] ?? 12) };
+  const touch = touchLevelOf(e.velocity);
+  if (e.tech === 'harmonic') return { kind: 'harmonic', midi: midiOf(e.string, 0, capo) + (HARMONIC_INTERVAL[e.fret] ?? 12), touch };
   const midi = midiOf(e.string, e.fret, capo);
-  if (e.tech === 'palm-mute') return { kind: 'muted', midi };
-  if (e.tech === 'hammer' || e.tech === 'pull') return { kind: 'legato', midi };
-  return { kind: 'pluck', midi };
+  if (e.tech === 'palm-mute') return { kind: 'muted', midi, touch };
+  if (e.tech === 'hammer' || e.tech === 'pull') return { kind: 'legato', midi, touch };
+  return { kind: 'pluck', midi, touch };
 }
 
 /** Human timing (M9, measured: players sit 15–23 ms off the grid; we were at ±6). */
@@ -318,16 +336,21 @@ export function feelOf({ energy, valence }: Mood): Feel {
   };
 }
 
+/** Gain grows faster than velocity, so the softest inner notes sit well under the tune. */
+const VELOCITY_CURVE = 1.6;
+
 /** The tune sits on top of the pattern. */
 const MELODY_LIFT = 1.3;
 
 /** Linear gain for a note: velocity, accents, the tune lifted, softer legato and a little more bass. */
 export function noteGain(e: NoteEvent): number {
-  let g = e.velocity * 0.62;
+  // A curve, not a line: velocity differences have to be heard, or every note weighs the same.
+  let g = 0.72 * e.velocity ** VELOCITY_CURVE;
   if (e.melody) g *= MELODY_LIFT;
   if (e.accent) g *= 1.25;
   if (e.tech === 'hammer' || e.tech === 'pull') g *= 0.7;
   if (e.tech === 'apagado') g *= 0.8;
-  if (e.string > 2) g *= 0.78;
+  // Treble strings are brighter and carry; the tune lives up there and keeps its lift.
+  if (e.string > 2 && !e.melody) g *= 0.78;
   return Math.min(1, g);
 }

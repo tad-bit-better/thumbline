@@ -9,3 +9,4 @@ export * from './patterns/index.js';
 export * from './arrange.js';
 export * from './melody.js';
 export * from './mood.js';
+export * from './dynamics.js';
