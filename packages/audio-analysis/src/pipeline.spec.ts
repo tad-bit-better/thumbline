@@ -1,4 +1,4 @@
-import { AnalysisError, analyzeSamples, type Progress } from './pipeline.js';
+import { AnalysisError, analyzeSamples, type Progress, trackBeats } from './pipeline.js';
 import { loadEssentiaNode } from './testing/node-essentia.js';
 import { chordClip } from './testing/synth.js';
 import type { AnalysisResult } from './types.js';
@@ -87,5 +87,39 @@ describe('analyzeSamples', () => {
 
   it('requires 44.1 kHz input', async () => {
     await expect(analyzeSamples(new Float32Array(48000), 48000, { essentia })).rejects.toThrow(/44100/);
+  });
+});
+
+describe('trackBeats', () => {
+  // A fake essentia: the first pass finds double tempo; the narrow retry window is rejected.
+  const vec = (xs: number[]) => ({ size: () => xs.length, get: (i: number) => xs[i], delete: () => undefined });
+  const beatsAt = (bpm: number, n = 40) => Array.from({ length: n }, (_, i) => (i * 60) / bpm);
+  const fake = (rejectBelowSpread: number) => {
+    const calls: Array<[number, number]> = [];
+    const e = {
+      PercivalBpmEstimator: () => ({ bpm: 60 }),
+      vectorToArray: (v: ReturnType<typeof vec>) => Float32Array.from({ length: v.size() }, (_, i) => v.get(i)),
+      RhythmExtractor2013: (_s: unknown, max = 208, _m = 'degara', min = 40) => {
+        calls.push([min, max]);
+        if (max === 208 && min === 40) return { bpm: 184, ticks: vec(beatsAt(184)), confidence: 1 };
+        if ((max - min) / 60 < rejectBelowSpread) throw new Error('essentia: bad parameters');
+        return { bpm: 60, ticks: vec(beatsAt(60)), confidence: 1 };
+      },
+    } as unknown as Parameters<typeof trackBeats>[0];
+    return { e, calls };
+  };
+  const quiet = new Float32Array(44100 * 4);
+
+  it('widens the second pass when essentia rejects a narrow tempo window', () => {
+    const { e, calls } = fake(0.4);
+    const ticks = trackBeats(e, vec([]) as never, quiet, 44100);
+    expect(calls.length).toBeGreaterThan(2);
+    expect(ticks[1] - ticks[0]).toBeCloseTo(1); // 60 bpm
+  });
+
+  it('keeps the first pass when every window is rejected, rather than failing the song', () => {
+    const { e } = fake(10);
+    const ticks = trackBeats(e, vec([]) as never, quiet, 44100);
+    expect(ticks.length).toBe(40);
   });
 });

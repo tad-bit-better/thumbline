@@ -70,21 +70,41 @@ const tempoOf = (ticks: number[]) => {
 };
 const near = (ratio: number, target: number, tolerance: number) => Math.abs(ratio - target) <= tolerance * target;
 
+/** Second-pass tempo windows around Percival's tempo, narrow first. Essentia rejects some narrow windows outright. */
+const RETRY_SPREADS = [0.15, 0.25, 0.4];
+
 /**
  * Beat positions from Degara's tracker, with Percival's estimator as a
  * second opinion on the tempo. Trackers often lock onto the picked eighth
  * notes of a solo guitar (double tempo); kick and bass on beats 1 and 3
  * show when the faster reading is real (see the eval for the numbers).
+ * The second pass widens its window when essentia rejects it, and keeps the
+ * first pass's beats if every window fails: a beat grid, even at double
+ * tempo, beats refusing the song.
  */
-function trackBeats(e: EssentiaLike, signalVec: EssentiaVector, samples: Float32Array, sampleRate: number): number[] {
-  const reference = e.PercivalBpmEstimator(signalVec).bpm;
+export function trackBeats(e: EssentiaLike, signalVec: EssentiaVector, samples: Float32Array, sampleRate: number): number[] {
+  let reference = 0;
+  try {
+    reference = e.PercivalBpmEstimator(signalVec).bpm;
+  } catch {
+    reference = 0; // no second opinion: trust the tracker
+  }
   const ticks = ticksOf(e, e.RhythmExtractor2013(signalVec, 208, 'degara', 40));
   const tracked = tempoOf(ticks);
   if (!reference || !tracked || near(tracked / reference, 1, 0.06)) return ticks;
   if (near(tracked / reference, 2, 0.06) && lowBandAlternation(samples, sampleRate, ticks) < DOUBLE_IS_REAL_BELOW) return ticks;
-  const min = Math.max(40, Math.round(reference * 0.85));
-  const max = Math.min(208, Math.round(reference * 1.15));
-  return ticksOf(e, e.RhythmExtractor2013(signalVec, max, 'degara', min));
+  for (const spread of RETRY_SPREADS) {
+    const min = Math.max(40, Math.round(reference * (1 - spread)));
+    const max = Math.min(208, Math.round(reference * (1 + spread)));
+    if (min >= max) continue;
+    try {
+      const retry = ticksOf(e, e.RhythmExtractor2013(signalVec, max, 'degara', min));
+      if (retry.length >= 4) return retry;
+    } catch {
+      // essentia rejected this window (e.g. 52–70 bpm): try a wider one
+    }
+  }
+  return ticks;
 }
 
 function rms(x: Float32Array, from = 0, to = x.length) {
