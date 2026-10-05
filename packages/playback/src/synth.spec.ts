@@ -1,5 +1,5 @@
 import type { NoteEvent } from '@thumbline/engine';
-import { STRUM_STEP_MS, feelOf, apagadoChunk, golpeBurst, harmonicTone, midiOf, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
+import { STRUM_STEP_MS, feelOf, humanize, apagadoChunk, golpeBurst, harmonicTone, midiOf, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 
 const SR = 44100;
 
@@ -155,6 +155,73 @@ describe('melody', () => {
   });
 });
 
+/** Spectral centroid (Hz, up to 8 kHz) over the first second: how bright a note sounds. */
+function centroidHz(x: Float32Array): number {
+  const N = 2048;
+  const bins = Math.floor((8000 / SR) * N);
+  let num = 0;
+  let den = 0;
+  for (let start = 0; start + N < Math.min(SR, x.length); start += N * 2) {
+    for (let k = 1; k < bins; k++) {
+      let re = 0;
+      let im = 0;
+      for (let n = 0; n < N; n += 2) {
+        const v = x[start + n] * (0.5 - 0.5 * Math.cos((2 * Math.PI * n) / N));
+        re += v * Math.cos((2 * Math.PI * k * n) / N);
+        im -= v * Math.sin((2 * Math.PI * k * n) / N);
+      }
+      const mag = Math.hypot(re, im);
+      num += (mag * k * SR) / N;
+      den += mag;
+    }
+  }
+  return num / den;
+}
+
+describe('humanize', () => {
+  const ev = (tick: number, string = 3): NoteEvent => ({ tick, dur: 240, string, fret: 0, finger: 'i', velocity: 0.8 });
+  const events = Array.from({ length: 256 }, (_, i) => ev(i * 120));
+
+  it('is repeatable for a seed', () => {
+    expect(humanize(events, 4, 3)).toEqual(humanize(events, 4, 3));
+  });
+
+  it('sits a person’s distance off the grid: typically 5–15 ms, never more than 20', () => {
+    const off = humanize(events, 4).map((h) => Math.abs(h.offsetSec * 1000));
+    const sorted = [...off].sort((a, b) => a - b);
+    expect(sorted[Math.floor(sorted.length / 2)]).toBeGreaterThan(4);
+    expect(sorted[Math.floor(sorted.length / 2)]).toBeLessThan(15);
+    expect(Math.max(...off)).toBeLessThanOrEqual(20);
+  });
+
+  it('moves notes struck together as one', () => {
+    const [a, b] = humanize([ev(0, 0), ev(0, 5)], 4);
+    expect(a.offsetSec).toBe(b.offsetSec);
+  });
+
+  it('varies the touch, a little heavier on the beat', () => {
+    const h = humanize(events, 4);
+    const db = h.map((x) => 20 * Math.log10(x.gain));
+    const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
+    const spread = Math.sqrt(mean(db.map((d) => (d - mean(db)) ** 2)));
+    expect(spread).toBeGreaterThan(1);
+    const onBeat = h.filter((_, i) => events[i].tick % 480 === 0).map((x) => x.gain);
+    const offSixteenth = h.filter((_, i) => events[i].tick % 240 !== 0).map((x) => x.gain);
+    expect(mean(onBeat)).toBeGreaterThan(mean(offSixteenth));
+  });
+});
+
+describe('tone', () => {
+  // Fingerstyle recordings measure about 1.1–1.5 kHz; the M6 pluck was 1.4–2.2 kHz, brightest on the low E.
+  it.each([45, 52, 64])('is warm, not brittle, at MIDI %i', (midi) => {
+    expect(centroidHz(nylonPluck(midi, SR))).toBeLessThan(1500);
+  });
+
+  it('keeps a high note sweet rather than shrill (its fundamental alone is 659 Hz)', () => {
+    expect(centroidHz(nylonPluck(76, SR))).toBeLessThan(1900);
+  });
+});
+
 describe('palm-muted pluck', () => {
   it('stays in tune but dies within half a second', () => {
     const muted = nylonPluck(45, SR, { seed: 4, muted: true });
@@ -162,7 +229,8 @@ describe('palm-muted pluck', () => {
     expect(Math.abs(cents(pitchHz(muted, 400, 4096), 45))).toBeLessThan(10);
     const at = Math.floor(SR * 0.4);
     expect(rms(muted, at, 2205) / rms(muted, 0, 2205)).toBeLessThan(0.05);
-    expect(rms(open, at, 2205) / rms(open, 0, 2205)).toBeGreaterThan(0.3);
+    // An open string keeps ringing (its bright overtones fade first since M9, so about −12 dB here).
+    expect(rms(open, at, 2205) / rms(open, 0, 2205)).toBeGreaterThan(0.2);
     expect(muted.length).toBeLessThan(SR);
   });
 });

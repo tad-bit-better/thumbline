@@ -229,3 +229,5 @@ createPlayer({
 - Tempo, loop and mix changes take effect within the 150 ms lookahead.
 
 **Feel (M10).** From `Arrangement.feel` (energy e, valence v): strum step 20 − 12e ms between strings, reverb send 0.34 − 0.18e, a high shelf at 3 kHz of −5 + 8v dB, and when e ≥ 0.5 pattern notes stop at their written length (the tune always rings). Without a feel: 12 ms, 0.22, 0 dB, ringing.
+
+**Humanising (M9).** Playback plays like a person unless told not to: each moment (notes struck together move together) is nudged by a jitter of up to ±9 ms plus a phrase-long push and pull (±7 ms over 8 bars), divided by the speed ratio; each note's loudness varies by ±22%, ×1.08 on a beat and ×0.9 on an off-sixteenth. A string's previous note is damped over 30 ms when the next one starts. The tone (§ synth) is a nylon Karplus-Strong pluck with a pitch-scaled excitation and a loop low-pass (stronger on low strings), tuned so a note's spectral centroid sits near 1–1.5 kHz like fingerstyle recordings.

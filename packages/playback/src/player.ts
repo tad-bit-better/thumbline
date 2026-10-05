@@ -1,7 +1,7 @@
 import type { Arrangement } from '@thumbline/engine';
 import { type Scheduler, createScheduler } from './scheduler.js';
 import { timeStretchAsync } from './stretch.js';
-import { type NoteSound, STRUM_STEP_MS, feelOf, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
+import { type NoteSound, STRUM_STEP_MS, feelOf, humanize, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 import { type Beats, TICKS_PER_BEAT, createTimeline } from './timeline.js';
 
 export type Mix = 'sheet' | 'original' | 'both';
@@ -22,6 +22,8 @@ export type PlayerOptions = {
   onScheduled?: (eventIndex: number, audioTime: number) => void;
   /** Supply a context to share one; otherwise the player creates and owns it. */
   context?: AudioContext;
+  /** Play like a person: small timing and touch variations (default true). */
+  humanize?: boolean;
 };
 
 export type Player = {
@@ -44,7 +46,7 @@ const LOOKAHEAD_SEC = 0.15;
 const TICK_MS = 25;
 const START_DELAY_SEC = 0.06;
 /** How fast a string is damped when the next note on it starts. */
-const DAMP_SEC = 0.012;
+const DAMP_SEC = 0.03;
 /** A hammer-on or pull-off starts past the pluck's noisy attack and swells in. */
 const LEGATO_SKIP_SEC = 0.02;
 const LEGATO_RISE_SEC = 0.004;
@@ -142,6 +144,7 @@ export function createPlayer(options: PlayerOptions): Player {
   const timeline = createTimeline(a, beats);
   const eventSec = a.events.map((e) => timeline.tickToSec(e.tick));
   const strum = strumOffsets(a.events, feel.strumMs);
+  const human = options.humanize === false ? a.events.map(() => ({ offsetSec: 0, gain: 1 })) : humanize(a.events, a.meter.beatsPerBar);
 
   const sounds = a.events.map((e) => soundOf(e, a.capo));
   const buffers = new Map<string, AudioBuffer>();
@@ -265,7 +268,9 @@ export function createPlayer(options: PlayerOptions): Player {
     }
     for (const { eventIndex, when } of r.notes) {
       const e = a.events[eventIndex];
-      const at = when + (strum.get(eventIndex) ?? 0);
+      // A person's timing and touch (scaled with speed, so a slow practice tempo isn't sloppier).
+      const at = Math.max(ctx.currentTime, when + (strum.get(eventIndex) ?? 0) + human[eventIndex].offsetSec / ratio);
+      const touch = human[eventIndex].gain;
       // The note's written length on the audio clock (song seconds run 1/ratio as fast at other speeds).
       const held = (timeline.tickToSec(e.tick + e.dur) - eventSec[eventIndex]) / ratio;
       const sound = sounds[eventIndex];
@@ -280,13 +285,14 @@ export function createPlayer(options: PlayerOptions): Player {
       if (!('midi' in sound)) {
         // Apagado: the hand lands on every string and stops the strum.
         if (sound.kind === 'apagado') ringing.forEach((_, s) => damp(s));
-        if (buffer) playSource(buffer, stringBus[e.string], at, noteGain(e));
+        if (buffer) playSource(buffer, stringBus[e.string], at, noteGain(e) * touch);
       } else if (buffer) {
         damp(e.string);
         // Legato: no new pluck — the finger lands on the ringing string, so skip the attack.
         const legato = sound.kind === 'legato';
-        const voice = playSource(buffer, stringBus[e.string], at, legato ? 0 : noteGain(e), legato ? LEGATO_SKIP_SEC : 0);
-        if (legato) voice.gain.gain.setTargetAtTime(noteGain(e), at, LEGATO_RISE_SEC);
+        const gain = noteGain(e) * touch;
+        const voice = playSource(buffer, stringBus[e.string], at, legato ? 0 : gain, legato ? LEGATO_SKIP_SEC : 0);
+        if (legato) voice.gain.gain.setTargetAtTime(gain, at, LEGATO_RISE_SEC);
 
         if (e.melody && held > VIBRATO_MIN_SEC && typeof ctx.createOscillator === 'function' && voice.src.detune) {
           const lfo = ctx.createOscillator();

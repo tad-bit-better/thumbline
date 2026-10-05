@@ -26,7 +26,7 @@ const quarters = (bars: number) =>
     bars,
   );
 
-function setup(a: Arrangement, extra: { original?: FakeBuffer; beats?: { beatTimesSec: number[]; barStartBeat: number } } = {}) {
+function setup(a: Arrangement, extra: { original?: FakeBuffer; beats?: { beatTimesSec: number[]; barStartBeat: number }; humanize?: boolean } = {}) {
   const ctx = new FakeAudioContext(SR);
   const cursor: number[] = [];
   const onEnd = vi.fn();
@@ -35,6 +35,8 @@ function setup(a: Arrangement, extra: { original?: FakeBuffer; beats?: { beatTim
     context: ctx as unknown as AudioContext,
     onCursor: (i) => cursor.push(i),
     onEnd,
+    // The clock tests check exact times; humanising has its own test.
+    humanize: false,
     ...(extra as object),
   } as Parameters<typeof createPlayer>[0]);
   const run = async (seconds: number) => {
@@ -186,7 +188,18 @@ describe('createPlayer', () => {
   });
 
   describe('with the original recording', () => {
-    it('starts both from any point in the song', async () => {
+    it('plays like a person when humanising: every note within 20 ms of its time, not exactly on it', async () => {
+    const { ctx, player, run } = setup(quarters(1), { humanize: true });
+    await player.play();
+    await run(2.5);
+    const n = notes(ctx);
+    const t0 = when(n[0]);
+    const off = n.map((s, i) => Math.abs(when(s) - t0 - i * 0.5));
+    expect(Math.max(...off)).toBeLessThan(0.04);
+    expect(off.some((o) => o > 0.0005)).toBe(true);
+  });
+
+  it('starts both from any point in the song', async () => {
       const original = clickTrack(5);
       const { ctx, player, run, cursor } = setup(quarters(2), { original });
       // Halfway through beat 2 of bar 2: 4.5 beats at 120 bpm = 2.25 s.
