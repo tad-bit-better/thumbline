@@ -15,6 +15,7 @@ import { arrange } from '../../packages/engine/dist/index.js';
 import {
   apagadoChunk,
   feelOf,
+  humanize,
   createTimeline,
   golpeBurst,
   harmonicTone,
@@ -134,7 +135,7 @@ function mixVoice(bus, buf, { start, end, gain, pan = 0, skip = 0, rise = 1, vib
   const [L, R] = bus;
   const gl = gain * Math.cos(((pan + 1) * Math.PI) / 4);
   const gr = gain * Math.sin(((pan + 1) * Math.PI) / 4);
-  const fade = Math.floor(0.015 * SR);
+  const fade = Math.floor(0.03 * SR);
   const stop = Math.min(L.length, end ?? start + buf.length - skip);
   let pos = skip;
   for (let i = start; i < stop + fade && i < L.length; i++) {
@@ -163,6 +164,7 @@ function renderFull(analysis, line, mono, capo0) {
     const tl = createTimeline(a, { beatTimesSec: analysis.beatTimesSec, barStartBeat: analysis.barStartBeat });
     const feel = a.feel ? feelOf(a.feel) : { strumMs: 12, reverb: 0.22, shelfDb: 0, crisp: false };
     const strum = strumOffsets(a.events, feel.strumMs);
+    const human = humanize(a.events, a.meter.beatsPerBar);
     bus[0].fill(0);
     bus[1].fill(0);
 
@@ -191,7 +193,7 @@ function renderFull(analysis, line, mono, capo0) {
     const voices = [];
     const ringing = [];
     a.events.forEach((n, i) => {
-      const sec = tl.tickToSec(n.tick) + (strum.get(i) ?? 0) + (rand() - 0.5) * 0.012;
+      const sec = tl.tickToSec(n.tick) + (strum.get(i) ?? 0) + (APP ? human[i].offsetSec : (rand() - 0.5) * 0.012);
       const start = Math.max(0, Math.floor(sec * SR));
       const s = soundOf(n, a.capo);
       if (!('midi' in s)) {
@@ -209,7 +211,7 @@ function renderFull(analysis, line, mono, capo0) {
         start,
         // Crisp moods stop pattern notes at their written length.
         ...(feel.crisp && !n.melody ? { end: start + Math.floor(held * SR) } : {}),
-        gain: noteGain(n) * 0.55,
+        gain: noteGain(n) * 0.55 * (APP ? human[i].gain : 1),
         pan: n.melody ? 0.08 : (n.string - 2.5) * 0.1,
         skip: s.kind === 'legato' ? Math.floor(0.02 * SR) : 0,
         rise: s.kind === 'legato' ? Math.floor(0.006 * SR) : 1,
@@ -257,9 +259,12 @@ function renderFull(analysis, line, mono, capo0) {
   return fn;
 }
 
+// --only <text>: just the clips whose name contains it (repeatable).
+const ONLY = process.argv.flatMap((a, i) => (a === '--only' ? [process.argv[i + 1]] : []));
 const clips = ['fixtures/audio', 'fixtures/local']
   .flatMap((d) => (existsSync(join(ROOT, d)) ? readdirSync(join(ROOT, d)).map((f) => join(ROOT, d, f)) : []))
-  .filter((f) => /\.(mp3|m4a|wav|aac|flac)$/i.test(f));
+  .filter((f) => /\.(mp3|m4a|wav|aac|flac)$/i.test(f))
+  .filter((f) => !ONLY.length || ONLY.some((o) => f.includes(o)));
 
 for (const clip of clips) {
   const name = parsePath(clip).name;
