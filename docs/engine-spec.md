@@ -48,6 +48,8 @@ type MelodyNote = {
 };
 ```
 
+**Key mode (M10).** The key finder can't tell a key from its relative (C major / A minor share every note). After the chords are found, each chord counts for its length in beats (the first and last twice); if the relative's tonic chord (major family vs m, m7) outweighs the key's own by 1.2×, the key moves to the relative. The mood uses this key.
+
 **Mood (M10).** energy = 40% tempo (60→140 bpm), 30% onset rate (1.5→5 per s), 30% danceability (0.8→2); valence = 55% a major key, 25% the share of major chords (maj, 7, maj7, 6, add9), 20% brightness (spectral centroid 1200→3000 Hz). Each part is clamped to 0..1. `beatEnergy` is each beat's RMS over the 95th percentile, clamped to 1.
 
 **Melody (M9).** The worker tracks the lead voice (essentia `PredominantPitchMelodia`, then `PitchContourSegmentation`) and cleans it: notes under 90 ms are dropped, a note 9+ semitones from the median of its six neighbours moves an octave toward them, a held note split in two (same pitch, gap under 120 ms) is merged, and a short (under 350 ms) note outside the key moves a semitone into it. Notes stay in seconds; the engine quantises them.

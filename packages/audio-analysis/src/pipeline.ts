@@ -1,5 +1,5 @@
 import type { EssentiaLike, EssentiaVector } from './essentia.js';
-import { type BeatFeatures, detectMeter, extendBeats, lowBandAlternation, toSegments } from './postprocess.js';
+import { type BeatFeatures, detectMeter, extendBeats, lowBandAlternation, refineMode, toSegments } from './postprocess.js';
 import { cleanMelody, trackMelody } from './melody.js';
 import { beatEnergyOf, moodOf } from './mood.js';
 import type { AnalysisResult } from './types.js';
@@ -224,6 +224,8 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   const meter = detectMeter(features);
   const brightnessHz = brightness(e, samples, sampleRate);
   const chords = toSegments(features, meter.beatsPerBar, meter.firstDownbeat, key);
+  // The key finder confuses relative keys (C major / A minor): the chords say which is home.
+  const homeKey = refineMode(key, chords, meter.beatsPerBar);
 
   // The tune (M9): one pass over the whole clip, so progress jumps once.
   report({ step: 'melody', fraction: 0.82, detail: { bpm, beatsPerBar: meter.beatsPerBar } });
@@ -244,10 +246,10 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     beatTimesSec,
     barStartBeat: meter.firstDownbeat,
     meter: { beatsPerBar: meter.beatsPerBar },
-    key,
+    key: homeKey,
     chords,
     ...(melody?.length ? { melody } : {}),
-    ...(feel && brightnessHz !== undefined ? { mood: moodOf({ bpm, ...feel, brightnessHz, mode: key.mode, chords }) } : {}),
+    ...(feel && brightnessHz !== undefined ? { mood: moodOf({ bpm, ...feel, brightnessHz, mode: homeKey.mode, chords }) } : {}),
     beatEnergy: beatEnergyOf(features.map((f) => f.energy)),
   };
 }

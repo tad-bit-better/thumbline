@@ -309,3 +309,41 @@ export function lowBandAlternation(samples: Float32Array, sampleRate: number, be
   const hi = Math.max(even, odd);
   return hi > 0 ? Math.sqrt(Math.min(even, odd) / hi) : 1;
 }
+
+const MAJOR_FAMILY = new Set(['maj', '7', 'maj7', '6', 'add9']);
+const MINOR_FAMILY = new Set(['m', 'm7']);
+/** The other reading must outweigh this one by this much before the mode flips. */
+const MODE_FLIP_MARGIN = 1.2;
+/** Songs start and end at home: the first and last chords count this much more. */
+const ENDS_WEIGHT = 2;
+
+/**
+ * engine-spec §1 key mode: the key finder can't tell a key from its relative
+ * (C major and A minor share every note), so let the chords say which one is
+ * home. Each chord counts for its length in beats (the first and last twice);
+ * if the relative's tonic chord clearly outweighs the key's own, the key moves
+ * to the relative (same notes, other home).
+ */
+export function refineMode(
+  key: { pc: number; mode: 'major' | 'minor' },
+  chords: readonly ChordSegment[],
+  beatsPerBar: number,
+): { pc: number; mode: 'major' | 'minor' } {
+  const majorPc = key.mode === 'major' ? key.pc : (key.pc + 3) % 12;
+  const minorPc = (majorPc + 9) % 12;
+  const at = (s: ChordSegment) => s.bar * beatsPerBar + s.beat;
+  const voiced = chords.filter((c) => c.chord);
+  let major = 0;
+  let minor = 0;
+  voiced.forEach((s, i) => {
+    const next = voiced[i + 1];
+    const beats = next ? Math.max(1, at(next) - at(s)) : beatsPerBar;
+    const w = beats * (i === 0 || i === voiced.length - 1 ? ENDS_WEIGHT : 1);
+    const c = s.chord as ChordLabel;
+    if (c.pc === majorPc && MAJOR_FAMILY.has(c.quality)) major += w;
+    if (c.pc === minorPc && MINOR_FAMILY.has(c.quality)) minor += w;
+  });
+  if (key.mode === 'major' && minor > major * MODE_FLIP_MARGIN) return { pc: minorPc, mode: 'minor' };
+  if (key.mode === 'minor' && major > minor * MODE_FLIP_MARGIN) return { pc: majorPc, mode: 'major' };
+  return key;
+}

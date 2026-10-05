@@ -4,8 +4,10 @@ import {
   extendBeats,
   lowBandAlternation,
   rankChords,
+  refineMode,
   toSegments,
 } from './postprocess.js';
+import type { ChordSegment } from './types.js';
 
 const NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 const PC = Object.fromEntries(NAMES.map((n, i) => [n, i]));
@@ -199,5 +201,30 @@ describe('lowBandAlternation', () => {
 
   it('is 1 for silence', () => {
     expect(lowBandAlternation(new Float32Array(SR), SR, [0.1, 0.3, 0.5])).toBe(1);
+  });
+});
+
+describe('refineMode', () => {
+  const seg = (bar: number, pc: number, quality: 'maj' | 'm' | '7'): ChordSegment => ({ bar, beat: 0, chord: { pc, quality }, confidence: 1, alternatives: [] });
+  // Hotel California's verse in A minor: Am E7 G D F C Dm E7, back to Am to end.
+  const verse = [seg(0, 9, 'm'), seg(1, 4, '7'), seg(2, 7, 'maj'), seg(3, 2, 'maj'), seg(4, 5, 'maj'), seg(5, 0, 'maj'), seg(6, 2, 'm'), seg(7, 4, '7'), seg(8, 9, 'm')];
+
+  it('moves a "C major" song that lives on Am to A minor', () => {
+    expect(refineMode({ pc: 0, mode: 'major' }, verse, 4)).toEqual({ pc: 9, mode: 'minor' });
+  });
+
+  it('keeps a major song that lives on its tonic', () => {
+    const pop = [seg(0, 0, 'maj'), seg(1, 9, 'm'), seg(2, 5, 'maj'), seg(3, 7, 'maj'), seg(4, 0, 'maj')];
+    expect(refineMode({ pc: 0, mode: 'major' }, pop, 4)).toEqual({ pc: 0, mode: 'major' });
+  });
+
+  it('moves a "minor" key to its relative major when the major chord is home', () => {
+    const pop = [seg(0, 0, 'maj'), seg(1, 7, 'maj'), seg(2, 9, 'm'), seg(3, 5, 'maj'), seg(4, 0, 'maj')];
+    expect(refineMode({ pc: 9, mode: 'minor' }, pop, 4)).toEqual({ pc: 0, mode: 'major' });
+  });
+
+  it('leaves the key alone when neither home chord clearly wins', () => {
+    const torn = [seg(0, 0, 'maj'), seg(1, 9, 'm'), seg(2, 0, 'maj'), seg(3, 9, 'm')];
+    expect(refineMode({ pc: 0, mode: 'major' }, torn, 4)).toEqual({ pc: 0, mode: 'major' });
   });
 });
