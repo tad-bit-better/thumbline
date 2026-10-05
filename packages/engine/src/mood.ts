@@ -29,7 +29,8 @@ export const moodValuesOf = (m: MoodLabel | Mood): Mood => (typeof m === 'string
  * engine-spec §4 touch, from the mood's values (pattern notes only; the tune
  * keeps its own length and weight):
  * - velocity × (0.8 + 0.25 × energy), at most 1: calm songs play softer;
- * - calm (energy under 0.5): only the accent on a bar's first beat stays;
+ * - calm (energy under 0.5): only the accent on a bar's first beat stays, and
+ *   palm mutes go (a muted bass thuds on a ballad; the string rings instead);
  * - driving: the thumb is cut to an eighth so the bass pulses;
  * - driving and bright: every pattern note is cut to an eighth so it bounces.
  */
@@ -45,6 +46,7 @@ export function applyTouch(events: NoteEvent[], mood: MoodLabel | Mood, beatsPer
     e.velocity = Math.min(1, Math.round(e.velocity * velocity * 100) / 100);
     if (e.accent && !driving && e.tick % bar !== 0) delete e.accent;
     if (e.fret < 0) continue;
+    if (e.tech === 'palm-mute' && !driving) delete e.tech;
     if ((e.finger === 'p' && driving) || crisp) e.dur = Math.min(e.dur, eighth);
   }
 }

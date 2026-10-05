@@ -32,6 +32,15 @@ describe('applyTouch', () => {
     expect(e[2].velocity).toBe(0.8);
   });
 
+  it('lets a calm song’s bass ring: no palm mutes (they thud on a ballad); a driving song keeps them', () => {
+    const calm = [n(480, { finger: 'p', string: 1, tech: 'palm-mute' })];
+    const driving = [n(480, { finger: 'p', string: 1, tech: 'palm-mute' })];
+    applyTouch(calm, { energy: 0.43, valence: 0.7 }, 4);
+    applyTouch(driving, 'intense', 4);
+    expect(calm[0].tech).toBeUndefined();
+    expect(driving[0].tech).toBe('palm-mute');
+  });
+
   it('follows slider values continuously', () => {
     const soft = [n(0)];
     const harder = [n(0)];
