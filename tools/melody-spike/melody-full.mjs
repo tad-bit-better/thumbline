@@ -213,7 +213,20 @@ function convolve(x, ir) {
   }
   return out.subarray(0, x.length);
 }
-const IR = roomImpulse(SR);
+/**
+ * The app's room as the browser plays it: a ConvolverNode normalises its impulse by default
+ * (Web Audio spec: scale = 0.00125 / RMS over all channels, × 44100 / sampleRate), so the
+ * raw impulse here would be ~31 dB wetter than what the app actually sounds like.
+ */
+// --raw-room: the room as renders had it before 2026-10-06 (unnormalised, ~31 dB wetter), for A/B listening.
+const RAW_ROOM = process.argv.includes('--raw-room');
+const IR = (() => {
+  const ir = roomImpulse(SR);
+  if (RAW_ROOM) return ir;
+  const power = ir.reduce((s, ch) => s + ch.reduce((t, v) => t + v * v, 0), 0) / (ir.length * ir[0].length);
+  const scale = (0.00125 / Math.sqrt(power)) * (44100 / SR);
+  return ir.map((ch) => ch.map((v) => v * scale));
+})();
 
 function renderFull(analysis, line, mono, capo0) {
   const length = mono.length;
@@ -375,7 +388,7 @@ for (const clip of clips) {
     const render = renderFull(analysis, level === 'basic' ? basicLine : line, mono);
     const { pattern, capo, out, arranged } = render({ style, level, mood });
     const tmp = join(OUT, `${name}.full.tmp.wav`);
-    const m4a = join(OUT, `${name}.${MOODS ? `mood-${mood}` : `${APP ? 'app' : 'full'}.${style}-${level}`}.m4a`);
+    const m4a = join(OUT, `${name}.${MOODS ? `mood-${mood}` : `${APP ? (RAW_ROOM ? 'app-raw-room' : 'app') : 'full'}.${style}-${level}`}.m4a`);
     writeStereoWav(tmp, out[0], out[1]);
     execFileSync('afconvert', ['-f', 'm4af', '-d', 'aac', '-b', '192000', tmp, m4a]);
     rmSync(tmp);
