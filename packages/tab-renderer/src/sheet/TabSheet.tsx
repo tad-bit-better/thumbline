@@ -25,8 +25,18 @@ export type TabSheetProps = {
   label?: string;
   /** Click anywhere on the tab: the tick there (start of that column). */
   onSeek?: (tick: number) => void;
+  /** Scroll the playing row into view when the playhead moves to a new row (default true). */
+  follow?: boolean;
+  /** Change it to bring the playing row into view now, wherever the reader is. */
+  jumpKey?: number;
+  /** Where the playing row is against the window: above it, in view, or below it. */
+  onPlayheadView?: (where: PlayheadView) => void;
+  /** Px at the bottom of the window covered by something (a sticky player bar): a row behind it isn't in view. */
+  coveredBottom?: number;
   className?: string;
 };
+
+export type PlayheadView = 'above' | 'visible' | 'below';
 
 function systemLabel(s: SystemLayout) {
   const bars = s.barCount > 1 ? `Bars ${s.firstBar + 1}–${s.firstBar + s.barCount}` : `Bar ${s.firstBar + 1}`;
@@ -160,6 +170,10 @@ export function TabSheet({
   reveal = true,
   label = 'Tab',
   onSeek,
+  follow = true,
+  jumpKey,
+  onPlayheadView,
+  coveredBottom = 0,
   className,
 }: TabSheetProps) {
   const layout = useMemo(() => layoutSheet(arrangement, width), [arrangement, width]);
@@ -170,18 +184,49 @@ export function TabSheet({
   const activeTick = cursor ? arrangement.events[cursorIndex as number].tick : undefined;
   const revealKey = reveal ? `${arrangement.style}:${arrangement.level}:${arrangement.patternId}` : null;
 
-  // Keep the playing system in view; only when it changes, not on every note.
+  // Keep the playing system in view; only when it changes, not on every note, and
+  // only while following (the reader may have scrolled away on purpose).
   const cursorSystem = cursor?.system;
   const lastSystem = useRef<number | undefined>(undefined);
+  const scrollTo = (system: number, block: ScrollLogicalPosition) => {
+    const el = sheetRef.current?.querySelector(`[data-system="${system}"]`);
+    el?.scrollIntoView?.({ block, behavior: reduced ? 'auto' : 'smooth' });
+  };
   useEffect(() => {
     if (cursorSystem === undefined || cursorSystem === lastSystem.current) return;
     const first = lastSystem.current === undefined;
     lastSystem.current = cursorSystem;
-    if (first) return;
-    sheetRef.current
-      ?.querySelector(`[data-system="${cursorSystem}"]`)
-      ?.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    if (first || !follow) return;
+    scrollTo(cursorSystem, 'nearest');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scroll on a row change only
   }, [cursorSystem, reduced]);
+
+  // Asked to come back to the playhead: centre the playing row.
+  const lastJump = useRef(jumpKey);
+  useEffect(() => {
+    if (jumpKey === lastJump.current) return;
+    lastJump.current = jumpKey;
+    if (cursorSystem !== undefined) scrollTo(cursorSystem, 'center');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when asked
+  }, [jumpKey]);
+
+  // Tell the caller where the playing row is, so it can offer a way back to it.
+  useEffect(() => {
+    if (!onPlayheadView || cursorSystem === undefined || typeof IntersectionObserver === 'undefined') return;
+    const el = sheetRef.current?.querySelector(`[data-system="${cursorSystem}"]`);
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        if (entry.isIntersecting) onPlayheadView('visible');
+        else onPlayheadView(entry.boundingClientRect.top < 0 ? 'above' : 'below');
+      },
+      // Most of the row must show above whatever covers the bottom of the window.
+      { rootMargin: `0px 0px -${Math.round(coveredBottom)}px 0px`, threshold: 0.6 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [cursorSystem, onPlayheadView, coveredBottom]);
 
   if (!layout.systems.length) return null;
 

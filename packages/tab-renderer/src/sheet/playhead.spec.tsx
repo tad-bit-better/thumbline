@@ -87,6 +87,38 @@ describe('TabSheet playhead', () => {
     expect(scroll).toHaveBeenCalledOnce();
   });
 
+  it('stays put while not following, and centres the playing row when asked', () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    const firstOfSystem2 = layout.positions.findIndex((p) => p.system === 1);
+    const { rerender } = render(<TabSheet arrangement={pop} width={1200} cursorIndex={0} follow={false} />);
+    rerender(<TabSheet arrangement={pop} width={1200} cursorIndex={firstOfSystem2} follow={false} />);
+    expect(scroll).not.toHaveBeenCalled();
+    // Asked to come back: the playing row is centred.
+    rerender(<TabSheet arrangement={pop} width={1200} cursorIndex={firstOfSystem2} follow={false} jumpKey={1} />);
+    expect(scroll).toHaveBeenCalledWith({ block: 'center', behavior: expect.any(String) });
+  });
+
+  it('reports whether the playing row is on screen', () => {
+    let callback: IntersectionObserverCallback = () => undefined;
+    const original = globalThis.IntersectionObserver;
+    globalThis.IntersectionObserver = class {
+      constructor(cb: IntersectionObserverCallback) {
+        callback = cb;
+      }
+      observe = vi.fn();
+      disconnect = vi.fn();
+    } as unknown as typeof IntersectionObserver;
+    const onPlayheadView = vi.fn();
+    render(<TabSheet arrangement={pop} width={1200} cursorIndex={0} onPlayheadView={onPlayheadView} />);
+    const entry = (isIntersecting: boolean, top: number) => [{ isIntersecting, boundingClientRect: { top } }] as unknown as IntersectionObserverEntry[];
+    callback(entry(false, -300), {} as IntersectionObserver);
+    callback(entry(false, 900), {} as IntersectionObserver);
+    callback(entry(true, 100), {} as IntersectionObserver);
+    expect(onPlayheadView.mock.calls.map((c) => c[0])).toEqual(['above', 'below', 'visible']);
+    globalThis.IntersectionObserver = original;
+  });
+
   it('ignores a cursor outside the events', () => {
     const { container } = render(<TabSheet arrangement={pop} width={1200} cursorIndex={9999} />);
     expect(container.querySelector('[data-playhead]')).toBeNull();
