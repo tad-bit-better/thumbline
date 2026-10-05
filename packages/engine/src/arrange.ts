@@ -6,6 +6,7 @@ import { type ChordSpan, isPlayable, runSegment } from './runner.js';
 import { shapeDynamics } from './dynamics.js';
 import { mergeMelody, placeMelody, quantiseMelody } from './melody.js';
 import { applySections, applyTouch, moodLabelOf, moodValuesOf, sectionsOf } from './mood.js';
+import { harmonise } from './harmony.js';
 import { addRolls } from './rolls.js';
 import { moveTopLine } from './topline.js';
 import type {
@@ -197,7 +198,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   // The tune on top (M9) when we have one; otherwise an invented top line (M6b).
   const tune = opts.melody !== false && input.melody?.length ? placeMelody(quantiseMelody(input, opts.level, songEnd), spans, capo, opts.level) : [];
   let notes = rolled;
-  if (tune.length) notes = mergeMelody(rolled, tune, spans);
+  // The tune on top, harmonised with the chord (M11).
+  if (tune.length) notes = harmonise(mergeMelody(rolled, tune, spans), spans, opts.level, beatsPerBar);
   // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
   else if (opts.style !== 'flamenco') moveTopLine(rolled, spans, opts.level, toShape(input.key));
 

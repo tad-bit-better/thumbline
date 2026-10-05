@@ -181,6 +181,8 @@ export type NoteEvent = {
   strumOffsetMs?: number;
   /** a note of the tune: on top, louder, and drawn bold */
   melody?: true;
+  /** a chord tone harmonising the tune note above it (M11) */
+  harmony?: true;
 };
 
 export type ChordMark = { tick: number; voicing: Voicing; soundingName: string };

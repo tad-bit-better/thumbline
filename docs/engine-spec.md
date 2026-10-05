@@ -154,6 +154,7 @@ type NoteEvent = {
   velocity: number;
   strumOffsetMs?: number; // rasgueado: stagger per string
   melody?: true;          // a note of the tune: on top, louder, drawn bold
+  harmony?: true;         // a chord tone harmonising the tune note above it (M11)
 };
 
 type ChordMark = { tick: number; voicing: Voicing; soundingName: string };
@@ -199,6 +200,8 @@ function arrange(input: AnalysisResult, opts: {
 **Playability check.** Reject a pattern for a chord if any simultaneous notes need a fret span > 4 or more than 4 fretted fingers; fall back to the next pattern at the same level, then the level below.
 
 **Rolls (M11).** A guitarist opens a phrase, and ends the song, with a slow strum that lets the chord ring. Before the tune is merged (not flamenco): the chord starting on the first bar of each phrase (every 4 bars; every 8 when the mood's energy is 0.5+) and the song's last chord open with a thumb `brush-down` across every string of the shape, replacing the plucks on that tick; a string with a hammer-on or pull-off in the chord's first beat keeps its own note. Velocity: 0.75 × the loudest pluck it replaced. The roll lasts up to two beats; the last chord's rings to the end. The tune then takes its string as usual. Patterns may also use brushes (index down across t3–t1, up across t1–t2). Brushes are left out of the moving top line, keep their length under the mood's touch, and weigh ×0.7 in the dynamics.
+
+**Harmony (M11).** After the tune is merged: Moderate harmonises a tune note on the bar's first beat (an eighth or longer) or on any beat held a beat or more with one chord tone under it; Advanced harmonises every tune note on a beat (an eighth or longer) with one, and the bar's first with two, so the chord sits under the tune; Basic stays plain. The first voice is a chord tone 3, 4, 8, 9 or 5 semitones below (in that order: thirds, sixths, then a fourth); the second 7–12 below the tune and under the first. Voices go on strings 2–4 below the tune's string, played by the fingers the tune leaves free (a → m, i; m → i), and must be playable with everything else at that moment (§4 span and finger limits). A pattern note already sounding such a tone (a roll's, a pinch's) counts and is marked as harmony; added voices get 0.8 of the tune's velocity and last at most a beat, replacing pattern notes on their string while they ring.
 
 **Dynamics (M9).** After the tune is merged and before the mood's touch, not every note weighs the same. Pattern notes: the thumb ×0.82, inner fingers ×0.66; then the downbeat ×1.1, the middle of the bar ×1.04, off-eighths ×0.92, off-sixteenths ×0.85. The tune, phrase by phrase (a rest of a beat or more starts a new one): it swells from ×0.8 at its first note to ×1.05 at its highest and falls back after; ±1.5% a semitone from the phrase's middle pitch; ×1.05 for a note held a beat or more; ×0.9 for the phrase's last note. Golpes, slaps and apagados keep their weight; velocities stay within 0.2..1.
 
