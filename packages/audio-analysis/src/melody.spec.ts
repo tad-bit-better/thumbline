@@ -1,4 +1,5 @@
-import { cleanMelody } from './melody.js';
+import { cleanMelody, trackMelody } from './melody.js';
+import { loadEssentiaNode } from './testing/node-essentia.js';
 import type { MelodyNote } from './types.js';
 
 const n = (startSec: number, durSec: number, midi: number, confidence = 0.8): MelodyNote => ({ startSec, durSec, midi, confidence });
@@ -41,5 +42,17 @@ describe('cleanMelody', () => {
     expect([65, 67]).toContain(midis(out)[1]);
     expect(midis(out)[2]).toBe(70);
     expect([68, 70]).toContain(midis(out)[3]);
+  });
+});
+
+describe('trackMelody', () => {
+  const essentia = loadEssentiaNode();
+  // A held A4 sung 65 cents flat, as on a record mastered slow.
+  const flat = 440 * 2 ** (-65 / 1200);
+  const tone = Float32Array.from({ length: 44100 * 2 }, (_, i) => 0.3 * Math.sin((2 * Math.PI * flat * i) / 44100));
+
+  it('reads the notes against the recording\'s A', () => {
+    expect(trackMelody(essentia, tone, 44100).map((n) => n.midi)).toEqual([68]);
+    expect(trackMelody(essentia, tone, 44100, flat).map((n) => n.midi)).toEqual([69]);
   });
 });

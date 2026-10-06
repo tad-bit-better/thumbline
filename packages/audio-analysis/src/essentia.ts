@@ -71,10 +71,6 @@ export type EssentiaLike = {
     signal: EssentiaVector,
     hopSize?: number,
     minDuration?: number,
-    pitchDistanceThreshold?: number,
-    rmsThreshold?: number,
-    sampleRate?: number,
-    tuningFrequency?: number,
   ): { onset: EssentiaVector; duration: EssentiaVector; MIDIpitch: EssentiaVector };
 };
 

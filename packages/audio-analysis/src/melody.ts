@@ -71,12 +71,15 @@ export function trackMelody(e: EssentiaLike, samples: Float32Array, sampleRate: 
   const input = e.arrayToVector(samples);
   const eq = e.EqualLoudness(input, sampleRate);
   const m = e.PredominantPitchMelodia(eq.signal, 10, 3, 2048, false, 0.8, MELODY_HOP);
-  const seg = e.PitchContourSegmentation(m.pitch, input, MELODY_HOP, MIN_NOTE_SEC, 60, -2, sampleRate, tuningHz);
+  // The segmenter ignores its own tuning setting: move the pitch track onto A440 instead.
+  const scale = 440 / tuningHz;
+  const pitch = scale === 1 ? m.pitch : e.arrayToVector(e.vectorToArray(m.pitch).map((hz) => hz * scale));
+  const seg = e.PitchContourSegmentation(pitch, input, MELODY_HOP, MIN_NOTE_SEC);
   const onset = e.vectorToArray(seg.onset);
   const duration = e.vectorToArray(seg.duration);
   const midi = e.vectorToArray(seg.MIDIpitch);
   const conf = e.vectorToArray(m.pitchConfidence);
-  free(input, eq.signal, m.pitch, m.pitchConfidence, seg.onset, seg.duration, seg.MIDIpitch);
+  free(input, eq.signal, m.pitch, m.pitchConfidence, seg.onset, seg.duration, seg.MIDIpitch, pitch === m.pitch ? undefined : pitch);
   const frameSec = MELODY_HOP / sampleRate;
   return Array.from(onset, (startSec, i) => {
     const from = Math.floor(startSec / frameSec);
