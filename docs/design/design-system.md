@@ -69,6 +69,12 @@ Set for v1: Pick, Metronome, Waveform tile, Arpeggio (rising balls), Fingerstyle
 Interaction: tilt −8° and scale 1.06 on hover of the parent card (Bounce easing).
 Upgrade path: render in Spline/Blender, export WebP @1x/2x or Lottie; keep the same silhouettes and light direction.
 
+## Logo
+
+The mark is an orange pick on a violet tile (the 3D icon recipe: tile gradient, gloss band, ground shadow). The pick carries a thumbprint; its outer ridges sweep out of the pick and become the tab's six strings, with fret numbers (0, 2, 5) sitting in gaps on them. Thumb, line: the name in one picture. Ridges, strings and numbers use `--color-orange-soft`. At 32px and under the mark draws fewer, bolder ridges (four strings) and no numbers, so it holds up in a browser tab. `LogoMark` in `packages/ui` draws it from `components/Logo/geometry.ts`; `Logo` pairs it with the wordmark "Thumbline" (Bricolage Grotesque 800, −0.02em, 0.62× the mark's height, gap 0.2×), which inherits the text colour so it works on dark surfaces. The nav uses `Logo` at 40px.
+
+App icons are generated, never hand-edited: `node tools/make-icons.mjs` takes the geometry from the same module and the colours from `tokens.css`, and writes `apps/web/src/app/icon.svg` (the tab icon, small detail, no ground shadow), `apps/web/src/app/apple-icon.png` (180px, full detail, full-bleed tile, softer gloss) and `apps/web/public/favicon.ico` (16, 32, 48, small detail). Rerun it after changing the mark or the brand colours.
+
 ## Components (packages/ui)
 
 | Component | Notes |

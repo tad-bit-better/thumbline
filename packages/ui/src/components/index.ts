@@ -17,3 +17,4 @@ export { PlayerBar, type PlayerBarProps, type PlayerMix, type PlayerSpeed } from
 export { Popover, type PopoverProps, type PopoverTriggerProps } from './Popover/Popover';
 export { TOAST_MS, ToastProvider, type ToastOptions, type ToastTone, useToast } from './Toast/Toast';
 export * from './glyphs';
+export { Logo, LogoMark, type LogoProps } from './Logo/Logo';

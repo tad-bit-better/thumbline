@@ -1,4 +1,4 @@
-import { Pick } from '@thumbline/ui';
+import { Logo } from '@thumbline/ui';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import styles from './AppShell.module.css';
@@ -9,8 +9,7 @@ export function AppShell({ actions, children }: { actions?: ReactNode; children:
     <div className={styles.page}>
       <nav className={styles.nav} aria-label="Main">
         <Link href="/" className={styles.brand}>
-          <Pick size={40} />
-          <span className={styles.wordmark}>Thumbline</span>
+          <Logo size={40} />
         </Link>
         {actions && <div className={styles.actions}>{actions}</div>}
       </nav>
