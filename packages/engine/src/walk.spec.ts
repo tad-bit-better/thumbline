@@ -2,7 +2,7 @@ import { arrange } from './arrange.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import { isPlayable } from './runner.js';
 import { progression } from './testing/progression.js';
-import type { Arrangement, Level, NoteEvent } from './types.js';
+import type { Arrangement, Level, NoteEvent, Voicing } from './types.js';
 
 const OPEN_MIDI = [40, 45, 50, 55, 59, 64];
 const midiOf = (e: NoteEvent) => OPEN_MIDI[e.string] + e.fret;
@@ -41,7 +41,7 @@ describe('a bass that walks into the next chord (M11)', () => {
     for (const level of ['moderate', 'advanced'] as const) {
       const a = sheet('C | Am | F | G | C | Em | Dm | G | C', level);
       for (const w of a.events.filter((e) => e.walk)) {
-        const voicing = a.chordMarks.filter((m) => m.tick <= w.tick).at(-1)!.voicing;
+        const voicing = a.chordMarks.filter((m) => m.tick <= w.tick).at(-1)?.voicing as Voicing;
         expect(isPlayable(a.events.filter((e) => e.tick === w.tick), voicing)).toBe(true);
       }
     }

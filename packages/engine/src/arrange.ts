@@ -24,6 +24,7 @@ import type {
   MoodLabel,
   Palo,
   PatternDef,
+  SectionLevel,
   Style,
   Voicing,
   WarningCode,
@@ -135,6 +136,38 @@ function resolveCapo(capo: ArrangeOptions['capo'], chords: ChordLabel[]): number
   return capo;
 }
 
+/** Bars a pattern plays before a steady stretch changes to its variant. */
+const VARIATION_BARS = 8;
+
+/**
+ * engine-spec §4 vary by section (M11): which pattern plays each bar. Quiet
+ * (soft) bars play the level's first purely calm pattern (moods only Sad and
+ * Warm) when the main one isn't; full bars play the main pattern; a stretch of
+ * normal bars plays the main pattern for 8 bars, then the level's next pattern
+ * that suits the mood for 8, and so on. A pattern the user picked, flamenco,
+ * and songs of 8 bars or fewer keep one pattern (undefined).
+ */
+export function patternPlan(candidates: readonly PatternDef[], level: Level, bars: number, sections: readonly SectionLevel[] | undefined, mood: MoodLabel | undefined): PatternDef[] | undefined {
+  if (bars <= VARIATION_BARS || !candidates.length) return undefined;
+  const main = candidates[0];
+  const sameLevel = candidates.filter((p) => p.level === level);
+  const suits = (p: PatternDef) => !mood || !p.moods || p.moods.includes(mood);
+  const calmOnly = (p: PatternDef) => !!p.moods?.length && p.moods.every((m) => m === 'warm' || m === 'melancholic');
+  const quiet = calmOnly(main) ? main : (sameLevel.find(calmOnly) ?? main);
+  const variant = sameLevel.find((p) => p !== main && suits(p));
+  const levelAt = (bar: number) => sections?.[bar] ?? 'normal';
+  const plan: PatternDef[] = [];
+  let runStart = 0;
+  for (let bar = 0; bar < bars; bar++) {
+    if (bar > 0 && levelAt(bar) !== levelAt(bar - 1)) runStart = bar;
+    const here = levelAt(bar);
+    if (here === 'soft') plan.push(quiet);
+    else if (here === 'full') plan.push(main);
+    else plan.push(variant && Math.floor((bar - runStart) / VARIATION_BARS) % 2 === 1 ? variant : main);
+  }
+  return plan;
+}
+
 /** engine-spec: MIDI of each open string (shape space). */
 const OPEN_MIDI = [40, 45, 50, 55, 59, 64] as const;
 /** Highest fret for a placed bass note. */
@@ -180,6 +213,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   const tickOf = (s: { bar: number; beat: number }) => s.bar * barTicks + s.beat * TICKS_PER_BEAT;
 
   const chords = segments.flatMap((s) => (s.chord ? [s.chord] : []));
+  const sections = input.beatEnergy?.length ? sectionsOf(input, beatsPerBar, bars) : undefined;
+  const plan = opts.patternId === undefined && opts.style !== 'flamenco' ? patternPlan(candidates, opts.level, bars, sections, mood) : undefined;
   const capo = opts.style === 'flamenco' && (opts.capo === undefined || opts.capo === 'auto') ? flamencoCapo(chords, input.key) : resolveCapo(opts.capo, chords);
   // The key of each bar (M10b: songs may change key), in shape space.
   const toShape = (key: AnalysisResult['key']) => ({ ...key, pc: (key.pc - capo + 12) % 12 });
@@ -225,7 +260,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     chordMarks.push({ tick: start, voicing, soundingName });
     const span: ChordSpan = { start, end, voicing, played, key: shapeKeyAt(segment.bar), ...(songBass ? { bass: songBass } : {}) };
     spans.push(span);
-    events.push(...renderSpan(candidates, span, beatsPerBar));
+    const chosen = plan?.[segment.bar] ?? candidates[0];
+    events.push(...renderSpan(chosen === candidates[0] ? candidates : [chosen, ...candidates.filter((c) => c !== chosen)], span, beatsPerBar));
   });
 
   events.sort((a, b) => a.tick - b.tick || a.string - b.string);
@@ -246,8 +282,8 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   shapeDynamics(notes, beatsPerBar);
   // The vibe (M10): the mood's touch, then sections that build and breathe with the song.
   if (feel) applyTouch(notes, feel, beatsPerBar);
-  const sections = input.beatEnergy?.length ? sectionsOf(input, beatsPerBar, bars) : undefined;
   if (sections) notes = applySections(notes, sections, beatsPerBar);
+  const changes = plan?.flatMap((p, bar) => (bar === 0 || p !== plan[bar - 1] ? [{ bar, patternId: p.id }] : []));
 
   return {
     style: opts.style,
@@ -262,5 +298,6 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     warnings: warnings.list,
     ...(mood && feel ? { mood, feel } : {}),
     ...(sections ? { sections } : {}),
+    ...(changes && changes.length > 1 ? { patternChanges: changes } : {}),
   };
 }

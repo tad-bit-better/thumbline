@@ -177,6 +177,7 @@ type Arrangement = {
   mood?: 'melancholic' | 'warm' | 'intense' | 'upbeat'; // its quadrant, which picked the pattern
   feel?: { energy: number; valence: number };           // the values (detected, a preset, or the sliders)
   sections?: Array<'soft' | 'normal' | 'full'>;          // per bar, how much it plays
+  patternChanges?: Array<{ bar: number; patternId: string }>; // where the pattern changes, bar 0 first (M11); absent when one pattern plays throughout
 };
 
 // Main entry
@@ -202,6 +203,8 @@ function arrange(input: AnalysisResult, opts: {
 **Drone and pedal.** A `drone` is the open 1st string, else the open 2nd, when its note is in the key's scale (chord tones included), whatever the chord; otherwise the shape's top note. A `pedal` is the key's tonic, else its fifth, on an open E, A or D string; otherwise the chord's bass. Neither uses an open string a barre covers. The chord's own bass still sounds on each chord change. The moving top line doesn't apply to flamenco.
 
 **Playability check.** Reject a pattern for a chord if any simultaneous notes need a fret span > 4 or more than 4 fretted fingers; fall back to the next pattern at the same level, then the level below.
+
+**Vary by section (M11).** Unless the user picked a pattern, for fingerstyle and arpeggio songs longer than 8 bars, each bar's pattern follows its section: quiet (soft) bars play the level's first purely calm pattern (moods only Sad and Warm) when the main one isn't; full bars play the main pattern (the mood's first); a stretch of normal bars plays the main pattern for 8 bars, then the level's next pattern that suits the mood for 8, and so on (the count restarts at each section change). Without `beatEnergy` every bar is normal. Each chord tries its bar's pattern first, then the usual candidates (§4). `patternChanges` lists where it changes; `patternId` stays the main one.
 
 **Rolls (M11).** A guitarist opens a phrase, and ends the song, with a slow strum that lets the chord ring. Before the tune is merged (not flamenco): the chord starting on the first bar of each phrase (every 4 bars; every 8 when the mood's energy is 0.5+) and the song's last chord open with a thumb `brush-down` across every string of the shape, replacing the plucks on that tick; a string with a hammer-on or pull-off in the chord's first beat keeps its own note. Velocity: 0.75 × the loudest pluck it replaced. The roll lasts up to two beats; the last chord's rings to the end. The tune then takes its string as usual. Patterns may also use brushes (index down across t3–t1, up across t1–t2). Brushes are left out of the moving top line, keep their length under the mood's touch, and weigh ×0.7 in the dynamics.
 

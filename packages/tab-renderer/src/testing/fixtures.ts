@@ -8,6 +8,7 @@ import {
   type Style,
   arrange,
   parseChord,
+  patternCandidates,
 } from '@thumbline/engine';
 
 /** A chord chart such as `G | D | Em C` as an AnalysisResult. */
@@ -50,7 +51,9 @@ export function sheet(
 /** A song of `bars` bars cycling through a pop loop. */
 export function longSheet(bars: number, style: Style = 'fingerstyle', level: Level = 'advanced'): Arrangement {
   const loop = ['G', 'D', 'Em', 'C'];
-  return sheet(Array.from({ length: bars }, (_, i) => loop[i % 4]).join(' | '), style, level);
+  // One pattern throughout (M11 would vary it every 8 bars), so the layout is predictable.
+  const [patternId] = patternCandidates(style, level, 4).map((p) => p.id);
+  return arrange(analysis(Array.from({ length: bars }, (_, i) => loop[i % 4]).join(' | '), 4), { style, level, patternId });
 }
 
 /**

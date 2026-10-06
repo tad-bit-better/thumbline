@@ -215,6 +215,8 @@ export type Arrangement = {
   feel?: Mood;
   /** per bar, how much it plays */
   sections?: SectionLevel[];
+  /** where the pattern changes (bar 0 first), when it varies by section (M11); absent when one pattern plays throughout */
+  patternChanges?: Array<{ bar: number; patternId: string }>;
 };
 
 export type ArrangeOptions = {

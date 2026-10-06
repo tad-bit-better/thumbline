@@ -3,7 +3,7 @@ import { chordTones } from './chords.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import { isPlayable } from './runner.js';
 import { progression } from './testing/progression.js';
-import type { AnalysisResult, Arrangement, Level, MelodyNote, NoteEvent } from './types.js';
+import type { AnalysisResult, Arrangement, Level, MelodyNote, NoteEvent, Voicing } from './types.js';
 
 const OPEN_MIDI = [40, 45, 50, 55, 59, 64];
 const midiOf = (e: NoteEvent) => OPEN_MIDI[e.string] + e.fret;
@@ -40,7 +40,7 @@ describe('harmony under the tune (M11)', () => {
     for (const level of ['moderate', 'advanced'] as const) {
       const a = sheet(level);
       for (const t of new Set(a.events.filter((e) => e.harmony).map((e) => e.tick))) {
-        const voicing = a.chordMarks.filter((m) => m.tick <= t).at(-1)!.voicing;
+        const voicing = a.chordMarks.filter((m) => m.tick <= t).at(-1)?.voicing as Voicing;
         expect(isPlayable(a.events.filter((e) => e.tick === t), voicing)).toBe(true);
       }
     }

@@ -2,7 +2,7 @@ import { arrange } from './arrange.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import { isPlayable } from './runner.js';
 import { progression } from './testing/progression.js';
-import type { AnalysisResult, Arrangement, Level, MelodyNote, NoteEvent } from './types.js';
+import type { AnalysisResult, Arrangement, Level, MelodyNote, NoteEvent, Voicing } from './types.js';
 
 const OPEN_MIDI = [40, 45, 50, 55, 59, 64];
 const midiOf = (e: NoteEvent) => OPEN_MIDI[e.string] + e.fret;
@@ -45,7 +45,7 @@ describe('fills where the tune rests (M11)', () => {
     const a = sheet('advanced');
     expect(a.events.some((e) => e.finger === 'p' && e.tick >= 2 * BEAT && e.tick < BAR)).toBe(true);
     for (const t of new Set(a.events.filter((e) => e.fill).map((e) => e.tick))) {
-      const voicing = a.chordMarks.filter((m) => m.tick <= t).at(-1)!.voicing;
+      const voicing = a.chordMarks.filter((m) => m.tick <= t).at(-1)?.voicing as Voicing;
       expect(isPlayable(a.events.filter((e) => e.tick === t), voicing)).toBe(true);
     }
   });
