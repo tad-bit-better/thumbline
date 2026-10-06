@@ -29,6 +29,8 @@ export type SheetPrefs = {
   /** Pattern index per `style.level`. */
   pattern: Partial<Record<string, number>>;
   mix: Mix;
+  /** The original under the sheet in Both, 0–1. */
+  originalLevel: number;
   speed: Speed;
   /** How the tab is shown (Sheet v2, screens.md §4). */
   display: DisplayPrefs;
@@ -70,6 +72,7 @@ export type SongState = Saved & {
   cyclePattern: (count: number, step?: 1 | -1) => void;
   setDisplay: (display: Partial<DisplayPrefs>) => void;
   setMix: (mix: Mix) => void;
+  setOriginalLevel: (level: number) => void;
   setSpeed: (speed: Speed) => void;
   clear: () => void;
   hydrate: () => Promise<void>;
@@ -87,7 +90,7 @@ const KEY = 'thumbline:song:v1';
 const CLIP_KEY = 'thumbline:clip:v1';
 const EMPTY_EDITS: Edits = { chords: {}, confirmed: [] };
 export const DEFAULT_DISPLAY: DisplayPrefs = { chordNames: 'both', tabSize: 'm', fingers: true, legend: true };
-const DEFAULT_PREFS: SheetPrefs = { style: 'arpeggio', level: 'basic', palo: 'rumba', pattern: {}, mix: 'both', speed: 1, display: DEFAULT_DISPLAY };
+const DEFAULT_PREFS: SheetPrefs = { style: 'arpeggio', level: 'basic', palo: 'rumba', pattern: {}, mix: 'both', originalLevel: 0.9, speed: 1, display: DEFAULT_DISPLAY };
 
 export function memoryStorage(): Storage {
   const map = new Map<string, unknown>();
@@ -162,6 +165,7 @@ export function createSongStore(storage: Storage) {
         update({ prefs: { ...prefs, display: { ...prefs.display, ...display } } });
       },
       setMix: (mix) => update({ prefs: { ...getState().prefs, mix } }),
+      setOriginalLevel: (originalLevel) => update({ prefs: { ...getState().prefs, originalLevel } }),
       setSpeed: (speed) => update({ prefs: { ...getState().prefs, speed } }),
       clear: () => {
         saveClip(null);

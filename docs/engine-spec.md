@@ -248,6 +248,7 @@ createPlayer({
   setTempoRatio(0.5–1): Promise<void>,   // pitch unchanged
   setLoop(barStart, barEnd) | setLoop(null),  // 0-based, inclusive
   setMix('sheet' | 'original' | 'both'),
+  setOriginalLevel(0–1),               // the original under the sheet in Both (default 0.9, gain = level²); Original alone stays at full level
   dispose(),
   state, tempoRatio,
 }

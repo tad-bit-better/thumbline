@@ -17,6 +17,7 @@ vi.mock('@thumbline/playback', () => ({
       playFrom: vi.fn(async () => opts.onStateChange?.('playing')),
       stop: vi.fn(() => opts.onStateChange?.('idle')),
       setMix: vi.fn(),
+      setOriginalLevel: vi.fn(),
       setTempoRatio: vi.fn(async () => undefined),
       setLoop: vi.fn(),
       dispose: vi.fn(),
@@ -72,7 +73,7 @@ beforeEach(() => {
   songStore.setState({ hydrated: true });
   songStore.getState().startSong(new File([new Uint8Array(4)], 'wonderwall.mp3', { type: 'audio/mpeg' }));
   songStore.getState().setAnalysis(analysis);
-  songStore.setState({ prefs: { style: 'arpeggio', level: 'basic', pattern: {}, mix: 'both', speed: 1 } });
+  songStore.setState({ prefs: { style: 'arpeggio', level: 'basic', pattern: {}, mix: 'both', originalLevel: 0.9, speed: 1 } });
 });
 
 describe('Sheet screen', () => {
@@ -178,6 +179,15 @@ describe('Sheet screen', () => {
     expect(container.querySelector('[data-playhead]')).toBeTruthy();
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Pause' })));
     expect(players[0].stop).toHaveBeenCalled();
+  });
+
+  it('turns the original down under the sheet', async () => {
+    render(<Sheet />);
+    await startPlaying();
+    expect(players[0].setOriginalLevel).toHaveBeenLastCalledWith(0.9);
+    fireEvent.change(screen.getByRole('slider', { name: 'Original volume' }), { target: { value: '0.3' } });
+    expect(players[0].setOriginalLevel).toHaveBeenLastCalledWith(0.3);
+    expect(songStore.getState().prefs.originalLevel).toBe(0.3);
   });
 
   it('passes mix, speed and loop to the player', async () => {

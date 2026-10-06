@@ -19,6 +19,9 @@ export type PlayerBarProps = {
   subtitle: string;
   mix: PlayerMix;
   onMixChange: (mix: PlayerMix) => void;
+  /** How loud the original is under the sheet in Both, 0–1. With its handler, a volume slider shows while both play. */
+  originalLevel?: number;
+  onOriginalLevelChange?: (level: number) => void;
   /** No original recording: only the sheet can play. */
   mixDisabled?: boolean;
   speed: PlayerSpeed;
@@ -56,6 +59,8 @@ export function PlayerBar({
   subtitle,
   mix,
   onMixChange,
+  originalLevel,
+  onOriginalLevelChange,
   mixDisabled = false,
   speed,
   onSpeedChange,
@@ -94,6 +99,23 @@ export function PlayerBar({
           value={mix}
           onChange={onMixChange}
         />
+        {mix === 'both' && !mixDisabled && originalLevel !== undefined && onOriginalLevelChange && (
+          // DESIGN-REVIEW: not in screens.md; the user asked to keep the recording quiet under the sheet (2026-10-06).
+          <label className={styles['volume']}>
+            <span aria-hidden="true">Original volume</span>
+            <input
+              type="range"
+              className={styles['slider']}
+              aria-label="Original volume"
+              aria-valuetext={`${Math.round(originalLevel * 100)}%`}
+              min={0}
+              max={1}
+              step={0.05}
+              value={originalLevel}
+              onChange={(e) => onOriginalLevelChange(Number(e.currentTarget.value))}
+            />
+          </label>
+        )}
         <SegmentedControl
           label="Speed"
           tone="secondary"

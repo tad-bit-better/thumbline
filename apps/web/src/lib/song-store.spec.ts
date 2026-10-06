@@ -43,9 +43,10 @@ describe('song store', () => {
     store.getState().setStyle('fingerstyle');
     store.getState().setLevel('advanced');
     store.getState().setMix('original');
+    store.getState().setOriginalLevel(0.4);
     store.getState().setSpeed(0.75);
     store.getState().startSong(file());
-    expect(store.getState().prefs).toMatchObject({ style: 'fingerstyle', level: 'advanced', mix: 'original', speed: 0.75 });
+    expect(store.getState().prefs).toMatchObject({ style: 'fingerstyle', level: 'advanced', mix: 'original', originalLevel: 0.4, speed: 0.75 });
   });
 
   it('keeps the flamenco palo, rumba by default', async () => {

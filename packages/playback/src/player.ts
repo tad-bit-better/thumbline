@@ -37,6 +37,8 @@ export type Player = {
   /** Loop bars `barStart`–`barEnd` (0-based, inclusive); `null` clears it. */
   setLoop: (barStart: number | null, barEnd?: number) => void;
   setMix: (mix: Mix) => void;
+  /** How loud the original is under the sheet in Both, 0–1 (default 0.9), heard as level² so the slider feels even. */
+  setOriginalLevel: (level: number) => void;
   dispose: () => void;
   readonly state: PlayerState;
   readonly tempoRatio: number;
@@ -67,7 +69,7 @@ const CRISP_RELEASE_SEC = 0.03;
 const REVERB_SEND = 0.22;
 /** Stereo spread of the strings: low E this far left, high E as far right. */
 const STRING_PAN = 0.25;
-const ORIGINAL_LEVEL_BOTH = 0.8;
+const DEFAULT_ORIGINAL_LEVEL = 0.9;
 const MIX_GLIDE_SEC = 0.02;
 const MIN_RATIO = 0.5;
 
@@ -210,6 +212,7 @@ export function createPlayer(options: PlayerOptions): Player {
 
   let ratio = 1;
   let mix: Mix = original ? 'both' : 'sheet';
+  let originalLevel = DEFAULT_ORIGINAL_LEVEL;
   let loop: { startSec: number; endSec: number } | null = null;
   let scheduler: Scheduler | null = null;
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -222,7 +225,7 @@ export function createPlayer(options: PlayerOptions): Player {
 
   const applyMix = () => {
     const now = ctx.currentTime;
-    const [sheet, orig] = !original ? [1, 0] : mix === 'sheet' ? [1, 0] : mix === 'original' ? [0, 1] : [1, ORIGINAL_LEVEL_BOTH];
+    const [sheet, orig] = !original ? [1, 0] : mix === 'sheet' ? [1, 0] : mix === 'original' ? [0, 1] : [1, originalLevel ** 2];
     sheetBus.gain.setTargetAtTime(sheet, now, MIX_GLIDE_SEC);
     originalBus.gain.setTargetAtTime(orig, now, MIX_GLIDE_SEC);
   };
@@ -395,6 +398,10 @@ export function createPlayer(options: PlayerOptions): Player {
     },
     setMix(next) {
       mix = next;
+      applyMix();
+    },
+    setOriginalLevel(level) {
+      originalLevel = Math.min(1, Math.max(0, level));
       applyMix();
     },
     dispose() {

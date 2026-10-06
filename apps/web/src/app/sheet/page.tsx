@@ -214,6 +214,7 @@ export default function SheetPage() {
       : undefined,
     file,
     mix: prefs.mix,
+    originalLevel: prefs.originalLevel,
     speed: prefs.speed,
     loop,
     onEnd,
@@ -540,6 +541,8 @@ export default function SheetPage() {
             mix={file ? prefs.mix : 'sheet'}
             mixDisabled={!file}
             onMixChange={(m) => songStore.getState().setMix(m)}
+            originalLevel={prefs.originalLevel}
+            onOriginalLevelChange={(v) => songStore.getState().setOriginalLevel(v)}
             speed={prefs.speed}
             onSpeedChange={(s) => songStore.getState().setSpeed(s)}
             loop={loop}

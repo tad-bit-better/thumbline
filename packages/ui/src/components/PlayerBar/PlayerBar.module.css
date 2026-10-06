@@ -123,6 +123,21 @@
   gap: var(--space-3);
 }
 
+/* Original volume, beside the mix while both play. */
+.volume {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-ink-2);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.volume .slider {
+  flex: none;
+  width: 112px;
+}
+
 /* Seek row: back, slider, forward, "Bar 5 of 32". Full width under the controls. */
 .seek {
   display: flex;

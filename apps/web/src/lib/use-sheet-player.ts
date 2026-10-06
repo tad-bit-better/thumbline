@@ -8,6 +8,8 @@ type Options = {
   /** The original clip; decoded once, on the first play. */
   file: Blob | null;
   mix: Mix;
+  /** The original under the sheet in Both, 0–1. */
+  originalLevel: number;
   speed: number;
   loop: boolean;
   /** Played to the end; `wholeSong` is false if it started (or jumped) past the first bar. */
@@ -20,7 +22,7 @@ type Options = {
  * player rebuilt whenever the arrangement changes. Keeps the song position
  * (in ticks) so Pause resumes where it stopped and seeking works while paused.
  */
-export function useSheetPlayer({ arrangement, beats, file, mix, speed, loop, onEnd }: Options) {
+export function useSheetPlayer({ arrangement, beats, file, mix, originalLevel, speed, loop, onEnd }: Options) {
   const [state, setState] = useState<PlayerState>('idle');
   const [cursor, setCursor] = useState<number | undefined>();
   /** Where Play resumes from, in ticks: the last note heard, or where the user seeked to. */
@@ -30,8 +32,8 @@ export function useSheetPlayer({ arrangement, beats, file, mix, speed, loop, onE
   const context = useRef<AudioContext | null>(null);
   const decoded = useRef<{ file: Blob; buffer: AudioBuffer } | null>(null);
   const player = useRef<Player | null>(null);
-  const latest = useRef({ mix, speed, loop, onEnd });
-  latest.current = { mix, speed, loop, onEnd };
+  const latest = useRef({ mix, originalLevel, speed, loop, onEnd });
+  latest.current = { mix, originalLevel, speed, loop, onEnd };
 
   useEffect(
     () => () => {
@@ -52,6 +54,9 @@ export function useSheetPlayer({ arrangement, beats, file, mix, speed, loop, onE
   useEffect(() => {
     player.current?.setMix(mix);
   }, [mix]);
+  useEffect(() => {
+    player.current?.setOriginalLevel(originalLevel);
+  }, [originalLevel]);
   useEffect(() => {
     void player.current?.setTempoRatio(speed);
   }, [speed]);
@@ -84,6 +89,7 @@ export function useSheetPlayer({ arrangement, beats, file, mix, speed, loop, onE
       onStateChange: setState,
     });
     p.setMix(latest.current.mix);
+    p.setOriginalLevel(latest.current.originalLevel);
     await p.setTempoRatio(latest.current.speed);
     if (latest.current.loop) p.setLoop(0, a.bars - 1);
     player.current = p;

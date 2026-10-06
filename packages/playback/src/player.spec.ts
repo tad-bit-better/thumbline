@@ -270,6 +270,23 @@ describe('createPlayer', () => {
       expect(songAtSwitch).toBeCloseTo((slow.started as { when: number }).when - startedAt, 2);
     });
 
+    it('turns the original down under the sheet in Both, on a loudness curve', () => {
+      const original = clickTrack(3);
+      const { ctx, player } = setup(quarters(1), { original });
+      const [, sheetBus, originalBus] = ctx.gains;
+      player.setMix('both');
+      player.setOriginalLevel(0.5);
+      expect([sheetBus.gain.value, originalBus.gain.value]).toEqual([1, 0.25]);
+      player.setOriginalLevel(0);
+      expect(originalBus.gain.value).toBe(0);
+      player.setOriginalLevel(2);
+      expect(originalBus.gain.value).toBe(1);
+      // Original alone stays at full level.
+      player.setOriginalLevel(0.3);
+      player.setMix('original');
+      expect(originalBus.gain.value).toBe(1);
+    });
+
     it('ignores the original in the mix when there is none', () => {
       const { ctx, player } = setup(quarters(1));
       player.setMix('original');

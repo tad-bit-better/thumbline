@@ -8,6 +8,7 @@ function Demo({ initialPlaying = false, preparing = false, mixDisabled = false, 
   const [speed, setSpeed] = useState<PlayerSpeed>(1);
   const [loop, setLoop] = useState(false);
   const [bar, setBar] = useState(initialBar);
+  const [originalLevel, setOriginalLevel] = useState(0.9);
   return (
     <div style={{ width: 'min(1100px, 100vw - 32px)', padding: 'var(--space-6) 0' }}>
       <PlayerBar
@@ -18,6 +19,8 @@ function Demo({ initialPlaying = false, preparing = false, mixDisabled = false, 
         subtitle={`92 bpm, ${mix === 'both' ? 'sheet and original' : mix}${speed < 1 ? `, ${speed * 100}%` : ''}`}
         mix={mix}
         onMixChange={setMix}
+        originalLevel={originalLevel}
+        onOriginalLevelChange={setOriginalLevel}
         mixDisabled={mixDisabled}
         speed={speed}
         onSpeedChange={setSpeed}

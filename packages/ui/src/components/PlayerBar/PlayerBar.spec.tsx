@@ -34,6 +34,19 @@ describe('PlayerBar', () => {
     expect(p.onTogglePlay).toHaveBeenCalledOnce();
   });
 
+  it('turns the original down in Both', () => {
+    const p = setup({ originalLevel: 0.9, onOriginalLevelChange: vi.fn() });
+    const volume = screen.getByRole('slider', { name: 'Original volume' });
+    expect(volume.getAttribute('aria-valuetext')).toBe('90%');
+    fireEvent.change(volume, { target: { value: '0.3' } });
+    expect(p.onOriginalLevelChange).toHaveBeenCalledWith(0.3);
+  });
+
+  it('shows the original volume only while both play', () => {
+    setup({ mix: 'sheet', originalLevel: 0.9, onOriginalLevelChange: vi.fn() });
+    expect(screen.queryByRole('slider', { name: 'Original volume' })).toBeNull();
+  });
+
   it('labels the button Pause while playing', () => {
     setup({ playing: true });
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();

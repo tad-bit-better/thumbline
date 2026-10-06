@@ -35,6 +35,6 @@ v2 (2026-10-06, from the user's mock): use the width; the tab is the page, every
   - Right (260px, sticky, scrolls on its own and takes focus for that): **Now and next**, the playing chord's diagram (highlighted) and the next one. **Chord shapes**, every shape in order with "sounds …" and its badges (Barre, Simplified).
 - **Tablet (720–1099px):** one column; the right column moves above the tab as a strip (now/next, then the shapes scrolling sideways).
 - **Phone (< 720px):** now/next above the tab (shapes hidden), one bar card per row, the player at the end of the page.
-- **Sticky player bar:** as before (play sphere, now-playing line, Sheet · Original · Both, speed, loop). Playhead glow (#7). First full play (#8). Count-in, a bpm stepper and bar-range loops are not in this version (user, 2026-10-06: "not sure about this yet").
+- **Sticky player bar:** as before (play sphere, now-playing line, Sheet · Original · Both, an "Original volume" slider while Both plays (saved with the song; user, 2026-10-06: keep the recording quiet under the sheet), speed, loop). Playhead glow (#7). First full play (#8). Count-in, a bpm stepper and bar-range loops are not in this version (user, 2026-10-06: "not sure about this yet").
 - Keyboard: Space play/pause, L loop, ←/→ previous/next bar, 1/2/3 level, F back to the playhead.
 - Tab notation stays as it is (tune notes bold on an orange chip, thumb notes on a violet chip); the mock's circled tune and underlined bass are deferred.
