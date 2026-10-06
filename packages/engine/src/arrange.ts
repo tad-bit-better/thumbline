@@ -2,6 +2,7 @@ import { MAX_CAPO, bestCapo } from './capo.js';
 import { chordName, transpose } from './chords.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import { LEVELS, PALOS, getPattern, patternsFor } from './patterns/index.js';
+import type { StringFret } from './bass.js';
 import { type ChordSpan, isPlayable, runSegment } from './runner.js';
 import { shapeDynamics } from './dynamics.js';
 import { mergeMelody, placeMelody, quantiseMelody } from './melody.js';
@@ -134,6 +135,36 @@ function resolveCapo(capo: ArrangeOptions['capo'], chords: ChordLabel[]): number
   return capo;
 }
 
+/** engine-spec: MIDI of each open string (shape space). */
+const OPEN_MIDI = [40, 45, 50, 55, 59, 64] as const;
+/** Highest fret for a placed bass note. */
+const SONG_BASS_MAX_FRET = 7;
+
+/**
+ * engine-spec §4 the song's bass (M11b): a bass note the shape doesn't have
+ * (Cm over Ab), placed on string 0–2 at or below the shape's root string,
+ * fret 7 at most, where the hand can hold it with the shape's top three strings
+ * (§4 span and finger limits). Open strings first, then the fret nearest the
+ * shape. None reachable: undefined (the caller warns and plays the root).
+ */
+export function placeSongBass(voicing: Voicing, bassPc: number): StringFret | undefined {
+  const fretted = voicing.frets.filter((f) => f > 0);
+  const centre = fretted.length ? (Math.min(...fretted) + Math.max(...fretted)) / 2 : 2;
+  // Held with the strings the fingers play: the shape's top three above its root.
+  const treble = voicing.frets.flatMap((fret, string) => (string > voicing.rootString && fret >= 0 ? [{ string, fret }] : [])).slice(-3);
+  let best: { spot: StringFret; cost: number } | undefined;
+  for (let string = 0; string <= Math.min(2, voicing.rootString); string++) {
+    for (let fret = 0; fret <= SONG_BASS_MAX_FRET; fret++) {
+      if ((OPEN_MIDI[string] + fret) % 12 !== bassPc) continue;
+      const moment = [{ string, fret }, ...treble].map((n) => ({ tick: 0, dur: 1, finger: 'p' as const, velocity: 1, ...n }));
+      if (!isPlayable(moment, voicing)) continue;
+      const cost = fret === 0 ? 0 : 1 + Math.abs(fret - centre);
+      if (!best || cost < best.cost) best = { spot: { string, fret }, cost };
+    }
+  }
+  return best?.spot;
+}
+
 /** engine-spec §3: AnalysisResult + style + level → playable Arrangement. */
 export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangement {
   const { beatsPerBar } = input.meter;
@@ -184,12 +215,15 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
       warnings.add('barre', `${voicing.name} needs a barre at this capo position.`);
     }
     if (unsupported) warnings.add('unsupported-chord', `Playing ${askedName} as ${soundingName}.`);
-    if (slashDropped) {
+    // No slash shape: the thumb plays the song's bass under the plain shape when the hand can reach it (M11b).
+    const shapeAsked = transpose(asked, -capo);
+    const songBass = slashDropped && shapeAsked.bassPc !== undefined ? placeSongBass(voicing, shapeAsked.bassPc) : undefined;
+    if (slashDropped && !songBass) {
       warnings.add('slash-dropped', `Playing ${askedName} without the separate bass note.`);
     }
 
     chordMarks.push({ tick: start, voicing, soundingName });
-    const span = { start, end, voicing, played, key: shapeKeyAt(segment.bar) };
+    const span: ChordSpan = { start, end, voicing, played, key: shapeKeyAt(segment.bar), ...(songBass ? { bass: songBass } : {}) };
     spans.push(span);
     events.push(...renderSpan(candidates, span, beatsPerBar));
   });

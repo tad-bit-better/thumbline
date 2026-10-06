@@ -489,3 +489,46 @@ export function keySections(
     return { bar: r.bar, key: refineMode(seed, inside, beatsPerBar) };
   });
 }
+
+/** A chord's bass is held when one note leads the bass band on this share of its beats... */
+const HELD_BASS = 0.6;
+/** ...each time with at least this share of the beat's bass energy. */
+const BASS_LEAD = 0.4;
+/** A minor chord whose held bass is its major third is heard as major (Em over G#: E). */
+const TO_MAJOR: Partial<Record<Quality, Quality>> = { m: 'maj', m7: '7' };
+
+/**
+ * engine-spec §1 the song's bass (M11b): in produced songs the bass holds a
+ * note under the harmony, often not the chord's root (Cm over an Ab sub-bass,
+ * B over C#). Where one note leads the bass band (40% of its energy or more) on
+ * 60% of a chord's beats and it isn't the root, it becomes the chord's
+ * `bassPc`, unless a chord tone sits a semitone above it (a clash, C over B).
+ * A minor chord over its own major third becomes major first. A picked guitar
+ * bass that alternates never holds one note, so it is left alone.
+ */
+export function assignBass(segments: readonly ChordSegment[], beats: readonly BeatFeatures[], beatsPerBar: number, firstDownbeat: number): ChordSegment[] {
+  const at = (s: ChordSegment) => firstDownbeat + s.bar * beatsPerBar + s.beat;
+  return segments.map((s, i) => {
+    if (!s.chord) return s;
+    const from = at(s);
+    const to = Math.min(beats.length, i + 1 < segments.length ? at(segments[i + 1]) : from + beatsPerBar);
+    const counts = new Array<number>(12).fill(0);
+    for (let b = Math.max(0, from); b < to; b++) {
+      const bass = beats[b].bass;
+      if (!bass) continue;
+      const total = Array.from(bass).reduce((sum, v) => sum + v, 0);
+      if (total <= 0) continue;
+      let top = 0;
+      for (let k = 1; k < 12; k++) if (bass[k] > bass[top]) top = k;
+      if (bass[top] / total >= BASS_LEAD) counts[top]++;
+    }
+    const held = counts.indexOf(Math.max(...counts));
+    if (to - from < 1 || counts[held] < Math.max(1, HELD_BASS * (to - from))) return s;
+    const c = s.chord;
+    if (held === c.pc) return s;
+    const quality = (held - c.pc + 12) % 12 === 4 ? (TO_MAJOR[c.quality] ?? c.quality) : c.quality;
+    const tones = (QUALITIES.find((q) => q.quality === quality)?.tones ?? [[0, 1]]).map(([iv]) => (c.pc + iv) % 12);
+    if (tones.includes((held + 1) % 12)) return s;
+    return { ...s, chord: { pc: c.pc, quality, bassPc: held } };
+  });
+}

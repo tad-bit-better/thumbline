@@ -22,6 +22,8 @@ export type ChordSpan = {
   played: ChordLabel;
   /** The song's key in shape space (capo removed), for the scale walker. */
   key?: AnalysisResult['key'];
+  /** The song's own bass note under this chord when the shape has none for it (M11b): the thumb's `bass`. */
+  bass?: StringFret;
 };
 
 const DEFAULT_VELOCITY = 0.8;
@@ -99,7 +101,12 @@ function eventsInSpan(
  * per string and tick, and legato only where an earlier note allows it.
  */
 export function runSegment(pattern: PatternDef, span: ChordSpan, beatsPerBar: BeatsPerBar): NoteEvent[] {
-  const resolve = resolverFor(span.voicing, altBass(span.voicing, span.played));
+  const shapeResolve = resolverFor(span.voicing, altBass(span.voicing, span.played));
+  // The song's bass, when it has its own (Cm over Ab): the thumb plays it, and nothing sounds under it.
+  const songBass = span.bass;
+  const resolve: Resolver = songBass
+    ? (target) => (target === 'bass' ? [songBass] : shapeResolve(target).map((n) => (n.string < songBass.string || (n.string === songBass.string && target === 'altBass') ? songBass : n)))
+    : shapeResolve;
   let events = eventsInSpan(pattern, span, beatsPerBar);
 
   // Chord change: the thumb plays the root, never the alternate bass.

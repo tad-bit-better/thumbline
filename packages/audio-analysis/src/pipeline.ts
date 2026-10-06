@@ -1,5 +1,5 @@
 import type { EssentiaLike, EssentiaVector } from './essentia.js';
-import { type BeatFeatures, detectMeter, extendBeats, foldBeats, keySections, lowBandAlternation, refineMode, toSegments } from './postprocess.js';
+import { type BeatFeatures, assignBass, detectMeter, extendBeats, foldBeats, keySections, lowBandAlternation, refineMode, toSegments } from './postprocess.js';
 import { cleanMelody, trackMelody } from './melody.js';
 import { beatEnergyOf, moodOf } from './mood.js';
 import type { AnalysisResult, KeySpan } from './types.js';
@@ -44,6 +44,13 @@ const FRAMES_PER_SLICE = 160;
 /** Bass band for the chord root: below the voice, above the kick's thump. */
 const BASS_MIN_HZ = 40;
 const BASS_MAX_HZ = 180;
+/**
+ * The bass is read from its own long frame (~0.74 s at 44.1 kHz, 1.3 Hz bins):
+ * at 50 Hz a semitone is 3 Hz, so the chroma frames (10.8 Hz bins) can't tell
+ * a sub-bass G#1 from G1 or A1. Bass-heavy mixes (EDM) put the chord root there.
+ */
+const BASS_FRAME = 32768;
+const BASS_LOW_HZ = 30;
 /** Side signal this much quieter than the mix (RMS) is treated as mono. */
 const MIN_SIDE_RATIO = 0.08;
 const SILENT_RMS = 1e-4;
@@ -212,12 +219,13 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     counts[beat]++;
   }
 
+  const fineBass = bassPerBeat(e, samples, sampleRate, beatTimesSec, durationSec);
   const features: BeatFeatures[] = beatTimesSec.map((t, b) => {
     const end = b + 1 < beats ? beatTimesSec[b + 1] : Math.min(durationSec, t + intervals[0]);
     const n = Math.max(1, counts[b]);
     return {
       chroma: Array.from(sums[b], (v) => v / n),
-      bass: Array.from(bassSums[b], (v) => v / n),
+      bass: fineBass[b] ?? Array.from(bassSums[b], (v) => v / n),
       side: sideSums ? Array.from(sideSums[b], (v) => v / n) : undefined,
       energy: rms(samples, Math.floor(t * sampleRate), Math.min(samples.length, Math.floor(end * sampleRate))),
     };
@@ -228,7 +236,9 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   // The key finder confuses relative keys (C major / A minor): the chords say which is home.
   // Songs that change key (M10b): find where, then choose the chords again with each section's key.
   const found = keySections(firstPass, meter.beatsPerBar, refineMode(key, firstPass, meter.beatsPerBar));
-  const chords = found.length > 1 ? toSegments(features, meter.beatsPerBar, meter.firstDownbeat, found) : firstPass;
+  const voiced = found.length > 1 ? toSegments(features, meter.beatsPerBar, meter.firstDownbeat, found) : firstPass;
+  // The song's own bass under each chord (M11b): Cm over an Ab sub-bass is Cm/Ab.
+  const chords = assignBass(voiced, features, meter.beatsPerBar, meter.firstDownbeat);
   const keys = found.length > 1 ? keySections(chords, meter.beatsPerBar, found[0].key) : found;
   const homeKey = longestKey(keys, chords.at(-1)?.bar ?? 0);
   const keyAtSec = (sec: number) => {
@@ -264,6 +274,39 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     ...(feel && brightnessHz !== undefined ? { mood: moodOf({ bpm, ...feel, brightnessHz, mode: homeKey.mode, chords }) } : {}),
     beatEnergy: beatEnergyOf(features.map((f) => f.energy)),
   };
+}
+
+/**
+ * Bass pitch classes per beat from one long frame centred on the beat (engine-spec §1):
+ * spectral peaks from 30 to 180 Hz, energy (magnitude²) by pitch class.
+ * A beat too near either end of the clip for the frame keeps the short-frame bass.
+ */
+function bassPerBeat(e: EssentiaLike, samples: Float32Array, sampleRate: number, beats: readonly number[], durationSec: number): Array<number[] | undefined> {
+  const scale = sampleRate / 44100;
+  const frame = Math.round((BASS_FRAME * scale) / 2) * 2;
+  return beats.map((t, b) => {
+    const end = b + 1 < beats.length ? beats[b + 1] : Math.min(durationSec, t + (t - (beats[b - 1] ?? t - 0.5)));
+    const from = Math.round(((t + end) / 2) * sampleRate) - frame / 2;
+    if (from < 0 || from + frame > samples.length) return undefined;
+    const vec = e.arrayToVector(samples.subarray(from, from + frame));
+    const w = e.Windowing(vec, true, frame, 'blackmanharris92');
+    const sp = e.Spectrum(w.frame, frame);
+    const pk = e.SpectralPeaks(sp.spectrum, 0.00001, BASS_MAX_HZ, 30, BASS_LOW_HZ, 'magnitude', sampleRate);
+    const out = new Array<number>(12).fill(0);
+    if (pk.frequencies.size() === 0) {
+      free(vec, w.frame, sp.spectrum, pk.frequencies, pk.magnitudes); // silence: no bass
+      return out;
+    }
+    const freqs = e.vectorToArray(pk.frequencies);
+    const mags = e.vectorToArray(pk.magnitudes);
+    for (let i = 0; i < freqs.length; i++) {
+      if (freqs[i] < BASS_LOW_HZ || freqs[i] > BASS_MAX_HZ) continue;
+      const midi = 69 + 12 * Math.log2(freqs[i] / 440);
+      out[((Math.round(midi) % 12) + 12) % 12] += mags[i] * mags[i];
+    }
+    free(vec, w.frame, sp.spectrum, pk.frequencies, pk.magnitudes);
+    return out;
+  });
 }
 
 /** The key held for the most bars (the first on a tie). */

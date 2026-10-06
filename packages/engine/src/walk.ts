@@ -16,7 +16,8 @@ const STEPS: Record<string, number[]> = {
   phrygian: [0, 1, 3, 5, 7, 8, 10],
 };
 
-const bassOf = (span: ChordSpan) => OPEN_MIDI[span.voicing.rootString] + span.voicing.frets[span.voicing.rootString];
+const bassOf = (span: ChordSpan) =>
+  span.bass ? OPEN_MIDI[span.bass.string] + span.bass.fret : OPEN_MIDI[span.voicing.rootString] + span.voicing.frets[span.voicing.rootString];
 
 /** A bass string and fret for `midi`, nearest the shape's hand position; open strings are free. */
 function placeBass(midi: number, span: ChordSpan): { string: number; fret: number } | undefined {

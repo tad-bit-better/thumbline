@@ -1,5 +1,6 @@
 import {
   type BeatFeatures,
+  assignBass,
   detectMeter,
   extendBeats,
   foldBeats,
@@ -311,5 +312,47 @@ describe('keySections', () => {
 
   it('has nothing to say without chords', () => {
     expect(keySections([], 4, { pc: 7, mode: 'major' })).toEqual([{ bar: 0, key: { pc: 7, mode: 'major' } }]);
+  });
+});
+
+describe('assignBass', () => {
+  const seg = (bar: number, pc: number, quality: 'maj' | 'm' | '7' | 'm7'): ChordSegment => ({ bar, beat: 0, chord: { pc, quality }, confidence: 1, alternatives: [] });
+  /** Beats whose bass band rings on the given pitch classes (one per beat, cycling). */
+  const withBass = (pcs: number[], beats: number): BeatFeatures[] =>
+    Array.from({ length: beats }, (_, i) => {
+      const bass = new Array(12).fill(0.01);
+      bass[pcs[i % pcs.length]] = 1;
+      return { chroma: new Array(12).fill(0.1), energy: 1, bass };
+    });
+
+  it('keeps a held bass under the chord as its bass note (Cm over an Ab sub-bass: Cm/Ab)', () => {
+    const out = assignBass([seg(0, 0, 'm')], withBass([8], 4), 4, 0);
+    expect(out[0].chord).toEqual({ pc: 0, quality: 'm', bassPc: 8 });
+  });
+
+  it('keeps B over a held C# (EDM pads over a moving bass)', () => {
+    expect(assignBass([seg(0, 11, 'maj')], withBass([1], 4), 4, 0)[0].chord).toEqual({ pc: 11, quality: 'maj', bassPc: 1 });
+  });
+
+  it('leaves the root alone', () => {
+    expect(assignBass([seg(0, 0, 'maj')], withBass([0], 4), 4, 0)[0].chord).toEqual({ pc: 0, quality: 'maj' });
+  });
+
+  it('leaves a picked, alternating bass alone', () => {
+    expect(assignBass([seg(0, 0, 'maj')], withBass([0, 7, 4, 7], 4), 4, 0)[0].chord).toEqual({ pc: 0, quality: 'maj' });
+  });
+
+  it('hears a minor chord over its major third as major (Em over a held G#: E)', () => {
+    expect(assignBass([seg(0, 4, 'm')], withBass([8], 4), 4, 0)[0].chord).toEqual({ pc: 4, quality: 'maj', bassPc: 8 });
+  });
+
+  it('does not put a bass a semitone under a chord tone (C over B would clash)', () => {
+    expect(assignBass([seg(0, 0, 'maj')], withBass([11], 4), 4, 0)[0].chord).toEqual({ pc: 0, quality: 'maj' });
+  });
+
+  it('reads each chord over its own beats', () => {
+    const feats = [...withBass([8], 4), ...withBass([10], 4)];
+    const out = assignBass([seg(0, 0, 'm'), seg(1, 10, 'maj')], feats, 4, 0);
+    expect(out.map((c) => c.chord)).toEqual([{ pc: 0, quality: 'm', bassPc: 8 }, { pc: 10, quality: 'maj' }]);
   });
 });

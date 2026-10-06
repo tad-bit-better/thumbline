@@ -101,11 +101,17 @@ describe('arrange', () => {
       expect(a.warnings).toEqual([{ code: 'barre', message: 'F needs a barre at this capo position.' }]);
     });
 
-    it('flags slash chords played without their bass', () => {
+    it('plays a slash chord’s bass under the plain shape when the hand reaches it (M11b)', () => {
       const a = arrange(progression('E/G# | A'), { style: 'arpeggio', level: 'moderate', capo: 0 });
+      expect(a.warnings.some((w) => w.code === 'slash-dropped')).toBe(false);
+      expect(a.events.find((e) => e.tick === 0 && e.finger === 'p')).toMatchObject({ string: 0, fret: 4 });
+    });
+
+    it('flags slash chords played without their bass when it is out of reach', () => {
+      const a = arrange(progression('F/B | C'), { style: 'arpeggio', level: 'moderate', capo: 0 });
       expect(a.warnings).toContainEqual({
         code: 'slash-dropped',
-        message: 'Playing E/G# without the separate bass note.',
+        message: 'Playing F/B without the separate bass note.',
       });
     });
 

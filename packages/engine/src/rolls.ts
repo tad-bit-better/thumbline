@@ -16,7 +16,8 @@ const ROLL_VELOCITY = 0.75;
  * and the song's last chord open with a thumb brush (`brush-down`) across
  * every string of the shape, replacing the plucks on that tick. A string with
  * a hammer-on or pull-off in the chord's first beat keeps its own note (the
- * slur needs it). The last chord's roll rings to the end. Flamenco keeps its
+ * slur needs it). Under a chord with the song's own bass (M11b), the roll is
+ * that bass and the shape's top three strings. The last chord's roll rings to the end. Flamenco keeps its
  * own strums (the caller skips it).
  */
 export function addRolls(events: NoteEvent[], spans: readonly ChordSpan[], beatsPerBar: BeatsPerBar, mood?: Mood): NoteEvent[] {
@@ -32,7 +33,11 @@ export function addRolls(events: NoteEvent[], spans: readonly ChordSpan[], beats
     const plucks = out.filter((e) => e.tick === span.start && e.fret >= 0 && !slurred.has(e.string));
     const velocity = plucks.length ? Math.max(...plucks.map((e) => e.velocity)) * ROLL_VELOCITY : 0.6;
     out = out.filter((e) => !plucks.includes(e));
-    span.voicing.frets.forEach((fret, string) => {
+    // The song's own bass (M11b): the roll is that bass and the shape's top three strings, what the hand can hold.
+    const bass = span.bass;
+    const top = span.voicing.frets.flatMap((f, s) => (s > span.voicing.rootString && f >= 0 ? [s] : [])).slice(-3);
+    const frets = bass ? span.voicing.frets.map((f, s) => (s === bass.string ? bass.fret : top.includes(s) ? f : -1)) : span.voicing.frets;
+    frets.forEach((fret, string) => {
       if (fret < 0 || slurred.has(string)) return;
       out.push({
         tick: span.start,
