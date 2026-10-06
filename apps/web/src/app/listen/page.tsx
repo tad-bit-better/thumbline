@@ -177,12 +177,13 @@ export default function Listen() {
                 </p>
                 {meta && (
                   <div className={styles.chip}>
-                    <Chip font="mono">{meta.name}</Chip>
+                    <Chip font="mono" className={styles.fileName}>
+                      <span className={styles.fileNameText} title={meta.name}>
+                        {meta.name}
+                      </span>
+                    </Chip>
                     {live.seconds !== undefined && (
-                      <>
-                        {' '}
-                        <Chip font="mono">{formatDuration(live.seconds)}</Chip>
-                      </>
+                      <Chip font="mono">{formatDuration(live.seconds)}</Chip>
                     )}
                   </div>
                 )}
