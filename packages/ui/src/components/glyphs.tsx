@@ -55,6 +55,19 @@ export const ForwardGlyph = (p: GlyphProps) => (
   </svg>
 );
 
+/** Previous and next in a list (not playback): chevrons. */
+export const ChevronLeftGlyph = (p: GlyphProps) => (
+  <svg {...base} {...p}>
+    <path d="M14.5 6l-6 6 6 6" />
+  </svg>
+);
+
+export const ChevronRightGlyph = (p: GlyphProps) => (
+  <svg {...base} {...p}>
+    <path d="M9.5 6l6 6-6 6" />
+  </svg>
+);
+
 /** Up and down arrows, e.g. "the playhead is above / below". */
 export const ArrowUpGlyph = (p: GlyphProps) => (
   <svg {...base} {...p}>

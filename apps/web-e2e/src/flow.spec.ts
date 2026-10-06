@@ -47,15 +47,21 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Looks good, write my sheets' }).click();
   await expect(page).toHaveURL(/\/sheet$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Your sheet' })).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Chord shapes' })).toBeVisible();
+  await expect(page.getByText('Your sheet', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Sample clip (G Em C D)' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Chord shapes' }).first()).toBeVisible();
   await expect(page.getByRole('region', { name: 'Arpeggio tab' })).toBeVisible();
   await expectNoAxeViolations(page);
 
-  // Click the visible segment, as a person would (the radio input itself is transparent).
-  await page.getByRole('radiogroup', { name: 'Level' }).getByText('Moderate', { exact: true }).click();
-  await expect(page.getByRole('radio', { name: 'Moderate' })).toBeChecked();
-  await expect(page.getByText('Pinch and roll')).toBeVisible();
+  // Style and level live in the Customize panel. Click the visible segment, as a person would
+  // (the radio input itself is transparent).
+  await page.getByRole('button', { name: 'Customize' }).click();
+  const customize = page.getByRole('dialog', { name: 'Customize' });
+  await customize.getByRole('radiogroup', { name: 'Level' }).getByText('Moderate', { exact: true }).click();
+  await expect(customize.getByRole('radio', { name: 'Moderate' })).toBeChecked();
+  await expect(customize.getByText('Pinch and roll', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(customize).toBeHidden();
 
   await page.getByRole('button', { name: 'Play' }).click();
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });
@@ -79,10 +85,11 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
   await expect(position).not.toHaveAttribute('aria-valuetext', String(here));
 
   // Flamenco: rumba by default; strums and golpes play.
-  // The whole card is the radio's hit area.
-  await page.getByRole('radio', { name: 'Flamenco' }).click();
+  await page.getByRole('button', { name: 'Customize' }).click();
+  await customize.getByRole('radiogroup', { name: 'Style' }).getByText('Flamenco', { exact: true }).click();
   // Rumba is the default palo; which rumba pattern opens depends on the song's mood (M10).
-  await expect(page.getByRole('radio', { name: 'Rumba' })).toBeChecked();
+  await expect(customize.getByRole('radio', { name: 'Rumba' })).toBeChecked();
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('region', { name: 'Flamenco tab' })).toBeVisible();
   await page.getByRole('button', { name: 'Play' }).click();
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });
@@ -95,8 +102,7 @@ test('the song survives a reload', async ({ page }) => {
   await page.getByRole('button', { name: 'Looks good, write my sheets' }).click();
   await expect(page).toHaveURL(/\/sheet$/);
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Your sheet' })).toBeVisible();
-  await expect(page.getByText('Sample clip (G Em C D).wav')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Sample clip (G Em C D)' })).toBeVisible();
 });
 
 test('an unsupported file is explained in the drop zone', async ({ page }) => {

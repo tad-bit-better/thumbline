@@ -76,12 +76,45 @@ beforeEach(() => {
 });
 
 describe('Sheet screen', () => {
-  it('shows the song, capo and key', () => {
+  it('shows the song, capo, key, time and tempo', () => {
     render(<Sheet />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Your sheet' })).toBeTruthy();
-    expect(screen.getByText('wonderwall.mp3')).toBeTruthy();
-    expect(screen.getByText('No capo needed')).toBeTruthy();
-    expect(screen.getByText('G major, 4/4')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'wonderwall' })).toBeTruthy();
+    expect(screen.getByText('Your sheet')).toBeTruthy();
+    const fact = (term: string) => screen.getByText(term, { selector: 'dt' }).nextElementSibling?.textContent;
+    expect(fact('Capo')).toBe('None');
+    expect(fact('Key')).toBe('G major');
+    expect(fact('Time')).toBe('4/4');
+    expect(fact('Original tempo')).toBe('92 bpm');
+  });
+
+  it('sums up the arrangement and steps through patterns', () => {
+    render(<Sheet />);
+    expect(screen.getByText('Arpeggio · Basic · Let it ring')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next pattern' }));
+    expect(screen.getByText('Arpeggio · Basic · Simple roll')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Previous pattern' }));
+    expect(screen.getByText('Arpeggio · Basic · Let it ring')).toBeTruthy();
+  });
+
+  it('lists the sections and jumps to one', async () => {
+    render(<Sheet />);
+    const nav = screen.getAllByRole('navigation', { name: 'Sections' })[0];
+    const buttons = nav.querySelectorAll('button');
+    expect(buttons.length).toBeGreaterThan(0);
+    fireEvent.click(buttons[buttons.length - 1]);
+    const slider = screen.getByRole('slider', { name: 'Position in song' });
+    expect(slider.getAttribute('aria-valuetext')).not.toBe('Bar 1 of 8');
+  });
+
+  it('shows now and next chords, and the display options change the tab', () => {
+    const { container } = render(<Sheet />);
+    expect(screen.getByRole('list', { name: 'Now and next chords' })).toBeTruthy();
+    expect(container.querySelector('[data-finger]')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Fingering letters' }));
+    expect(container.querySelector('[data-finger]')).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Legend' }));
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull();
+    expect(songStore.getState().prefs.display).toMatchObject({ fingers: false, legend: false });
   });
 
   it('draws the tab, the chord shapes and a legend', () => {
@@ -91,31 +124,34 @@ describe('Sheet screen', () => {
     expect(screen.getByRole('list', { name: 'Legend' })).toBeTruthy();
   });
 
-  it('switches style and level, and describes the pattern', () => {
+  it('switches style and level in Customize, and describes the pattern', () => {
     render(<Sheet />);
-    expect(screen.getByText('Let it ring')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
+    expect(screen.getByText('Let it ring', { selector: 'b' })).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'Fingerstyle' }));
     expect(songStore.getState().prefs.style).toBe('fingerstyle');
-    expect(screen.getByText('Thumb and pluck')).toBeTruthy();
+    expect(screen.getByText('Thumb and pluck', { selector: 'b' })).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'Moderate' }));
-    expect(screen.getByText('Travis with pinches')).toBeTruthy();
+    expect(screen.getByText('Travis with pinches', { selector: 'b' })).toBeTruthy();
   });
 
   it('offers another pattern at the same level', () => {
     render(<Sheet />);
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
     fireEvent.click(screen.getByRole('button', { name: 'Try another pattern' }));
-    expect(screen.getByText('Simple roll')).toBeTruthy();
+    expect(screen.getByText('Simple roll', { selector: 'b' })).toBeTruthy();
   });
 
   it('plays flamenco: rumba first, tangos on request', () => {
     render(<Sheet />);
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Flamenco' }));
     expect(songStore.getState().prefs.style).toBe('flamenco');
-    expect(screen.getByText('Rumba strum')).toBeTruthy();
+    expect(screen.getByText('Rumba strum', { selector: 'b' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Flamenco tab' })).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'Tangos' }));
     expect(songStore.getState().prefs.palo).toBe('tangos');
-    expect(screen.getByText('Tangos strum')).toBeTruthy();
+    expect(screen.getByText('Tangos strum', { selector: 'b' })).toBeTruthy();
     expect(screen.getByText(/Flamenco \(Tangos\), Basic/)).toBeTruthy();
   });
 
@@ -123,9 +159,10 @@ describe('Sheet screen', () => {
     songStore.getState().setStyle('flamenco');
     songStore.getState().setMeter(3);
     render(<Sheet />);
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
     const card = screen.getByRole('radio', { name: 'Flamenco' }) as HTMLInputElement;
     expect(card.disabled).toBe(true);
-    expect(screen.getByText('Needs 4/4')).toBeTruthy();
+    expect(screen.getByText(/Flamenco needs a song in 4\/4/)).toBeTruthy();
     // A saved flamenco choice plays arpeggio until the song is back in 4/4.
     expect(screen.getByRole('region', { name: 'Arpeggio tab' })).toBeTruthy();
     expect(screen.queryByRole('radiogroup', { name: 'Palo' })).toBeNull();
@@ -159,6 +196,7 @@ describe('Sheet screen', () => {
   it('rebuilds the player when the arrangement changes', async () => {
     render(<Sheet />);
     await startPlaying();
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Advanced' }));
     expect(players[0].dispose).toHaveBeenCalled();
   });
@@ -194,10 +232,11 @@ describe('Sheet screen', () => {
     const { container } = render(<Sheet />);
     const second = container.querySelectorAll('[data-system]')[1] as SVGSVGElement;
     second.getBoundingClientRect = () => ({ left: 0, top: 0, width: 960, height: 162, right: 960, bottom: 162, x: 0, y: 0, toJSON: () => ({}) });
-    await act(async () => fireEvent.click(second, { clientX: 40 }));
+    await act(async () => fireEvent.click(second, { clientX: 480 }));
     await waitFor(() => expect(players[0]?.playFrom).toHaveBeenCalled());
     const tick = players[0].playFrom.mock.calls[0][0] as number;
-    expect(tick).toBeGreaterThanOrEqual(4 * 1920); // the second system starts at bar 5 or later
+    // One bar per card: the second card is bar 2.
+    expect(Math.floor(tick / 1920)).toBe(1);
   });
 
   it('moves a bar back and forward while paused, without playing', async () => {
@@ -247,6 +286,6 @@ describe('Sheet screen', () => {
   it('has no axe violations', async () => {
     const { container } = render(<Sheet />);
     const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
-    expect(result.violations.map((v) => v.id)).toEqual([]);
+    expect(result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([]);
   });
 });

@@ -3,6 +3,7 @@ import type { Voicing } from '@thumbline/engine';
 import { sheet, techniqueSheet } from '../testing/fixtures';
 import { ChordDiagram } from './ChordDiagram';
 import { ChordShapes } from './ChordShapes';
+import { NowNext } from './NowNext';
 import { TabLegend } from './TabLegend';
 
 const meta: Meta = { title: 'Tab/Chord diagrams and legend' };
@@ -54,5 +55,23 @@ export const LegendAllTechniques: StoryObj = {
         { tick: 1200, string: 2, fret: 2, tech: 'rasgueo-down' },
       ])}
     />
+  ),
+};
+
+/** The side rail's list: each shape with what it sounds like and its notes. */
+export const ShapesList: StoryObj = {
+  render: () => (
+    <div style={{ width: 260 }}>
+      <ChordShapes arrangement={sheet('F | Bm | D | A | Bb', 'fingerstyle', 'basic')} variant="list" />
+    </div>
+  ),
+};
+
+/** Now and next, following the playhead (bar 3 of G | D | Em | C). */
+export const NowAndNext: StoryObj = {
+  render: () => (
+    <div style={{ width: 260 }}>
+      <NowNext arrangement={sheet('G | D | Em | C', 'arpeggio', 'moderate')} tick={2 * 4 * 480} />
+    </div>
   ),
 };

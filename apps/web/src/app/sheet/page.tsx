@@ -9,19 +9,23 @@ import {
   moodLabelOf,
   patternsFor,
 } from '@thumbline/engine';
-import { ChordShapes, TabLegend, TabSheet } from '@thumbline/tab-renderer';
+import { ChordShapes, NowNext, TabLegend, TabSheet } from '@thumbline/tab-renderer';
 import {
   ArrowDownGlyph,
   ArrowUpGlyph,
   Button,
   Card,
-  Chip,
+  Checkbox,
   Dialog,
+  ChevronLeftGlyph,
+  ChevronRightGlyph,
+  Drawer,
+  IconButton,
   LottieMoment,
   PlayerBar,
+  SectionNav,
   SegmentedControl,
   Slider,
-  StyleCard,
   useReducedMotion,
   useToast,
 } from '@thumbline/ui';
@@ -45,8 +49,9 @@ import {
   moodName,
   presetValues,
 } from '../../lib/mood';
-import { effectiveAnalysis, songStore, useSong } from '../../lib/song-store';
+import { DEFAULT_DISPLAY, effectiveAnalysis, songStore, useSong } from '../../lib/song-store';
 import { LOTTIE } from '../../lib/lottie';
+import { sheetSections, songTitle, warningSummary } from '../../lib/sheet-view';
 import { useFollowPlayhead } from '../../lib/use-follow-playhead';
 import { useSheetPlayer } from '../../lib/use-sheet-player';
 import { useWidth } from '../../lib/use-width';
@@ -63,23 +68,32 @@ const LEVELS = [
   { value: 'moderate', label: 'Moderate' },
   { value: 'advanced', label: 'Advanced' },
 ] as const;
-const STYLE_CARDS = [
-  {
-    kind: 'arpeggio',
-    title: 'Arpeggio',
-    hint: 'Rolling patterns that let every note of the chord ring.',
-  },
-  {
-    kind: 'fingerstyle',
-    title: 'Fingerstyle',
-    hint: 'A steady thumb with the fingers playing around it.',
-  },
+const STYLE_OPTIONS = [
+  { value: 'arpeggio', label: 'Arpeggio' },
+  { value: 'fingerstyle', label: 'Fingerstyle' },
+  { value: 'flamenco', label: 'Flamenco' },
 ] as const;
+const STYLE_HINTS: Record<Style, string> = {
+  arpeggio: 'Rolling patterns that let every note of the chord ring.',
+  fingerstyle: 'A steady thumb with the fingers playing around it.',
+  flamenco: 'Rumba and tangos with rasgueado and golpe.',
+};
 /** The sticky player bar's gap from the bottom of the window (sheet.module.css: --space-4). */
 const STICKY_GAP_PX = 16;
 
 /** How long a mood slider rests before the sheet re-arranges (a debounce, not an animation). */
 const MOOD_SETTLE_MS = 300;
+
+const CHORD_NAME_OPTIONS = [
+  { value: 'shape', label: 'Shape' },
+  { value: 'sounding', label: 'Sound' },
+  { value: 'both', label: 'Both' },
+] as const;
+const TAB_SIZES = [
+  { value: 's', label: 'S' },
+  { value: 'm', label: 'M' },
+  { value: 'l', label: 'L' },
+] as const;
 
 const PALOS = [
   { value: 'rumba', label: 'Rumba' },
@@ -112,6 +126,7 @@ export default function SheetPage() {
   const prefs = useSong((s) => s.prefs);
   const [loop, setLoop] = useState(false);
   const [confirmNew, setConfirmNew] = useState(false);
+  const [customizing, setCustomizing] = useState(false);
   const [tabRef, tabWidth] = useWidth<HTMLDivElement>();
   const celebrated = useRef(new Set<string>());
   /** Plays the first-full-play burst once per sheet; bumps to replay. */
@@ -204,6 +219,7 @@ export default function SheetPage() {
     onEnd,
   });
 
+  const sections = useMemo(() => (arrangement ? sheetSections(arrangement) : []), [arrangement]);
   const barTicks = (arrangement?.meter.beatsPerBar ?? 4) * 480;
   const currentBar = Math.floor(player.position / barTicks);
   const follow = useFollowPlayhead();
@@ -261,25 +277,42 @@ export default function SheetPage() {
   const meter = effective.meter.beatsPerBar;
   const playing = player.state === 'playing';
 
+  const title = songTitle(meta.name);
+  const shapeKey = arrangement && arrangement.capo > 0 ? KEYS[(effective.key.pc - arrangement.capo + 12) % 12] : null;
+  const summary = arrangement ? warningSummary(arrangement.warnings) : undefined;
+  const currentSection = sections.find((sec) => currentBar >= sec.firstBar && currentBar < sec.firstBar + sec.bars);
+  const patternIndex = pattern ? patterns.indexOf(pattern) : -1;
+  const arrangementLine = [
+    STYLE_NAMES[style] + (palo ? ` (${PALOS.find((p) => p.value === palo)?.label})` : ''),
+    LEVELS.find((l) => l.value === prefs.level)?.label,
+    mood ? moodName(mood) : undefined,
+    pattern?.name,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  // Songs saved before the display options existed have none: the defaults.
+  const display = { ...DEFAULT_DISPLAY, ...prefs.display };
+  const sectionItems = sections.map((sec) => ({ id: sec.id, title: sec.title, detail: sec.detail }));
+  const goToSection = (id: string) => {
+    const sec = sections.find((x) => x.id === id);
+    if (sec) seekBar(sec.firstBar);
+  };
+
   return (
     <AppShell
+      wide
       actions={
-        <>
-          <Link className={styles.navLink} href="/review">
-            Edit chords
-          </Link>
-          <Button variant="ghost" onClick={() => setConfirmNew(true)}>
-            New song
-          </Button>
-        </>
+        <Button variant="ghost" onClick={() => setConfirmNew(true)}>
+          New song
+        </Button>
       }
     >
-      <main>
+      <main className={styles.page}>
         <header className={styles.header}>
-          <div>
-            <p className={styles.clip}>{meta.name}</p>
+          <div className={styles.heading}>
+            <p className={styles.eyebrow}>Your sheet</p>
             <h1 className={styles.title}>
-              Your sheet
+              {title}
               {playing && (
                 <span
                   className={styles.eq}
@@ -293,128 +326,64 @@ export default function SheetPage() {
               )}
             </h1>
           </div>
-          <div className={styles.chips}>
-            <Chip tone="violet">
-              {arrangement && arrangement.capo > 0
-                ? `Capo on the ${ordinal(arrangement.capo)} fret`
-                : 'No capo needed'}
-            </Chip>
-            <Chip>
-              {KEYS[effective.key.pc]} {effective.key.mode}, {meter}/4
-            </Chip>
-          </div>
+          <dl className={styles.facts}>
+            <div className={styles.fact}>
+              <dt>Key</dt>
+              <dd>
+                {KEYS[effective.key.pc]} {effective.key.mode}
+                {shapeKey && <span className={styles.factNote}>shapes in {shapeKey}</span>}
+              </dd>
+            </div>
+            <div className={styles.fact}>
+              <dt>Capo</dt>
+              <dd>{arrangement && arrangement.capo > 0 ? `${ordinal(arrangement.capo)} fret` : 'None'}</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt>Time</dt>
+              <dd>{meter}/4</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt>Original tempo</dt>
+              <dd>{Math.round(effective.bpm)} bpm</dd>
+            </div>
+          </dl>
+          <Link className={styles.navLink} href="/review">
+            Edit chords
+          </Link>
         </header>
 
-        <div role="radiogroup" aria-label="Style" className={styles.styles}>
-          {STYLE_CARDS.map((s) => (
-            <StyleCard
-              key={s.kind}
-              {...s}
-              headingLevel={2}
-              name="style"
-              selected={style === s.kind}
-              onSelect={() => songStore.getState().setStyle(s.kind)}
-            />
-          ))}
-          <StyleCard
-            kind="flamenco"
-            headingLevel={2}
-            title="Flamenco"
-            hint="Rumba and tangos with rasgueado and golpe."
-            sublabel={
-              flamencoOk
-                ? PALOS.find((p) => p.value === prefs.palo)?.label
-                : 'Needs 4/4'
-            }
-            name="style"
-            selected={style === 'flamenco'}
-            disabled={!flamencoOk}
-            onSelect={() => songStore.getState().setStyle('flamenco')}
-          />
-        </div>
-
-        <div className={styles.levelRow}>
-          <SegmentedControl
-            label="Level"
-            options={LEVELS}
-            value={prefs.level}
-            onChange={(v: Level) => songStore.getState().setLevel(v)}
-          />
-          {style === 'flamenco' && (
-            // DESIGN-REVIEW: screens.md shows the palo only as the card's sub-label; this is how you pick it.
-            <SegmentedControl
-              label="Palo"
-              options={PALOS}
-              value={prefs.palo}
-              onChange={(v) => songStore.getState().setPalo(v)}
-            />
-          )}
-          {shownMood && (
-            <Card padding="sm" className={styles.feel}>
-              <SegmentedControl
-                label="Mood"
-                tone="secondary"
-                fullWidth
-                options={MOOD_OPTIONS}
-                value={moodLabelOf(shownMood)}
-                onChange={(v) => nudgeMood(presetValues(v))}
-              />
-              <Slider
-                label="Energy"
-                minLabel="Calm"
-                maxLabel="Driving"
-                value={shownMood.energy}
-                valueText={(v) => `${Math.round(v * 100)}%, ${energyWords(v)}`}
-                onChange={(energy) => nudgeMood({ ...shownMood, energy })}
-              />
-              <Slider
-                label="Colour"
-                minLabel="Dark"
-                maxLabel="Bright"
-                value={shownMood.valence}
-                valueText={(v) => `${Math.round(v * 100)}%, ${colourWords(v)}`}
-                onChange={(valence) => nudgeMood({ ...shownMood, valence })}
-              />
-              {heardMood && edits.mood && (
-                <p className={styles.feelNote}>
-                  It sounded {moodName(heardMood).toLowerCase()} to us.{' '}
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      clearTimeout(moodTimer.current);
-                      setMoodDraft(null);
-                      songStore.getState().resetMood();
-                    }}
-                  >
-                    Use what we heard
-                  </Button>
-                </p>
-              )}
-            </Card>
-          )}
-          {pattern && (
-            <Card padding="sm" className={styles.pattern}>
-              <div>
-                <b>{pattern.name}</b>
-                <p>{pattern.hint}</p>
-              </div>
-              {patterns.length > 1 && (
-                <Button
+        <Card padding="sm" className={styles.arrangementBar}>
+          <div className={styles.arrangementText}>
+            <p className={styles.eyebrow}>Arrangement</p>
+            <b>{arrangementLine}</b>
+          </div>
+          <div className={styles.arrangementActions}>
+            {patterns.length > 1 && (
+              <div className={styles.patternStep}>
+                <IconButton
+                  label="Previous pattern"
+                  icon={<ChevronLeftGlyph />}
                   variant="ghost"
-                  onClick={() =>
-                    songStore.getState().cyclePattern(patterns.length)
-                  }
-                >
-                  Try another pattern
-                </Button>
-              )}
-            </Card>
-          )}
-        </div>
+                  onClick={() => songStore.getState().cyclePattern(patterns.length, -1)}
+                />
+                <span aria-live="polite">
+                  Pattern {patternIndex + 1} of {patterns.length}
+                </span>
+                <IconButton
+                  label="Next pattern"
+                  icon={<ChevronRightGlyph />}
+                  variant="ghost"
+                  onClick={() => songStore.getState().cyclePattern(patterns.length)}
+                />
+              </div>
+            )}
+            <Button onClick={() => setCustomizing(true)}>Customize</Button>
+          </div>
+        </Card>
 
         {analysis && !analysis.melody && file && (
           // Songs read before M9 have chords but no tune: one more listen adds it.
-          <Card padding="sm" className={styles.pattern}>
+          <Card padding="sm" className={styles.notice}>
             <div>
               <b>Add the tune</b>
               <p>
@@ -436,46 +405,106 @@ export default function SheetPage() {
           </Card>
         )}
 
-        {arrangement && arrangement.warnings.length > 0 && (
-          <ul className={styles.notes}>
-            {arrangement.warnings.map((w) => (
-              <li key={w.message}>{w.message}</li>
-            ))}
-          </ul>
+        {summary && (
+          <p className={styles.warnings}>
+            {summary}{' '}
+            <Link className={styles.inlineLink} href="/review">
+              Review chords
+            </Link>
+          </p>
         )}
 
         {arrangement && (
-          <>
-            <section className={styles.section} aria-labelledby="shapes-title">
-              <h2 id="shapes-title">Chord shapes</h2>
-              <ChordShapes arrangement={arrangement} />
-            </section>
+          <div className={styles.layout}>
+            <aside className={styles.left} aria-label="Sections and display">
+              <Card padding="sm" className={styles.panel}>
+                <h2 className={styles.panelTitle}>Sections</h2>
+                <SectionNav label="Sections" items={sectionItems} current={currentSection?.id} onSelect={goToSection} />
+              </Card>
+              <Card padding="sm" className={styles.panel}>
+                <h2 className={styles.panelTitle}>Display</h2>
+                <p className={styles.optionLabel}>Chord names</p>
+                <SegmentedControl
+                  label="Chord names"
+                  fullWidth
+                  tone="secondary"
+                  options={CHORD_NAME_OPTIONS}
+                  value={display.chordNames}
+                  onChange={(chordNames) => songStore.getState().setDisplay({ chordNames })}
+                />
+                <p className={styles.optionLabel}>Tab size</p>
+                <SegmentedControl
+                  label="Tab size"
+                  fullWidth
+                  tone="secondary"
+                  options={TAB_SIZES}
+                  value={display.tabSize}
+                  onChange={(tabSize) => songStore.getState().setDisplay({ tabSize })}
+                />
+                <Checkbox
+                  label="Fingering letters"
+                  checked={display.fingers}
+                  onChange={(fingers) => songStore.getState().setDisplay({ fingers })}
+                />
+                <Checkbox
+                  label="Legend"
+                  checked={display.legend}
+                  onChange={(legend) => songStore.getState().setDisplay({ legend })}
+                />
+              </Card>
+            </aside>
 
-            <section className={styles.section} aria-labelledby="tab-title">
-              <h2 id="tab-title">Tab</h2>
+            <SectionNav
+              className={styles.sectionChips}
+              label="Jump to section"
+              variant="chips"
+              items={sectionItems.map((x) => ({ ...x, title: x.title.replace('Section ', '') }))}
+              current={currentSection?.id}
+              onSelect={goToSection}
+            />
+
+            {/* Focusable: on desktop the rail scrolls on its own, and keyboard users must be able to scroll it. */}
+            <aside className={styles.right} aria-label="Chords" tabIndex={0}>
+              <Card padding="sm" className={styles.panel}>
+                <h2 className={styles.panelTitle}>Now and next</h2>
+                <NowNext arrangement={arrangement} tick={player.position} />
+              </Card>
+              <Card padding="sm" className={[styles.panel, styles.shapesPanel].join(' ')}>
+                <h2 className={styles.panelTitle}>Chord shapes</h2>
+                <ChordShapes arrangement={arrangement} variant="list" />
+              </Card>
+            </aside>
+
+            <section className={styles.center} aria-labelledby="tab-title">
+              <h2 id="tab-title" className={styles.srOnly}>
+                Tab
+              </h2>
+              {display.legend && <TabLegend arrangement={arrangement} />}
               <ViewTransition name="chords-card">
-                <Card padding="md" className={styles.tabCard}>
-                  <div ref={tabRef}>
-                    <TabSheet
-                      arrangement={arrangement}
-                      width={tabWidth}
-                      cursorIndex={player.cursor}
-                      label={`${STYLE_NAMES[style]} tab`}
-                      onSeek={(tick) => {
-                        follow.resume();
-                        void player.seek(tick, true);
-                      }}
-                      follow={follow.following}
-                      jumpKey={follow.jumpKey}
-                      onPlayheadView={follow.onPlayheadView}
-                      coveredBottom={playerHeight}
-                    />
-                  </div>
-                  <TabLegend arrangement={arrangement} />
-                </Card>
+                <div ref={tabRef} className={styles.tab}>
+                  <TabSheet
+                    arrangement={arrangement}
+                    width={tabWidth}
+                    variant="cards"
+                    sections={sections}
+                    size={display.tabSize}
+                    chordNames={display.chordNames}
+                    showFingers={display.fingers}
+                    cursorIndex={player.cursor}
+                    label={`${STYLE_NAMES[style]} tab`}
+                    onSeek={(tick) => {
+                      follow.resume();
+                      void player.seek(tick, true);
+                    }}
+                    follow={follow.following}
+                    jumpKey={follow.jumpKey}
+                    onPlayheadView={follow.onPlayheadView}
+                    coveredBottom={playerHeight}
+                  />
+                </div>
               </ViewTransition>
             </section>
-          </>
+          </div>
         )}
 
         <div className={styles.player} ref={playerRef}>
@@ -537,6 +566,104 @@ export default function SheetPage() {
           />
         </div>
       </main>
+
+      <Drawer open={customizing} title="Customize" onClose={() => setCustomizing(false)}>
+        <div className={styles.customize}>
+          <h3 className={styles.panelTitle}>Style</h3>
+          <SegmentedControl
+            label="Style"
+            fullWidth
+            options={STYLE_OPTIONS.map((o) => (o.value === 'flamenco' && !flamencoOk ? { ...o, disabled: true } : o))}
+            value={style}
+            onChange={(v: Style) => songStore.getState().setStyle(v)}
+          />
+          <p className={styles.hint}>
+            {STYLE_HINTS[style]}
+            {!flamencoOk && ' Flamenco needs a song in 4/4.'}
+          </p>
+
+          <div className={styles.levelRow}>
+            <h3 className={styles.panelTitle}>Level</h3>
+            <SegmentedControl
+              fullWidth
+              label="Level"
+              options={LEVELS}
+              value={prefs.level}
+              onChange={(v: Level) => songStore.getState().setLevel(v)}
+            />
+            {style === 'flamenco' && (
+              // DESIGN-REVIEW: screens.md shows the palo only as the card's sub-label; this is how you pick it.
+              <SegmentedControl
+                label="Palo"
+                options={PALOS}
+                value={prefs.palo}
+                onChange={(v) => songStore.getState().setPalo(v)}
+              />
+            )}
+            {shownMood && (
+              <Card padding="sm" className={styles.feel}>
+                <SegmentedControl
+                  label="Mood"
+                  tone="secondary"
+                  fullWidth
+                  options={MOOD_OPTIONS}
+                  value={moodLabelOf(shownMood)}
+                  onChange={(v) => nudgeMood(presetValues(v))}
+                />
+                <Slider
+                  label="Energy"
+                  minLabel="Calm"
+                  maxLabel="Driving"
+                  value={shownMood.energy}
+                  valueText={(v) => `${Math.round(v * 100)}%, ${energyWords(v)}`}
+                  onChange={(energy) => nudgeMood({ ...shownMood, energy })}
+                />
+                <Slider
+                  label="Colour"
+                  minLabel="Dark"
+                  maxLabel="Bright"
+                  value={shownMood.valence}
+                  valueText={(v) => `${Math.round(v * 100)}%, ${colourWords(v)}`}
+                  onChange={(valence) => nudgeMood({ ...shownMood, valence })}
+                />
+                {heardMood && edits.mood && (
+                  <p className={styles.feelNote}>
+                    It sounded {moodName(heardMood).toLowerCase()} to us.{' '}
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        clearTimeout(moodTimer.current);
+                        setMoodDraft(null);
+                        songStore.getState().resetMood();
+                      }}
+                    >
+                      Use what we heard
+                    </Button>
+                  </p>
+                )}
+              </Card>
+            )}
+            {pattern && (
+              <Card padding="sm" className={styles.pattern}>
+                <div>
+                  <b>{pattern.name}</b>
+                  <p>{pattern.hint}</p>
+                </div>
+                {patterns.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      songStore.getState().cyclePattern(patterns.length)
+                    }
+                  >
+                    Try another pattern
+                  </Button>
+                )}
+              </Card>
+            )}
+          </div>
+        </div>
+      </Drawer>
 
       <Dialog
         open={confirmNew}

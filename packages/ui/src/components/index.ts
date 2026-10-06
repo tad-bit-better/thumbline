@@ -18,3 +18,6 @@ export { Popover, type PopoverProps, type PopoverTriggerProps } from './Popover/
 export { TOAST_MS, ToastProvider, type ToastOptions, type ToastTone, useToast } from './Toast/Toast';
 export * from './glyphs';
 export { Logo, LogoMark, type LogoProps } from './Logo/Logo';
+export { Checkbox, type CheckboxProps } from './Checkbox/Checkbox';
+export { SectionNav, type SectionNavItem, type SectionNavProps } from './SectionNav/SectionNav';
+export { Drawer, type DrawerProps } from './Drawer/Drawer';

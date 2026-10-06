@@ -4,21 +4,70 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-top: var(--space-10);
+  margin-top: var(--space-8);
 }
 
-.clip {
+.heading {
+  min-width: 0;
+}
+
+.eyebrow {
   margin: 0 0 var(--space-1);
-  color: var(--color-ink-2);
-  font-family: var(--font-mono);
+  color: var(--color-ink-3);
   font-size: var(--text-mono);
+  font-weight: 700;
 }
 
 .title {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  font-size: var(--text-h1);
+  font-size: var(--text-h2);
+  letter-spacing: var(--tracking-tight);
+  overflow-wrap: anywhere;
+}
+
+/* Key, capo, time and tempo as small stat boxes, then "Edit chords". */
+.header > .navLink {
+  align-self: center;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.fact {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 84px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+
+.fact dt {
+  color: var(--color-ink-3);
+  font-size: var(--text-mono);
+  font-weight: 700;
+}
+
+.fact dd {
+  display: grid;
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+
+.factNote {
+  color: var(--color-ink-3);
+  font-size: var(--text-mono);
+  font-weight: 500;
 }
 
 .eq {
@@ -59,26 +108,22 @@
   }
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 .styles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-4);
-  margin-top: var(--space-6);
+  gap: var(--space-3);
   padding-top: var(--space-3);
 }
 
 .levelRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: var(--space-4);
-  margin-top: var(--space-6);
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-ink-2);
+  font-size: var(--text-small);
 }
 
 .levelRow > :first-child {
@@ -117,28 +162,214 @@
   font-size: var(--text-small);
 }
 
-.notes {
-  display: grid;
+.arrangementBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.arrangementText {
+  min-width: 0;
+}
+
+.arrangementActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.patternStep {
+  display: flex;
+  align-items: center;
   gap: var(--space-1);
-  margin: var(--space-4) 0 0;
-  padding: 0;
-  list-style: none;
+  color: var(--color-ink-2);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.notice p {
+  margin-top: var(--space-1);
   color: var(--color-ink-2);
   font-size: var(--text-small);
 }
 
-.section {
-  margin-top: var(--space-8);
+.warnings {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-orange-soft);
+  color: var(--color-ink);
+  font-size: var(--text-small);
 }
 
-.section h2 {
-  margin-bottom: var(--space-4);
-  font-size: var(--text-h3);
+.inlineLink {
+  color: var(--color-violet-deep);
+  font-weight: 700;
+  border-radius: var(--radius-sm);
 }
 
-.tabCard {
+.inlineLink:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+/* Three columns on desktop (screens.md §4): sections and display · bar cards · now/next and shapes. */
+.layout {
   display: grid;
-  gap: var(--space-5);
+  grid-template-columns: 260px minmax(0, 1fr) 260px;
+  grid-template-areas: 'left center right';
+  align-items: start;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.left {
+  grid-area: left;
+}
+
+.center {
+  grid-area: center;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.right {
+  grid-area: right;
+}
+
+.left,
+.right {
+  position: sticky;
+  top: var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Room for the cards' shadows and focus rings inside the scroll box. */
+  padding: 2px 4px var(--space-2);
+  margin: -2px -4px 0;
+}
+
+.right:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+  border-radius: var(--radius-lg);
+}
+
+.panel {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.optionLabel {
+  margin: var(--space-1) 0 calc(-1 * var(--space-2));
+  color: var(--color-ink-2);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.panelTitle {
+  margin: 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-mono);
+  font-weight: 700;
+}
+
+/* Section chips stand in for the left column below desktop width. */
+.sectionChips {
+  display: none;
+}
+
+.tab {
+  min-width: 0;
+}
+
+.customize {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Tablet and phone: one column. Sections become chips, the chords rail a strip above the tab,
+   display options go to the end. */
+@media (max-width: 1099px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'chips' 'right' 'center' 'left';
+  }
+
+  .left,
+  .right {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .left > :first-child {
+    display: none;
+  }
+
+  .sectionChips {
+    display: block;
+    grid-area: chips;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    padding: var(--space-2) 0;
+    background: var(--color-bg);
+  }
+
+  .right {
+    grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .shapesPanel ul {
+    display: flex;
+    gap: var(--space-3);
+    overflow-x: auto;
+  }
+
+  .shapesPanel li {
+    flex: none;
+  }
+}
+
+@media (max-width: 719px) {
+  .right {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shapesPanel {
+    display: none;
+  }
 }
 
 /* Sticky here, not on PlayerBar itself: a sticky element can't leave its parent,

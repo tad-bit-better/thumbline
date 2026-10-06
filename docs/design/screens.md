@@ -25,10 +25,17 @@ All screens: max content width 1200–1240px, fluid down to 360px; nav with logo
 - Optional: tapping a block plays that bar of the original.
 
 ## 4. Sheet (`/sheet`)
-- Header: clip name (mono), "Your sheet", equaliser icon while playing, chips for capo ("No capo needed" / "Capo on the 2nd fret") and key/meter. Links "Edit chords", "New song".
-- **Style row:** three StyleCards (Arpeggio, Fingerstyle, Flamenco with "Rumba"/"Tangos" sub-label).
-- **Level + pattern row:** SegmentedControl (Basic, Moderate, Advanced) with sliding pill; pattern card with name and one-line how-to. If a style has 2+ patterns per level, a small "Try another pattern" control cycles them.
-- **Chord shapes:** diagrams for every shape used, in order of appearance.
-- **Tab card:** systems of 4 bars (2 on narrow screens, horizontal scroll under 720px). Lanes: chord names, techniques (golpe chips, arrows), strings (bass notes on violet-soft chips), finger letters. Legend below. Reveal (#5) on every style/level change.
-- **Sticky player bar:** play sphere (breathing glow when idle), now-playing line ("Fingerstyle, Moderate" / "92 bpm, sheet and original"), mix segments (Sheet, Original, Both), speed (50%, 75%, 100%), loop toggle (v1: loop selected bars by dragging across the tab). Playhead glow (#7). First full play (#8).
-- Keyboard: Space play/pause, L loop, ←/→ previous/next bar, 1/2/3 level.
+v2 (2026-10-06, from the user's mock): use the width; the tab is the page, everything else sits around it.
+
+- **Header:** eyebrow "Your sheet", the song as h1 (the clip's file name without its extension, underscores or a download site's tag; title and artist aren't split, since files put them either way round). Facts on the right as small stat boxes: Key ("F major · sounds B♭" under a capo), Capo ("5th fret" / "None"), Time ("4/4"), Original tempo ("76 bpm"), then "Edit chords" (to Review). "New song" stays in the nav.
+- **Arrangement bar** (card, full width): label "Arrangement" over "Fingerstyle · Advanced · Warm · Pop groove" (style, level, mood, pattern). Right: "Pattern 2 of 7" between previous/next chevrons, and **Customize** (primary), which opens a side panel from the right (a bottom sheet under 720px) holding Style (a segmented control with a one-line description; the big style cards stay on Upload), Level, Palo, the Feel card (mood, energy, colour) and the pattern's name and how-to. The tab stays visible behind it, so changes are seen and heard.
+- **Notices** under the bar: one summary line for the warnings ("3 chords are simplified for capo 5 and 2 need a barre. Review chords") and "Add the tune" when the song has none.
+- **Desktop (≥ 1100px): three columns.**
+  - Left (260px, sticky): **Sections**, a list of the song's phrases (Section A, B, A… with "Bars 1–8"), the playing one highlighted; choosing one jumps the playhead there and scrolls to it. **Display**: chord names (Shape · Sound · Both), tab size (S · M · L), fingering letters and legend checkboxes. Saved per device.
+  - Middle: a one-line legend (when on), then the tab as **bar cards** in a grid under section headings. Each card: bar number, chord name(s) with what they sound like, badges (Barre, Simplified); the strings without the chord lane. The playing bar's card is highlighted (violet-soft fill, violet ring) and carries the playhead. Columns from the tab size: S ≈ 190px, M ≈ 240px, L ≈ 330px a card. The Sheet page may grow to 1440px wide (other pages stay at 1200px).
+  - Right (260px, sticky): **Now and next**, the playing chord's diagram (highlighted) and the next one. **Chord shapes**, every shape in order with "sounds …" and its notes (Barre, Simplified).
+- **Tablet (720–1099px):** the left column becomes a row above the tab (section chips, display options); the right column moves above the tab as a horizontal strip (now/next, then the shapes).
+- **Phone (< 720px):** section chips (scrolling row), now/next, one bar card per row, the player compact at the bottom.
+- **Sticky player bar:** as before (play sphere, now-playing line, Sheet · Original · Both, speed, loop). Playhead glow (#7). First full play (#8). Count-in, a bpm stepper and bar-range loops are not in this version (user, 2026-10-06: "not sure about this yet").
+- Keyboard: Space play/pause, L loop, ←/→ previous/next bar, 1/2/3 level, F back to the playhead.
+- Tab notation stays as it is (tune notes bold on an orange chip, thumb notes on a violet chip); the mock's circled tune and underlined bass are deferred.

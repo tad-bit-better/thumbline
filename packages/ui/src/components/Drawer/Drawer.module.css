@@ -1,0 +1,106 @@
+/* The <dialog> fills the window so a click outside the panel lands on it (the backdrop). */
+.drawer {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  overflow: hidden;
+  transition:
+    overlay var(--dur-glide) allow-discrete,
+    display var(--dur-glide) allow-discrete;
+}
+
+.drawer::backdrop {
+  background: color-mix(in srgb, var(--color-ink) 18%, transparent);
+  transition: opacity var(--dur-glide) var(--ease-glide);
+}
+
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100vw);
+  height: 100%;
+  border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card-hover);
+  transform: none;
+  transition: transform var(--dur-glide) var(--ease-glide);
+}
+
+.drawer:not([open]) .panel {
+  transform: translateX(100%);
+}
+
+@starting-style {
+  .drawer[open] .panel {
+    transform: translateX(100%);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-6) 0;
+}
+
+.title {
+  margin: 0;
+  padding-top: var(--space-2);
+  font-size: var(--text-h3);
+  font-weight: 800;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-6) var(--space-8);
+}
+
+/* Narrow screens: a bottom sheet. */
+@media (max-width: 719px) {
+  .panel {
+    top: auto;
+    bottom: 0;
+    width: 100vw;
+    height: auto;
+    max-height: 88dvh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  .drawer:not([open]) .panel {
+    transform: translateY(100%);
+  }
+
+  @starting-style {
+    .drawer[open] .panel {
+      transform: translateY(100%);
+    }
+  }
+}
+
+/* Reduced motion: no slide, the panel just appears. */
+.drawer[data-reduced-motion] .panel,
+.drawer[data-reduced-motion]:not([open]) .panel {
+  transform: none;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .drawer:not([open]) .panel {
+    transform: none;
+    transition: none;
+  }
+}

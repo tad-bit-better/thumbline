@@ -150,3 +150,18 @@ const LONG = longSheet(200);
 
 /** Done-when for M3: 200 bars render in under 50 ms. */
 export const LongSong: Story = { render: () => <Timed arrangement={LONG} width={1040} /> };
+
+// Card mode (screens.md §4, Sheet v2): one card per bar under section headings.
+const SONG = 'F | C | E7 | Am | F | C | E7 | Am | Dm | G | C | Am | Dm | E7 | Am | Am';
+const SECTIONS = [
+  { id: 'a', title: 'Section A', detail: 'Bars 1–8', firstBar: 0, bars: 8 },
+  { id: 'b', title: 'Section B', detail: 'Bars 9–16', firstBar: 8, bars: 8 },
+];
+export const Cards: Story = { args: { arrangement: sheet(SONG, 'fingerstyle', 'moderate'), variant: 'cards', sections: SECTIONS, width: 900 } };
+export const CardsSmall: Story = { args: { ...Cards.args, size: 's' } };
+export const CardsLarge: Story = { args: { ...Cards.args, size: 'l' } };
+/** The playing bar's card is highlighted and carries the playhead. */
+export const CardsPlaying: Story = { args: { ...Cards.args, cursorIndex: 30 } };
+/** Under a capo: shape, sounding or both. */
+export const CardsSoundingNames: Story = { args: { arrangement: sheet('F# | D#m | B | C#', 'arpeggio', 'moderate'), variant: 'cards', chordNames: 'sounding', width: 900 } };
+export const CardsPhone: Story = { args: { ...Cards.args, width: 340 } };

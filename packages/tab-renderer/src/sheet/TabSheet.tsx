@@ -10,6 +10,18 @@ const FINGER_Y = GEOMETRY.stringTop + 5 * GEOMETRY.stringGap + GEOMETRY.fingerLa
 const CHORD_Y = GEOMETRY.chordLane - 10;
 const PLAYHEAD_TOP = GEOMETRY.stringTop - 14;
 const PLAYHEAD_BOTTOM = GEOMETRY.stringTop + 5 * GEOMETRY.stringGap + 14;
+/** Bar cards name their chords above the card, so the drawing starts below the chord lane. */
+const CARD_CROP = GEOMETRY.chordLane - 6;
+/** Card width to aim for at each tab size (px); the grid fits as many as the width allows. */
+const CARD_TARGET = { s: 190, m: 240, l: 330 } as const;
+/** Gap between cards and their padding (px): --space-3. */
+const CARD_GAP = 12;
+const CARD_PAD = 12;
+
+export type ChordNameMode = 'shape' | 'sounding' | 'both';
+export type TabSize = keyof typeof CARD_TARGET;
+/** A run of bars shown under one heading in card mode. */
+export type TabSection = { id: string; title: string; detail?: string; firstBar: number; bars: number };
 
 export type TabSheetProps = {
   arrangement: Arrangement;
@@ -33,6 +45,14 @@ export type TabSheetProps = {
   onPlayheadView?: (where: PlayheadView) => void;
   /** Px at the bottom of the window covered by something (a sticky player bar): a row behind it isn't in view. */
   coveredBottom?: number;
+  /** `lines`: systems of 1–4 bars. `cards`: one card per bar in a grid, under section headings. */
+  variant?: 'lines' | 'cards';
+  /** Card mode: headings over runs of bars. Without them the cards form one grid. */
+  sections?: readonly TabSection[];
+  /** What a chord is called under a capo: the shape you finger, what it sounds like, or both (default). */
+  chordNames?: ChordNameMode;
+  /** Card mode: how big each card is drawn (default m). */
+  size?: TabSize;
   className?: string;
 };
 
@@ -41,6 +61,13 @@ export type PlayheadView = 'above' | 'visible' | 'below';
 function systemLabel(s: SystemLayout) {
   const bars = s.barCount > 1 ? `Bars ${s.firstBar + 1}–${s.firstBar + s.barCount}` : `Bar ${s.firstBar + 1}`;
   return `${bars}: ${s.chords.map((c) => c.name).join(', ')}`;
+}
+
+/** A chord as the reader asked to see it. */
+function chordText(c: { name: string; sounding?: string }, mode: ChordNameMode) {
+  if (mode === 'shape' || !c.sounding) return { main: c.name };
+  if (mode === 'sounding') return { main: c.sounding };
+  return { main: c.name, sounds: c.sounding };
 }
 
 type SystemViewProps = {
@@ -55,6 +82,9 @@ type SystemViewProps = {
   arrangement: Arrangement;
   glow: boolean;
   onSeek?: (tick: number) => void;
+  chordNames: ChordNameMode;
+  /** Card mode: no bar number or chord lane (the card heads them), and the drawing scales to the card. */
+  card?: boolean;
 };
 
 const SystemView = memo(function SystemView({
@@ -68,7 +98,11 @@ const SystemView = memo(function SystemView({
   arrangement,
   glow,
   onSeek,
+  chordNames,
+  card = false,
 }: SystemViewProps) {
+  const top = card ? CARD_CROP : 0;
+  const height = GEOMETRY.systemHeight - top;
   const stringEnd = s.barLines[s.barLines.length - 1];
   const notes = s.notes.map((n) => {
     const w = n.text.length * 7.8 + 6;
@@ -92,7 +126,7 @@ const SystemView = memo(function SystemView({
 
   return (
     <svg
-      className={styles['system']}
+      className={card ? styles['cardSystem'] : styles['system']}
       data-seekable={onSeek ? '' : undefined}
       onClick={
         onSeek &&
@@ -100,26 +134,34 @@ const SystemView = memo(function SystemView({
           // The SVG can be scaled by CSS: map the click back to layout units.
           const box = e.currentTarget.getBoundingClientRect();
           const x = (e.clientX - box.left) * (box.width ? layout.width / box.width : 1);
+          // (card mode crops the top, not the sides: x maps the same way)
           const tick = tickAtX(layout, s, x);
           if (tick !== null) onSeek(tick);
         })
       }
-      width={layout.width}
-      height={GEOMETRY.systemHeight}
-      viewBox={`0 0 ${layout.width} ${GEOMETRY.systemHeight}`}
+      width={card ? undefined : layout.width}
+      height={card ? undefined : height}
+      viewBox={`0 ${top} ${layout.width} ${height}`}
       role="img"
       aria-label={systemLabel(s)}
       data-system={s.index}
     >
-      <text className={styles['barNumber']} x={2} y={CHORD_Y}>
-        {s.firstBar + 1}
-      </text>
-      {s.chords.map((c) => (
-        <text key={c.tick} className={styles['chord']} x={c.x} y={CHORD_Y} data-chord="">
-          {c.name}
-          {c.sounding && <tspan className={styles['sounding']}>({c.sounding})</tspan>}
-        </text>
-      ))}
+      {!card && (
+        <>
+          <text className={styles['barNumber']} x={2} y={CHORD_Y}>
+            {s.firstBar + 1}
+          </text>
+          {s.chords.map((c) => {
+            const t = chordText(c, chordNames);
+            return (
+              <text key={c.tick} className={styles['chord']} x={c.x} y={CHORD_Y} data-chord="">
+                {t.main}
+                {t.sounds && <tspan className={styles['sounding']}>({t.sounds})</tspan>}
+              </text>
+            );
+          })}
+        </>
+      )}
 
       {s.stringY.map((y, string) => (
         <g key={string}>
@@ -160,6 +202,38 @@ const SystemView = memo(function SystemView({
   );
 });
 
+/**
+ * A bar card's head: its number, its chords as the reader asked (the chord carried in from the
+ * bar before when it doesn't change), and badges for shapes that need a barre or were simplified.
+ */
+function CardHead({ system: s, arrangement, chordNames }: { system: SystemLayout; arrangement: Arrangement; chordNames: ChordNameMode }) {
+  const marks = arrangement.chordMarks.filter((m) => m.tick >= s.start && m.tick < s.end);
+  const carried = marks.length ? [] : arrangement.chordMarks.filter((m) => m.tick < s.start).slice(-1);
+  const shown = [...carried, ...marks];
+  const capo = arrangement.capo > 0;
+  return (
+    <div className={styles['cardHead']}>
+      <span className={styles['cardBar']} data-bar-number="">
+        {s.firstBar + 1}
+      </span>
+      <span className={styles['cardChords']} data-card-chord="">
+        {shown.map((m, i) => {
+          const t = chordText({ name: m.voicing.name, sounding: capo && m.soundingName !== m.voicing.name ? m.soundingName : undefined }, chordNames);
+          return (
+            <span key={m.tick} className={carried.length ? styles['carried'] : undefined}>
+              {i > 0 && ' · '}
+              <b>{t.main}</b>
+              {t.sounds && <span className={styles['cardSounds']}> sounds {t.sounds}</span>}
+            </span>
+          );
+        })}
+      </span>
+      {marks.some((m) => m.voicing.barre) && <span className={styles['badge']}>Barre</span>}
+      {marks.some((m) => m.voicing.simplified) && <span className={styles['badge']}>Simplified</span>}
+    </div>
+  );
+}
+
 /** The tab: chord names, techniques, six strings (high e on top), right-hand fingers and the playhead. */
 export function TabSheet({
   arrangement,
@@ -174,9 +248,17 @@ export function TabSheet({
   jumpKey,
   onPlayheadView,
   coveredBottom = 0,
+  variant = 'lines',
+  sections,
+  chordNames = 'both',
+  size = 'm',
   className,
 }: TabSheetProps) {
-  const layout = useMemo(() => layoutSheet(arrangement, width), [arrangement, width]);
+  const cards = variant === 'cards';
+  // Card mode: as many columns as fit the tab size; one bar a card, drawn at the card's inner width.
+  const cols = cards ? Math.max(1, Math.floor((width + CARD_GAP) / (CARD_TARGET[size] + CARD_GAP))) : 1;
+  const inner = cards ? Math.floor((width - CARD_GAP * (cols - 1)) / cols) - 2 * CARD_PAD : width;
+  const layout = useMemo(() => layoutSheet(arrangement, inner, cards ? { barsPerSystem: 1 } : {}), [arrangement, inner, cards]);
   const reduced = useReducedMotion();
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -230,6 +312,66 @@ export function TabSheet({
 
   if (!layout.systems.length) return null;
 
+  const view = (s: SystemLayout) => {
+    const here = cursor?.system === s.index;
+    return (
+      <SystemView
+        key={s.index}
+        system={s}
+        layout={layout}
+        showFingers={showFingers}
+        showTechniques={showTechniques}
+        revealKey={revealKey}
+        playheadX={here ? cursor?.x : undefined}
+        activeTick={here ? activeTick : undefined}
+        arrangement={arrangement}
+        glow={!reduced}
+        onSeek={onSeek}
+        chordNames={chordNames}
+        card={cards}
+      />
+    );
+  };
+
+  if (cards) {
+    const card = (s: SystemLayout) => (
+      <div key={s.index} className={styles['card']} data-bar-card={s.index} data-active={cursor?.system === s.index ? '' : undefined}>
+        <CardHead system={s} arrangement={arrangement} chordNames={chordNames} />
+        {view(s)}
+      </div>
+    );
+    const grid = (systems: SystemLayout[]) => (
+      <div className={styles['cards']} data-cards="" style={{ ['--cols' as string]: String(cols) }}>
+        {systems.map(card)}
+      </div>
+    );
+    return (
+      <div
+        ref={sheetRef}
+        role="region"
+        aria-label={label}
+        tabIndex={0}
+        className={[styles['cardSheet'], className].filter(Boolean).join(' ')}
+        data-reduced-motion={reduced ? '' : undefined}
+      >
+        {sections?.length
+          ? sections.map((sec) => {
+              const headingId = `${label.replace(/\W+/g, '-')}-${sec.id}`;
+              return (
+                <div key={sec.id} role="group" aria-labelledby={headingId} className={styles['cardSection']} data-section={sec.id}>
+                  <h3 id={headingId} className={styles['sectionTitle']}>
+                    {sec.title}
+                    {sec.detail && <span className={styles['sectionDetail']}>{sec.detail}</span>}
+                  </h3>
+                  {grid(layout.systems.slice(sec.firstBar, sec.firstBar + sec.bars))}
+                </div>
+              );
+            })
+          : grid(layout.systems)}
+      </div>
+    );
+  }
+
   return (
     // Focusable so keyboard users can scroll a sheet wider than its container.
     <div
@@ -240,24 +382,7 @@ export function TabSheet({
       className={[styles['sheet'], className].filter(Boolean).join(' ')}
       data-reduced-motion={reduced ? '' : undefined}
     >
-      {layout.systems.map((s) => {
-        const here = cursor?.system === s.index;
-        return (
-          <SystemView
-            key={s.index}
-            system={s}
-            layout={layout}
-            showFingers={showFingers}
-            showTechniques={showTechniques}
-            revealKey={revealKey}
-            playheadX={here ? cursor?.x : undefined}
-            activeTick={here ? activeTick : undefined}
-            arrangement={arrangement}
-            glow={!reduced}
-            onSeek={onSeek}
-          />
-        );
-      })}
+      {layout.systems.map(view)}
     </div>
   );
 }

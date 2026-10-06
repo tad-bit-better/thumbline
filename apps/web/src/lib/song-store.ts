@@ -30,6 +30,16 @@ export type SheetPrefs = {
   pattern: Partial<Record<string, number>>;
   mix: Mix;
   speed: Speed;
+  /** How the tab is shown (Sheet v2, screens.md §4). */
+  display: DisplayPrefs;
+};
+
+export type DisplayPrefs = {
+  /** Under a capo: the shape, what it sounds like, or both. */
+  chordNames: 'shape' | 'sounding' | 'both';
+  tabSize: 's' | 'm' | 'l';
+  fingers: boolean;
+  legend: boolean;
 };
 
 type Saved = { meta: SongMeta | null; file: Blob | null; analysis: AnalysisResult | null; edits: Edits; prefs: SheetPrefs };
@@ -56,8 +66,9 @@ export type SongState = Saved & {
   setStyle: (style: Style) => void;
   setLevel: (level: Level) => void;
   setPalo: (palo: Palo) => void;
-  /** Move to the next of `count` patterns for the current style and level. */
-  cyclePattern: (count: number) => void;
+  /** Move to the next (or, with step -1, the previous) of `count` patterns for the current style and level. */
+  cyclePattern: (count: number, step?: 1 | -1) => void;
+  setDisplay: (display: Partial<DisplayPrefs>) => void;
   setMix: (mix: Mix) => void;
   setSpeed: (speed: Speed) => void;
   clear: () => void;
@@ -75,7 +86,8 @@ export type Storage = {
 const KEY = 'thumbline:song:v1';
 const CLIP_KEY = 'thumbline:clip:v1';
 const EMPTY_EDITS: Edits = { chords: {}, confirmed: [] };
-const DEFAULT_PREFS: SheetPrefs = { style: 'arpeggio', level: 'basic', palo: 'rumba', pattern: {}, mix: 'both', speed: 1 };
+export const DEFAULT_DISPLAY: DisplayPrefs = { chordNames: 'both', tabSize: 'm', fingers: true, legend: true };
+const DEFAULT_PREFS: SheetPrefs = { style: 'arpeggio', level: 'basic', palo: 'rumba', pattern: {}, mix: 'both', speed: 1, display: DEFAULT_DISPLAY };
 
 export function memoryStorage(): Storage {
   const map = new Map<string, unknown>();
@@ -139,10 +151,15 @@ export function createSongStore(storage: Storage) {
       setStyle: (style) => update({ prefs: { ...getState().prefs, style } }),
       setLevel: (level) => update({ prefs: { ...getState().prefs, level } }),
       setPalo: (palo) => update({ prefs: { ...getState().prefs, palo } }),
-      cyclePattern: (count) => {
+      cyclePattern: (count, step = 1) => {
         const { prefs } = getState();
         const key = patternKey();
-        update({ prefs: { ...prefs, pattern: { ...prefs.pattern, [key]: ((prefs.pattern[key] ?? 0) + 1) % Math.max(1, count) } } });
+        const n = Math.max(1, count);
+        update({ prefs: { ...prefs, pattern: { ...prefs.pattern, [key]: ((((prefs.pattern[key] ?? 0) + step) % n) + n) % n } } });
+      },
+      setDisplay: (display) => {
+        const { prefs } = getState();
+        update({ prefs: { ...prefs, display: { ...prefs.display, ...display } } });
       },
       setMix: (mix) => update({ prefs: { ...getState().prefs, mix } }),
       setSpeed: (speed) => update({ prefs: { ...getState().prefs, speed } }),
@@ -162,7 +179,7 @@ export function createSongStore(storage: Storage) {
                 file: clip ? new Blob([clip.bytes], { type: clip.type }) : (saved.file ?? null),
                 analysis: saved.analysis ?? null,
                 edits: migrateEdits(saved.edits),
-                prefs: { ...DEFAULT_PREFS, ...saved.prefs },
+                prefs: { ...DEFAULT_PREFS, ...saved.prefs, display: { ...DEFAULT_DISPLAY, ...saved.prefs?.display } },
               }
             : {}),
         });

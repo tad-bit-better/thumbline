@@ -82,16 +82,21 @@ const ACCENT_BESIDE_GOLPE = 13;
 
 const STRING_Y = Array.from({ length: 6 }, (_, s) => GEOMETRY.stringTop + (5 - s) * GEOMETRY.stringGap);
 
+export type LayoutOptions = {
+  /** Fix the bars per system (bar cards use 1); otherwise 1–4, as many as fit. */
+  barsPerSystem?: number;
+};
+
 /** Pure layout of an arrangement for a given width; wraps 1–4 bars per system. */
-export function layoutSheet(a: Arrangement, width: number): SheetLayout {
+export function layoutSheet(a: Arrangement, width: number, options: LayoutOptions = {}): SheetLayout {
   const G = GEOMETRY;
   const barTicks = a.meter.beatsPerBar * TICKS_PER_BEAT;
   const step = a.events.every((e) => e.tick % EIGHTH === 0) ? EIGHTH : SIXTEENTH;
   const cols = barTicks / step;
   const minBar = cols * G.minColWidth[step] + 2 * G.barPad;
   const usable = width - G.left - G.right;
-  const barsPerSystem = Math.max(1, Math.min(MAX_BARS_PER_SYSTEM, Math.floor(usable / minBar)));
-  const sheetWidth = Math.max(width, G.left + G.right + minBar);
+  const barsPerSystem = options.barsPerSystem ?? Math.max(1, Math.min(MAX_BARS_PER_SYSTEM, Math.floor(usable / minBar)));
+  const sheetWidth = Math.max(width, G.left + G.right + minBar * barsPerSystem);
   const barWidth = (sheetWidth - G.left - G.right) / barsPerSystem;
   const colWidth = (barWidth - 2 * G.barPad) / cols;
 

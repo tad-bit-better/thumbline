@@ -68,6 +68,21 @@ describe('song store', () => {
     expect(store.getState().prefs.pattern['arpeggio.basic']).toBe(0);
   });
 
+  it('steps back through patterns, wrapping round', () => {
+    const store = createSongStore(memoryStorage());
+    store.getState().cyclePattern(3, -1);
+    expect(store.getState().prefs.pattern['arpeggio.basic']).toBe(2);
+    store.getState().cyclePattern(3, -1);
+    expect(store.getState().prefs.pattern['arpeggio.basic']).toBe(1);
+  });
+
+  it('keeps display options, and fills in ones saved before they existed', async () => {
+    const storage = memoryStorage();
+    const a = createSongStore(storage);
+    a.getState().setDisplay({ tabSize: 'l', legend: false });
+    expect(a.getState().prefs.display).toEqual({ chordNames: 'both', tabSize: 'l', fingers: true, legend: false });
+  });
+
   it('persists and restores the song, file included', async () => {
     const storage = memoryStorage();
     const a = createSongStore(storage);

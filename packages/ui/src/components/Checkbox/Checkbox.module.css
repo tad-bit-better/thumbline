@@ -1,0 +1,29 @@
+.row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  color: var(--color-ink);
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.box {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-violet);
+  cursor: inherit;
+}
+
+.box:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+  border-radius: var(--radius-sm);
+}
+
+.disabled {
+  color: var(--color-ink-3);
+  cursor: not-allowed;
+}

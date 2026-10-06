@@ -267,6 +267,13 @@ User ask (2026-10-06): "how can we improve the SEO performance of the app and br
 - [ ] **Launch:** Reddit (r/fingerstyle, r/guitarlessons, r/classicalguitar, r/flamenco), Show HN (in-browser analysis, audio never leaves the device), Product Hunt, AlternativeTo next to Chordify and Songsterr, short videos, guitar teachers.
 - [ ] **Measure:** Google Search Console (no code); optional cookieless analytics (a new third-party call: the user decides; never audio).
 
+### M13: Sheet screen v2 (use the width)
+User mock (2026-10-06): three columns on desktop, bar cards, arrangement summary with Customize, now/next and chord shapes in a right rail, section navigation, display options; phone: section chips, now/next, one bar per row, compact player. Decisions: bar cards; Customize in a side panel; no song library, count-in, bpm stepper or bar-range loops for now; notation unchanged. Spec: docs/design/screens.md §4.
+- [x] `packages/ui`: Checkbox, SectionNav (list and chips), Drawer (side panel / bottom sheet), chevron glyphs, with stories and tests; full-width segmented controls size from their track.
+- [x] `packages/tab-renderer`: bar-card mode for TabSheet (sections, chord-name mode, tab size S/M/L), NowNext, chord shapes as a list with badges.
+- [x] `apps/web`: the new Sheet page (header facts, arrangement bar with pattern stepping, Customize panel, one-line notices, three columns up to 1440px, tablet and phone layouts); display options saved with the song; `useWidth` now observes when its element appears; unit and e2e tests updated (chromium e2e passing locally).
+- [ ] Compact player bar for phones (moved from M6).
+
 ### M8: Polish and launch
 - [x] Final dotLottie files for the 8 moments replace CSS placeholders. _(#1 Pick drop, #3 Metronome (swings at the detected tempo), #4 Chord confirmed, #8 First full play, built by `tools/make-lottie.mjs`, 0.9–2.6 KB each; #2 stays the CSS wave; #5–#7 are in code. Renderer WASM self-hosted, not from a CDN.)_
 - [ ] Accessibility pass: keyboard play/stop/loop, tab screen-reader summary, focus order, reduced motion.
