@@ -13,13 +13,15 @@ describe('LogoMark', () => {
   it('draws the thumbprint flowing into the strings, with fret numbers', () => {
     const { container } = render(<LogoMark size={64} />);
     expect(container.querySelectorAll('[data-ridge]')).toHaveLength(6);
-    expect(container.textContent).toBe('025');
+    expect(container.querySelectorAll('[data-fret]')).toHaveLength(3);
+    // Drawn, not typed: no stray "025" in the page's text.
+    expect(container.textContent).toBe('');
   });
 
   it('draws fewer, bolder ridges and no numbers at favicon size', () => {
     const { container } = render(<LogoMark size={16} />);
     expect(container.querySelectorAll('[data-ridge]')).toHaveLength(3);
-    expect(container.textContent).toBe('');
+    expect(container.querySelectorAll('[data-fret]')).toHaveLength(0);
   });
 
   it('uses unique gradient ids per instance', () => {

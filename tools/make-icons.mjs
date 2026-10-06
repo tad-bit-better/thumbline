@@ -2,7 +2,9 @@
 // geometry comes from the mark's geometry module and the icon recipe, the colours from tokens.css,
 // so a change to the logo is a code review, not a file swap.
 //   node tools/make-icons.mjs
-// Writes apps/web/src/app/icon.svg, apps/web/src/app/apple-icon.png and apps/web/public/favicon.ico.
+// Writes apps/web/src/app/icon.svg, apple-icon.png, opengraph-image.png and twitter-image.png
+// (with their alt text), and apps/web/public/favicon.ico and the install icons (icon-192.png,
+// icon-512.png, icon-maskable-512.png).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +25,7 @@ const token = (name) => {
 // (TypeScript without type-only syntax, which Node runs directly).
 const recipe = read('packages/ui/src/icons3d/recipe.tsx');
 const PICK_PATH = /PICK_PATH = '([^']+)'/.exec(recipe)[1];
-const { FRETS, PICK_TRANSFORM, RIDGE_WIDTH, STRINGS_REGION, ridges } = await import('../packages/ui/src/components/Logo/geometry.ts');
+const { DIGIT_WIDTH, FRETS, PICK_TRANSFORM, RIDGE_WIDTH, STRINGS_REGION, ridges } = await import('../packages/ui/src/components/Logo/geometry.ts');
 
 /**
  * The mark as a standalone SVG: the Tile recipe (rounded rect + gloss band) without the
@@ -38,7 +40,7 @@ function markSvg({ full = false, detail = 'full' } = {}) {
   const r = STRINGS_REGION;
   const frets =
     detail === 'full'
-      ? FRETS.map(({ x, y, text }) => `<rect x="${x - 2.1}" y="${y - 2.6}" width="4.2" height="5.2" rx="1.2" fill="url(#t)"/><text x="${x}" y="${y + 1.7}" text-anchor="middle" font-family="IBM Plex Mono, ui-monospace, Menlo, monospace" font-weight="600" font-size="4.8" fill="${ridge}">${text}</text>`).join('')
+      ? FRETS.map(({ x, y, d }) => `<rect x="${x - 2.1}" y="${y - 2.6}" width="4.2" height="5.2" rx="1.2" fill="url(#t)"/><path d="${d}" fill="none" stroke="${ridge}" stroke-width="${DIGIT_WIDTH}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')
       : '';
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 <defs>
@@ -66,6 +68,31 @@ async function png(svg, size) {
   return page.screenshot({ omitBackground: true, clip: { x: 0, y: 0, width: size, height: size } });
 }
 
+/** Android's maskable icon: the full-bleed tile, the mark shrunk into the middle 80% safe zone. */
+function maskableSvg() {
+  return markSvg({ full: true }).replace(/(<\/defs>\n<rect width="64" height="64" fill="url\(#t\)"\/>)([\s\S]*)(<\/svg>)/, '$1<g transform="translate(6.4 6.4) scale(0.8)">$2</g>$3');
+}
+
+/**
+ * The link preview (Open Graph / X card), 1200 × 630: the mark, the promise in the headline
+ * voice (Bricolage Grotesque 800), the styles, and the address. Brand colours from the tokens;
+ * the font is fetched only while this script runs, never by the app.
+ */
+async function socialCard() {
+  await page.setViewportSize({ width: 1200, height: 630 });
+  const mark = markSvg().replace('<svg ', '<svg width="300" height="300" ');
+  await page.setContent(`<html><head><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=IBM+Plex+Mono:wght@500&display=block" rel="stylesheet"></head>
+<body style="margin:0;width:1200px;height:630px;background:${token('color-bg')};font-family:'Bricolage Grotesque',sans-serif;color:${token('color-ink')};display:flex;align-items:center;gap:56px;padding:0 88px;box-sizing:border-box">
+<div style="flex:none">${mark}</div>
+<div>
+<div style="font-weight:800;font-size:72px;line-height:1.02;letter-spacing:-0.035em">Turn any song into a <span style="color:${token('color-violet')}">right-hand</span> guitar sheet.</div>
+<div style="margin-top:28px;font-weight:600;font-size:30px;color:${token('color-ink-2')}">Arpeggio · Fingerstyle · Flamenco, from Basic to Advanced. Free, in your browser.</div>
+<div style="margin-top:28px;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:26px;color:${token('color-violet-deep')}">thumbline.app</div>
+</div></body></html>`);
+  await page.evaluate(() => document.fonts.ready);
+  return page.screenshot({ clip: { x: 0, y: 0, width: 1200, height: 630 } });
+}
+
 /** An .ico holding PNG images (supported by every current browser). */
 function ico(images) {
   const header = Buffer.alloc(6 + 16 * images.length);
@@ -90,7 +117,16 @@ function ico(images) {
 const tab = markSvg({ detail: 'small' });
 writeFileSync(join(ROOT, 'apps/web/src/app/icon.svg'), tab);
 writeFileSync(join(ROOT, 'apps/web/src/app/apple-icon.png'), await png(markSvg({ full: true }), 180));
+const card = await socialCard();
+const CARD_ALT = 'Thumbline: turn any song into a right-hand guitar sheet. Arpeggio, fingerstyle and flamenco, from Basic to Advanced, free in your browser.';
+for (const name of ['opengraph-image', 'twitter-image']) {
+  writeFileSync(join(ROOT, `apps/web/src/app/${name}.png`), card);
+  writeFileSync(join(ROOT, `apps/web/src/app/${name}.alt.txt`), CARD_ALT);
+}
+writeFileSync(join(ROOT, 'apps/web/public/icon-192.png'), await png(markSvg({ full: true }), 192));
+writeFileSync(join(ROOT, 'apps/web/public/icon-512.png'), await png(markSvg({ full: true }), 512));
+writeFileSync(join(ROOT, 'apps/web/public/icon-maskable-512.png'), await png(maskableSvg(), 512));
 const sizes = [16, 32, 48];
 writeFileSync(join(ROOT, 'apps/web/public/favicon.ico'), ico(await Promise.all(sizes.map(async (size) => ({ size, data: await png(tab, size) })))));
 await browser.close();
-console.log('Wrote icon.svg, apple-icon.png and favicon.ico');
+console.log('Wrote icon.svg, apple-icon.png, the social card, favicon.ico and the install icons');

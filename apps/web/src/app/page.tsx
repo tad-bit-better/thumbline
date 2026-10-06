@@ -24,6 +24,7 @@ import {
 } from 'react';
 import { AppShell } from '../components/AppShell';
 import { LOTTIE } from '../lib/lottie';
+import { FAQ } from '../lib/site';
 import { songStore, useSong } from '../lib/song-store';
 import styles from './page.module.css';
 
@@ -59,6 +60,13 @@ const STEPS = [
   ['Play along', 'Your sheet plays with the original, at any speed.'],
 ] as const;
 
+/** The questions below as FAQPage structured data (schema.org), for search results. */
+const FAQ_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQ.map(({ q, a }) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+};
+
 export default function Upload() {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -67,14 +75,17 @@ export default function Upload() {
   const [dropping, setDropping] = useState(0);
   const uploadError = useSong((s) => s.uploadError);
   const reduced = useReducedMotion();
-  // Warm the animation player while the page is idle, so the Pick drop starts at once.
+  // Warm the animation player at the visitor's first sign of life (a pointer, a key, a file
+  // dragged in), so the Pick drop starts at once but page load never pays for it (~160 KB).
   useEffect(() => {
     if (reduced) return;
-    const idle =
-      window.requestIdleCallback ??
-      ((fn: () => void) => window.setTimeout(fn, 1500));
-    const id = idle(() => preloadLottie());
-    return () => (window.cancelIdleCallback ?? window.clearTimeout)(id);
+    const events = ['pointermove', 'pointerdown', 'keydown', 'dragenter'] as const;
+    const warm = () => {
+      events.forEach((e) => window.removeEventListener(e, warm));
+      preloadLottie();
+    };
+    events.forEach((e) => window.addEventListener(e, warm, { passive: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, warm));
   }, [reduced]);
   const visible = usePageVisible();
 
@@ -240,6 +251,20 @@ export default function Upload() {
               </li>
             ))}
           </ol>
+        </section>
+
+        {/* DESIGN-REVIEW: not in screens.md; plain cards in the steps' style, no accordion, so every answer is readable (and indexable) at once. */}
+        <section id="questions" className={styles.section}>
+          <h2>Questions</h2>
+          <dl className={styles.faq}>
+            {FAQ.map(({ q, a }) => (
+              <div key={q} className={styles.faqItem}>
+                <dt>{q}</dt>
+                <dd>{a}</dd>
+              </div>
+            ))}
+          </dl>
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }} />
         </section>
       </main>
 

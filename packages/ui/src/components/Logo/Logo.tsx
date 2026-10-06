@@ -1,5 +1,5 @@
 import { BlurFilter, Frame, GroundShadow, type Icon3DProps, LitGradient, PICK_PATH, Tile, TileGradient, color, useIconIds } from '../../icons3d/recipe';
-import { FRETS, PICK_TRANSFORM, RIDGE_WIDTH, SMALL_BELOW, STRINGS_REGION, ridges } from './geometry';
+import { DIGIT_WIDTH, FRETS, PICK_TRANSFORM, RIDGE_WIDTH, SMALL_BELOW, STRINGS_REGION, ridges } from './geometry';
 import styles from './Logo.module.css';
 
 /**
@@ -33,13 +33,11 @@ export function LogoMark(props: Icon3DProps) {
         ))}
       </g>
       {detail === 'full' &&
-        FRETS.map(({ x, y, text }) => (
-          <g key={text}>
+        FRETS.map(({ x, y, digit, d }) => (
+          <g key={digit} data-fret="">
             {/* A fret number sits in a gap in its string, as in a tab. */}
             <rect x={x - 2.1} y={y - 2.6} width={4.2} height={5.2} rx={1.2} fill={`url(#${id.tile})`} />
-            <text x={x} y={y + 1.7} textAnchor="middle" style={{ fill: ridgeColour, fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 4.8 }}>
-              {text}
-            </text>
+            <path d={d} style={{ fill: 'none', stroke: ridgeColour, strokeWidth: DIGIT_WIDTH, strokeLinecap: 'round', strokeLinejoin: 'round' }} />
           </g>
         ))}
     </Frame>

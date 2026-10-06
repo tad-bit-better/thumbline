@@ -64,12 +64,25 @@ export function ridges(detail: Detail): string[] {
   ];
 }
 
-/** Fret numbers on three strings (full detail): x, string y, digit. */
-export const FRETS = [
-  { x: 48.5, y: 15.5, text: '0' },
-  { x: 51, y: 25.5, text: '2' },
-  { x: 48.5, y: 36.5, text: '5' },
-] as const;
+/**
+ * Digits drawn as strokes, centred on (x, y), about 2.8 wide and 4.2 tall. Paths, not text:
+ * the mark needs no font, and crawlers don't read "0 2 5" as page text.
+ */
+const DIGITS: Record<'0' | '2' | '5', (x: number, y: number) => string> = {
+  '0': (x, y) => `M${x} ${y - 2.1}c1.3 0 1.4 1.1 1.4 2.1s-.1 2.1-1.4 2.1-1.4-1.1-1.4-2.1.1-2.1 1.4-2.1z`,
+  '2': (x, y) => `M${x - 1.3} ${y - 1.1}c.2-.8.7-1.1 1.3-1.1.8 0 1.3.5 1.3 1.2 0 1.3-2.6 2.2-2.6 3.1h2.7`,
+  '5': (x, y) => `M${x + 1.3} ${y - 2.1}h-2.4l-.3 1.9c.4-.3.8-.4 1.2-.4.9 0 1.5.6 1.5 1.4s-.6 1.4-1.5 1.4c-.6 0-1.1-.3-1.3-.7`,
+};
+
+/** Fret numbers on three strings (full detail): where each sits (a gap in its string) and its strokes. */
+export const FRETS = ([
+  [48.5, 15.5, '0'],
+  [51, 25.5, '2'],
+  [48.5, 36.5, '5'],
+] as const).map(([x, y, digit]) => ({ x, y, digit, d: DIGITS[digit](x, y) }));
+
+/** Stroke width of the fret digits. */
+export const DIGIT_WIDTH = 0.95;
 
 /** Ridge stroke width per detail (the small mark draws bolder lines). */
 export const RIDGE_WIDTH: Record<Detail, number> = { full: 1.25, small: 2.2 };

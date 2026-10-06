@@ -275,3 +275,28 @@
   font-size: var(--text-small);
 }
 
+
+/* Questions */
+.faq {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-7) 0 0;
+}
+
+.faqItem {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+
+.faqItem dt {
+  font-weight: 700;
+  font-size: var(--text-body);
+}
+
+.faqItem dd {
+  margin: var(--space-2) 0 0;
+  color: var(--color-ink-2);
+}
