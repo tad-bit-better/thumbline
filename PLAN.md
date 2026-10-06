@@ -282,6 +282,7 @@ User mock (2026-10-06): three columns on desktop, bar cards, arrangement summary
 - [ ] Performance: first-load JS < 200 KB gzipped; essentia WASM and Lottie files lazy-loaded; LCP < 2 s.
 - [ ] Design review (moved from M2) of `DESIGN-REVIEW` notes in `packages/ui` (popover radius 18px has no token; using `--radius-md`). Loop periods and toast duration live in `motion/springs.ts`; promote to tokens if wanted.
 - [ ] Offline (service worker), CONTRIBUTING with "add a pattern" guide.
+- [ ] Listen screen mascot (user idea, 2026-10-06; parked, no effort for now): one cute 3D-style dog, one scene per step. Finding the beat: digging the ground while notes pop out (dig at the detected tempo, as the metronome swings now). Hearing the chords: ears resting on a guitar, listening hard. Following the tune: chasing notes with hearts popping out. Writing your sheets: writing the sheet. Needs an animator: one character in four short matching loops as `.lottie` files, with commercial rights (LottieFiles, Dribbble or Fiverr, roughly $300–1,500); stock animations won't keep the same dog across scenes; rendered 3D as alpha video is the heavier alternative. Code side: swap the scene by step with a crossfade, the metronome as the fallback until the files land, a still frame under reduced motion, loaded only on Listen; add the four to the named moments in `docs/design/motion.md`.
 - [x] Deploy: Vercel, https://thumbline.app (apps/web/vercel.json; pushes to main deploy).
 
 ## 6. Design references
