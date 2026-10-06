@@ -11,6 +11,7 @@ import { addFills } from './fills.js';
 import { harmonise } from './harmony.js';
 import { addRolls } from './rolls.js';
 import { walkBass } from './walk.js';
+import { DEFAULT_FULLNESS, checkFullness, fullnessRules } from './fullness.js';
 import { moveTopLine } from './topline.js';
 import type {
   AnalysisResult,
@@ -198,11 +199,28 @@ export function placeSongBass(voicing: Voicing, bassPc: number): StringFret | un
   return best?.spot;
 }
 
+/**
+ * engine-spec §4 fullness 1–2: while a tune note sounds, the pattern's finger
+ * notes give way ('all'), or those off the beat ('offbeat'); the thumb stays.
+ */
+function thinUnderTune(notes: NoteEvent[], thin: 'all' | 'offbeat' | null): NoteEvent[] {
+  if (!thin) return notes;
+  const tune = notes.filter((e) => e.melody);
+  return notes.filter((e) => {
+    if (e.melody || e.finger === 'p' || e.fret < 0) return true;
+    if (thin === 'offbeat' && e.tick % TICKS_PER_BEAT === 0) return true;
+    return !tune.some((t) => t.tick <= e.tick && e.tick < t.tick + t.dur);
+  });
+}
+
 /** engine-spec §3: AnalysisResult + style + level → playable Arrangement. */
 export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangement {
   const { beatsPerBar } = input.meter;
   const barTicks = beatsPerBar * TICKS_PER_BEAT;
   const palo = resolvePalo(opts);
+  const fullness = opts.fullness ?? DEFAULT_FULLNESS;
+  checkFullness(fullness);
+  const full = fullnessRules(fullness, opts.level);
   const feel = opts.mood !== undefined ? moodValuesOf(opts.mood) : input.mood;
   const mood = feel ? moodLabelOf(feel) : undefined;
   const candidates = patternCandidates(opts.style, opts.level, beatsPerBar, opts.patternId, palo, mood);
@@ -267,14 +285,14 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
   events.sort((a, b) => a.tick - b.tick || a.string - b.string);
   // A slow roll opens each phrase and ends the song (M11); flamenco has its own strums.
   // ...and the thumb walks into the next chord (M11).
-  const rolled = opts.style === 'flamenco' ? events : walkBass(addRolls(events, spans, beatsPerBar, feel), spans, opts.level);
+  const rolled = opts.style === 'flamenco' ? events : walkBass(addRolls(events, spans, beatsPerBar, feel), spans, full.walk ?? 'basic', full.walkMinChord);
   // The tune on top (M9) when we have one; otherwise an invented top line (M6b).
-  const tune = opts.melody !== false && input.melody?.length ? placeMelody(quantiseMelody(input, opts.level, songEnd), spans, capo, opts.level) : [];
+  const tune = opts.melody !== false && input.melody?.length ? placeMelody(quantiseMelody(input, opts.level, songEnd, full.tuneGrid), spans, capo, opts.level) : [];
   let notes = rolled;
   // The tune on top, harmonised with the chord (M11).
-  if (tune.length) notes = harmonise(mergeMelody(rolled, tune, spans), spans, opts.level, beatsPerBar);
+  if (tune.length) notes = harmonise(thinUnderTune(mergeMelody(rolled, tune, spans), full.thin), spans, opts.level, beatsPerBar, full.harmony);
   // Where the tune rests, a short run into its next note (M11); flamenco keeps its own vocabulary.
-  if (tune.length && opts.style !== 'flamenco') notes = addFills(notes, spans, opts.level);
+  if (tune.length && opts.style !== 'flamenco') notes = addFills(notes, spans, opts.level, { rest: full.fillRest, rhythms: full.fillRhythms, trim: full.fillTrim });
   // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
   else if (opts.style !== 'flamenco') moveTopLine(rolled, spans, opts.level, toShape(input.key));
 

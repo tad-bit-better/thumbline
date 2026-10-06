@@ -73,7 +73,7 @@ beforeEach(() => {
   songStore.setState({ hydrated: true });
   songStore.getState().startSong(new File([new Uint8Array(4)], 'wonderwall.mp3', { type: 'audio/mpeg' }));
   songStore.getState().setAnalysis(analysis);
-  songStore.setState({ prefs: { style: 'arpeggio', level: 'basic', pattern: {}, mix: 'both', originalLevel: 0.9, speed: 1 } });
+  songStore.setState({ prefs: { style: 'arpeggio', level: 'basic', pattern: {}, mix: 'both', originalLevel: 0.9, fullness: 5, speed: 1 } });
 });
 
 describe('Sheet screen', () => {
@@ -153,6 +153,16 @@ describe('Sheet screen', () => {
     expect(songStore.getState().prefs.palo).toBe('tangos');
     expect(screen.getByText('Tangos strum', { selector: 'b' })).toBeTruthy();
     expect(screen.getByText(/Flamenco \(Tangos\), Basic/)).toBeTruthy();
+  });
+
+  it('sets how full the sheet is in Customize, once the slider rests', async () => {
+    render(<Sheet />);
+    fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
+    const slider = screen.getByRole('slider', { name: 'Fullness: 5 of 10' });
+    expect(slider.getAttribute('aria-valuetext')).toBe('5 of 10, as written');
+    fireEvent.change(slider, { target: { value: String(7 / 9) } });
+    expect(screen.getByRole('slider', { name: 'Fullness: 8 of 10' })).toBeTruthy();
+    await waitFor(() => expect(songStore.getState().prefs.fullness).toBe(8));
   });
 
   it('offers flamenco only for songs in 4/4', () => {

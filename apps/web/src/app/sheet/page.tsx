@@ -83,6 +83,9 @@ const STICKY_GAP_PX = 16;
 
 /** How long a mood slider rests before the sheet re-arranges (a debounce, not an animation). */
 const MOOD_SETTLE_MS = 300;
+const FULLNESS_NOTE = 'Higher fills the pauses in the tune and adds harmony under it. It never plays faster.';
+/** What a screen reader says for a fullness setting. */
+const fullnessWords = (f: number) => `${f} of 10, ${f <= 2 ? 'sparse' : f <= 4 ? 'light' : f <= 6 ? 'as written' : f <= 8 ? 'fuller' : 'full'}`;
 
 const CHORD_NAME_OPTIONS = [
   { value: 'shape', label: 'Shape' },
@@ -162,6 +165,19 @@ export default function SheetPage() {
       setMoodDraft(null);
     }, MOOD_SETTLE_MS);
   };
+  // Fullness, like the mood sliders: shown at once, applied once the hand rests.
+  const [fullnessDraft, setFullnessDraft] = useState<number | null>(null);
+  const fullnessTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(fullnessTimer.current), []);
+  const shownFullness = fullnessDraft ?? prefs.fullness;
+  const nudgeFullness = (next: number) => {
+    setFullnessDraft(next);
+    clearTimeout(fullnessTimer.current);
+    fullnessTimer.current = setTimeout(() => {
+      songStore.getState().setFullness(next);
+      setFullnessDraft(null);
+    }, MOOD_SETTLE_MS);
+  };
   const heardMood = analysis ? detectedMood(analysis) : undefined;
   const mood = moodValues ? moodLabelOf(moodValues) : undefined;
   const patterns = useMemo(
@@ -185,11 +201,12 @@ export default function SheetPage() {
         patternId: pattern.id,
         palo,
         mood: moodValues,
+        fullness: prefs.fullness,
       });
     } catch {
       return null;
     }
-  }, [effective, style, prefs.level, pattern, palo, moodValues]);
+  }, [effective, style, prefs.level, pattern, palo, moodValues, prefs.fullness]);
 
   const onEnd = useCallback(
     (wholeSong: boolean) => {
@@ -591,6 +608,16 @@ export default function SheetPage() {
                 onChange={(v) => songStore.getState().setPalo(v)}
               />
             )}
+            <Slider
+              label={`Fullness: ${shownFullness} of 10`}
+              minLabel="Sparse"
+              maxLabel="Full"
+              value={(shownFullness - 1) / 9}
+              step={1 / 9}
+              valueText={(v) => fullnessWords(Math.round(1 + v * 9))}
+              onChange={(v) => nudgeFullness(Math.round(1 + v * 9))}
+            />
+            <p className={styles.fullnessNote}>{FULLNESS_NOTE}</p>
             {shownMood && (
               <Card padding="sm" className={styles.feel}>
                 <SegmentedControl

@@ -1,6 +1,7 @@
 import { chordTones } from './chords.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import { type ChordSpan, isPlayable } from './runner.js';
+import type { HarmonyRule } from './fullness.js';
 import type { BeatsPerBar, Finger, Level, NoteEvent } from './types.js';
 
 /** engine-spec: MIDI of each open string (shape space). */
@@ -21,13 +22,19 @@ const midiOf = (e: NoteEvent) => OPEN_MIDI[e.string] + e.fret;
 
 const spanAt = (spans: readonly ChordSpan[], tick: number) => spans.find((s) => s.start <= tick && tick < s.end);
 
-/** How many voices a tune note gets under it at this level (0 = none). */
-function voicesFor(level: Level, tick: number, dur: number, bar: number): number {
-  if (level === 'basic') return 0;
+/** How many voices a tune note gets under it under this rule (0 = none). */
+function voicesFor(rule: HarmonyRule, tick: number, dur: number, bar: number): number {
+  if (rule === 'none') return 0;
   const onBar = tick % bar === 0;
   const onBeat = tick % TICKS_PER_BEAT === 0;
-  if (level === 'advanced') return onBar && dur >= TICKS_PER_BEAT / 2 ? 2 : onBeat && dur >= TICKS_PER_BEAT / 2 ? 1 : 0;
-  return (onBar && dur >= TICKS_PER_BEAT / 2) || (onBeat && dur >= TICKS_PER_BEAT) ? 1 : 0;
+  const eighth = dur >= TICKS_PER_BEAT / 2;
+  if (rule === 'moderate') return (onBar && eighth) || (onBeat && dur >= TICKS_PER_BEAT) ? 1 : 0;
+  if (onBar && eighth) return 2;
+  // Richest: any note on a beat gets two.
+  if (rule === 'richest' && onBeat && eighth) return 2;
+  if (onBeat && eighth) return 1;
+  // Rich and richest: off-beat notes of an eighth or more get one too.
+  return rule !== 'advanced' && eighth ? 1 : 0;
 }
 
 /**
@@ -40,16 +47,24 @@ function voicesFor(level: Level, tick: number, dur: number, bar: number): number
  * strings 2–4 below the tune's string, played by the fingers the tune leaves
  * free (a → m, i; m → i), within the hand's reach with everything else at that
  * moment. A pattern note already sounding such a tone (a roll's, a pinch's)
- * counts, and is marked and held as harmony. The harmony
+ * counts, and is marked and held as harmony. The fullness (§4) can ask for
+ * more: `rule` rich also harmonises off-beat tune notes of an eighth or more,
+ * richest gives every note on a beat (an eighth or longer) two voices. The harmony
  * replaces pattern notes on its string while it rings, at 0.8 of the tune's
  * velocity, for at most a beat. Basic stays plain.
  */
-export function harmonise(events: readonly NoteEvent[], spans: readonly ChordSpan[], level: Level, beatsPerBar: BeatsPerBar): NoteEvent[] {
-  if (level === 'basic') return [...events];
+export function harmonise(
+  events: readonly NoteEvent[],
+  spans: readonly ChordSpan[],
+  level: Level,
+  beatsPerBar: BeatsPerBar,
+  rule: HarmonyRule = level === 'basic' ? 'none' : level,
+): NoteEvent[] {
+  if (rule === 'none') return [...events];
   const bar = beatsPerBar * TICKS_PER_BEAT;
   let out = [...events];
   for (const tune of events.filter((e) => e.melody)) {
-    const want = voicesFor(level, tune.tick, tune.dur, bar);
+    const want = voicesFor(rule, tune.tick, tune.dur, bar);
     const span = spanAt(spans, tune.tick);
     if (!want || !span) continue;
     const tones = chordTones(span.played);

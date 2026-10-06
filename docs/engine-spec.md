@@ -186,6 +186,8 @@ type Arrangement = {
 // Main entry
 function arrange(input: AnalysisResult, opts: {
   style: Style; level: Level; patternId?: string; capo?: number | 'auto'; palo?: string;
+  melody?: boolean; mood?: MoodLabel | Mood;
+  fullness?: number;   // 1 (sparse) – 10 (full), whole numbers, default 5 (§4 fullness)
 }): Arrangement;
 ```
 
@@ -206,6 +208,8 @@ function arrange(input: AnalysisResult, opts: {
 **Drone and pedal.** A `drone` is the open 1st string, else the open 2nd, when its note is in the key's scale (chord tones included), whatever the chord; otherwise the shape's top note. A `pedal` is the key's tonic, else its fifth, on an open E, A or D string; otherwise the chord's bass. Neither uses an open string a barre covers. The chord's own bass still sounds on each chord change. The moving top line doesn't apply to flamenco.
 
 **Playability check.** Reject a pattern for a chord if any simultaneous notes need a fret span > 4 or more than 4 fretted fingers; fall back to the next pattern at the same level, then the level below.
+
+**Fullness (2026-10-07).** How much the guitar fills in, 1–10; 5 plays exactly as the level always did. It fills silences and adds harmony; it never makes the rhythm faster than the level's (16ths at most, eighths for Basic), and Basic stays plain until 8. 1–2: no fills, harmony or walking bass, and while a tune note sounds the pattern's finger notes give way (1: all, 2: those off the beat; the thumb stays); Moderate and Advanced hear the tune on eighths (also at 3). 3–4: fills only into rests of two beats or more; no harmony at 3; no walking bass. 5–6: as written. 7–8: fills into rests of half a beat or more (a half-beat rest gets one eighth pickup); Moderate's fills run eighths over two beats, Advanced's add a beat of eighths before its run when three beats are free; a rest too short for the longest run gets its tail from the first eighth inside the rest, when that keeps more notes; harmony one step richer (Moderate's rule → Advanced's → rich: off-beat tune notes of an eighth or more get a voice → richest: every on-beat note gets two); the bass walks into chords of two beats or more. Basic from 8: the tune on eighths, and Moderate's fills (plus the pickup), harmony and walks. 9–10: harmony two steps richer.
 
 **Vary by section (M11).** Unless the user picked a pattern, for fingerstyle and arpeggio songs longer than 8 bars, each bar's pattern follows its section: quiet (soft) bars play the level's first purely calm pattern (moods only Sad and Warm) when the main one isn't; full bars play the main pattern (the mood's first); a stretch of normal bars plays the main pattern for 8 bars, then the level's next pattern that suits the mood for 8, and so on (the count restarts at each section change). Without `beatEnergy` every bar is normal. Each chord tries its bar's pattern first, then the usual candidates (§4). `patternChanges` lists where it changes; `patternId` stays the main one.
 

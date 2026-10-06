@@ -1,6 +1,7 @@
 import { TICKS_PER_BEAT } from './constants.js';
 import { placeNear } from './melody.js';
 import { type ChordSpan, isPlayable } from './runner.js';
+import { type FillRhythm, fullnessRules } from './fullness.js';
 import type { Finger, Level, NoteEvent } from './types.js';
 
 /** engine-spec: MIDI of each open string (shape space). */
@@ -8,15 +9,6 @@ const OPEN_MIDI = [40, 45, 50, 55, 59, 64] as const;
 /** Fills stay in the tune's range on the top strings. */
 const LOWEST = 55;
 const HIGHEST = 76;
-/** The tune has to rest this long before a fill comes in. */
-const MIN_REST = TICKS_PER_BEAT;
-/** Fill rhythms, ticks from the window's start: Moderate two eighths in the last beat; Advanced two eighths then four sixteenths over the last two. */
-const RHYTHM: Record<'moderate' | 'advanced', { span: number; at: number[] }> = {
-  moderate: { span: TICKS_PER_BEAT, at: [0, 240] },
-  advanced: { span: 2 * TICKS_PER_BEAT, at: [0, 240, 480, 600, 720, 840] },
-};
-/** Advanced, with less room than two beats: four sixteenths in the last beat. */
-const ADVANCED_SHORT = { span: TICKS_PER_BEAT, at: [0, 120, 240, 360] };
 const FILL_VELOCITY = 0.7;
 const FINGERS: Finger[] = ['i', 'm'];
 const STEPS: Record<string, number[]> = {
@@ -51,10 +43,18 @@ function approach(target: number, count: number, fromBelow: boolean, scale: Set<
  * the hand, fingers i and m alternating, a step of one or two frets on the same
  * string a sixteenth apart slurred (Advanced). The pattern's finger notes in
  * the window give way; the thumb's bass stays, and a fill note that the hand
- * can't hold with it is left out. Basic and flamenco play no fills.
+ * can't hold with it is left out. Basic and flamenco play no fills. The
+ * fullness (§4) sets how long the rest must be and the rhythms (`rules`; by
+ * default the level's own, as above): the longest rhythm that fits the rest.
  */
-export function addFills(events: readonly NoteEvent[], spans: readonly ChordSpan[], level: Level): NoteEvent[] {
-  if (level === 'basic') return [...events];
+export function addFills(
+  events: readonly NoteEvent[],
+  spans: readonly ChordSpan[],
+  level: Level,
+  rules: { rest: number | null; rhythms: readonly FillRhythm[]; trim?: boolean } = (({ fillRest, fillRhythms }) => ({ rest: fillRest, rhythms: fillRhythms }))(fullnessRules(5, level)),
+): NoteEvent[] {
+  if (rules.rest === null || !rules.rhythms.length) return [...events];
+  const minRest = rules.rest;
   const tune = events.filter((e) => e.melody).sort((a, b) => a.tick - b.tick);
   let out = [...events];
   for (let i = 1; i < tune.length; i++) {
@@ -62,8 +62,16 @@ export function addFills(events: readonly NoteEvent[], spans: readonly ChordSpan
     const next = tune[i];
     const restFrom = last.tick + last.dur;
     const rest = next.tick - restFrom;
-    if (rest < MIN_REST) continue;
-    const rhythm = level === 'advanced' && rest < RHYTHM.advanced.span ? ADVANCED_SHORT : RHYTHM[level];
+    if (rest < minRest) continue;
+    let rhythm = rules.rhythms.find((r) => r.span <= rest);
+    if (rules.trim && rhythm !== rules.rhythms[0]) {
+      // The longest run's tail, from the first eighth inside the rest.
+      const longest = rules.rhythms[0];
+      const room = Math.floor(rest / (TICKS_PER_BEAT / 2)) * (TICKS_PER_BEAT / 2);
+      const tail = { span: room, at: longest.at.filter((t) => t >= longest.span - room).map((t) => t - (longest.span - room)) };
+      if (tail.at.length > (rhythm?.at.length ?? 0)) rhythm = tail;
+    }
+    if (!rhythm) continue;
     const from = next.tick - rhythm.span;
     const span = spanAt(spans, from);
     if (!span?.key) continue;

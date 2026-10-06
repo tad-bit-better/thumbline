@@ -31,6 +31,8 @@ export type SheetPrefs = {
   mix: Mix;
   /** The original under the sheet in Both, 0–1. */
   originalLevel: number;
+  /** How much the guitar fills in, 1–10 (engine-spec §4 fullness). */
+  fullness: number;
   speed: Speed;
   /** How the tab is shown (Sheet v2, screens.md §4). */
   display: DisplayPrefs;
@@ -73,6 +75,7 @@ export type SongState = Saved & {
   setDisplay: (display: Partial<DisplayPrefs>) => void;
   setMix: (mix: Mix) => void;
   setOriginalLevel: (level: number) => void;
+  setFullness: (fullness: number) => void;
   setSpeed: (speed: Speed) => void;
   clear: () => void;
   hydrate: () => Promise<void>;
@@ -90,7 +93,7 @@ const KEY = 'thumbline:song:v1';
 const CLIP_KEY = 'thumbline:clip:v1';
 const EMPTY_EDITS: Edits = { chords: {}, confirmed: [] };
 export const DEFAULT_DISPLAY: DisplayPrefs = { chordNames: 'both', tabSize: 'm', fingers: true, legend: true };
-const DEFAULT_PREFS: SheetPrefs = { style: 'arpeggio', level: 'basic', palo: 'rumba', pattern: {}, mix: 'both', originalLevel: 0.9, speed: 1, display: DEFAULT_DISPLAY };
+const DEFAULT_PREFS: SheetPrefs = { style: 'arpeggio', level: 'basic', palo: 'rumba', pattern: {}, mix: 'both', originalLevel: 0.9, fullness: 5, speed: 1, display: DEFAULT_DISPLAY };
 
 export function memoryStorage(): Storage {
   const map = new Map<string, unknown>();
@@ -166,6 +169,7 @@ export function createSongStore(storage: Storage) {
       },
       setMix: (mix) => update({ prefs: { ...getState().prefs, mix } }),
       setOriginalLevel: (originalLevel) => update({ prefs: { ...getState().prefs, originalLevel } }),
+      setFullness: (fullness) => update({ prefs: { ...getState().prefs, fullness } }),
       setSpeed: (speed) => update({ prefs: { ...getState().prefs, speed } }),
       clear: () => {
         saveClip(null);

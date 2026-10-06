@@ -43,14 +43,15 @@ function placeBass(midi: number, span: ChordSpan): { string: number; fret: numbe
  * Each goes on a bass string (0–2) near the shape's hand position, replacing
  * the thumb's note (and any note on that string) at that moment, and only if
  * the hand can hold it with the rest. Basic and flamenco keep their bass.
+ * A fuller setting (§4) walks into chords of `minChord` ticks or more.
  */
-export function walkBass(events: readonly NoteEvent[], spans: readonly ChordSpan[], level: Level): NoteEvent[] {
+export function walkBass(events: readonly NoteEvent[], spans: readonly ChordSpan[], level: Level, minChord = MIN_CHORD): NoteEvent[] {
   if (level === 'basic') return [...events];
   let out = [...events];
   for (let i = 0; i + 1 < spans.length; i++) {
     const cur = spans[i];
     const next = spans[i + 1];
-    if (next.start !== cur.end || cur.end - cur.start < MIN_CHORD) continue;
+    if (next.start !== cur.end || cur.end - cur.start < minChord) continue;
     const from = bassOf(cur);
     const to = bassOf(next);
     if (Math.abs(to - from) <= 2) continue;

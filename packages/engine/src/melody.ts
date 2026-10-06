@@ -49,12 +49,17 @@ export function secToTick(beatTimesSec: readonly number[], barStartBeat: number)
 
 /**
  * engine-spec §4 melody: the tune on the arrangement's grid. Moderate and
- * Advanced: onsets on the nearest 16th, one note per slot (the longer wins).
- * Basic: one note per beat, the one sounding on the beat (or starting just
+ * Advanced: onsets on the nearest 16th (or `grid`, from the fullness), one
+ * note per slot (the longer wins). Basic: one note per beat, the one sounding on the beat (or starting just
  * after it). Each note lasts until the next, up to a beat and a half. Pitch
  * stays as sung.
  */
-export function quantiseMelody(input: Pick<AnalysisResult, 'melody' | 'beatTimesSec' | 'barStartBeat'>, level: Level, songEnd: number): MelodyLineNote[] {
+export function quantiseMelody(
+  input: Pick<AnalysisResult, 'melody' | 'beatTimesSec' | 'barStartBeat'>,
+  level: Level,
+  songEnd: number,
+  grid: 'beat' | number = level === 'basic' ? 'beat' : SIXTEENTH,
+): MelodyLineNote[] {
   const toTick = secToTick(input.beatTimesSec, input.barStartBeat);
   const raw = (input.melody ?? [])
     .map((n) => {
@@ -64,21 +69,21 @@ export function quantiseMelody(input: Pick<AnalysisResult, 'melody' | 'beatTimes
     .filter((n) => n.tick >= -SIXTEENTH / 2 && n.tick < songEnd);
 
   const slots = new Map<number, { tick: number; end: number; midi: number }>();
-  if (level === 'basic') {
+  if (grid === 'beat') {
     for (let beat = 0; beat < songEnd; beat += TICKS_PER_BEAT) {
       const sounding = raw.find((n) => n.tick <= beat + SIXTEENTH / 2 && n.end > beat) ?? raw.find((n) => n.tick > beat && n.tick < beat + SIXTEENTH * 1.5);
       if (sounding) slots.set(beat, { ...sounding, tick: beat });
     }
   } else {
     for (const n of raw) {
-      const tick = Math.max(0, Math.round(n.tick / SIXTEENTH) * SIXTEENTH);
+      const tick = Math.max(0, Math.round(n.tick / grid) * grid);
       const prev = slots.get(tick);
       if (!prev || n.end - n.tick > prev.end - prev.tick) slots.set(tick, { ...n, tick });
     }
   }
   const line = [...slots.values()].sort((a, b) => a.tick - b.tick);
   // Basic: a beat that repeats the note still sounding ties over.
-  const tied = level === 'basic' ? line.filter((n, i) => !(i > 0 && line[i - 1].midi === n.midi && line[i - 1].end >= n.tick)) : line;
+  const tied = grid === 'beat' ? line.filter((n, i) => !(i > 0 && line[i - 1].midi === n.midi && line[i - 1].end >= n.tick)) : line;
   return tied.map((n, i) => {
     const next = tied[i + 1]?.tick ?? songEnd;
     const sung = Math.max(SIXTEENTH, Math.round((n.end - n.tick) / SIXTEENTH) * SIXTEENTH + SIXTEENTH);

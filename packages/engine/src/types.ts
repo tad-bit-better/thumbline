@@ -235,4 +235,6 @@ export type ArrangeOptions = {
   melody?: boolean;
   /** Override the detected mood: a preset, or the sliders' values. */
   mood?: MoodLabel | Mood;
+  /** How much the guitar fills in, 1 (sparse) to 10 (full); default 5 (engine-spec §4 fullness). */
+  fullness?: number;
 };
