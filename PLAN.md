@@ -272,6 +272,7 @@ User mock (2026-10-06): three columns on desktop, bar cards, arrangement summary
 - [x] `packages/ui`: Checkbox, SectionNav (list and chips), Drawer (side panel / bottom sheet), chevron glyphs, with stories and tests; full-width segmented controls size from their track.
 - [x] `packages/tab-renderer`: bar-card mode for TabSheet (sections, chord-name mode, tab size S/M/L), NowNext, chord shapes as a list with badges.
 - [x] `apps/web`: the new Sheet page (header facts, arrangement bar with pattern stepping, Customize panel, one-line notices, three columns up to 1440px, tablet and phone layouts); display options saved with the song; `useWidth` now observes when its element appears; unit and e2e tests updated (chromium e2e passing locally).
+- [x] Sections column dropped (user, 2026-10-06: "it is unnecessarily eating up the space"): headings stay over the bar cards; Display moved into a popover in the arrangement bar; the tab gets a card per row back.
 - [ ] Compact player bar for phones (moved from M6).
 
 ### M8: Polish and launch

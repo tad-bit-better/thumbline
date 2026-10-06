@@ -226,18 +226,14 @@
   box-shadow: var(--ring-focus);
 }
 
-/* Three columns on desktop (screens.md §4): sections and display · bar cards · now/next and shapes. */
+/* Two columns on desktop (screens.md §4): bar cards · now/next and shapes. */
 .layout {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 260px;
-  grid-template-areas: 'left center right';
+  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-areas: 'center right';
   align-items: start;
   gap: var(--space-6);
   margin-top: var(--space-6);
-}
-
-.left {
-  grid-area: left;
 }
 
 .center {
@@ -251,7 +247,6 @@
   grid-area: right;
 }
 
-.left,
 .right {
   position: sticky;
   top: var(--space-4);
@@ -291,13 +286,17 @@
   font-weight: 700;
 }
 
-/* Section chips stand in for the left column below desktop width. */
-.sectionChips {
-  display: none;
-}
-
 .tab {
   min-width: 0;
+}
+
+.displayPanel {
+  width: min(300px, calc(100vw - 2 * var(--space-4)));
+}
+
+.displayOptions {
+  display: grid;
+  gap: var(--space-3);
 }
 
 .customize {
@@ -317,33 +316,17 @@
   border: 0;
 }
 
-/* Tablet and phone: one column. Sections become chips, the chords rail a strip above the tab,
-   display options go to the end. */
+/* Tablet and phone: one column, the chords rail a strip above the tab. */
 @media (max-width: 1099px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'chips' 'right' 'center' 'left';
+    grid-template-areas: 'right' 'center';
   }
 
-  .left,
   .right {
     position: static;
     max-height: none;
     overflow: visible;
-  }
-
-  .left > :first-child {
-    display: none;
-  }
-
-  .sectionChips {
-    display: block;
-    grid-area: chips;
-    position: sticky;
-    top: 0;
-    z-index: 4;
-    padding: var(--space-2) 0;
-    background: var(--color-bg);
   }
 
   .right {
@@ -363,6 +346,18 @@
 }
 
 @media (max-width: 719px) {
+  /* The bar's actions: the pattern stepper on its own row, then Display and Customize side by side. */
+  .arrangementActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .patternStep {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
   .right {
     grid-template-columns: minmax(0, 1fr);
   }

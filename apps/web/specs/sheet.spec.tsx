@@ -96,23 +96,22 @@ describe('Sheet screen', () => {
     expect(screen.getByText('Arpeggio · Basic · Let it ring')).toBeTruthy();
   });
 
-  it('lists the sections and jumps to one', async () => {
+  it('groups the bar cards under section headings', () => {
     render(<Sheet />);
-    const nav = screen.getAllByRole('navigation', { name: 'Sections' })[0];
-    const buttons = nav.querySelectorAll('button');
-    expect(buttons.length).toBeGreaterThan(0);
-    fireEvent.click(buttons[buttons.length - 1]);
-    const slider = screen.getByRole('slider', { name: 'Position in song' });
-    expect(slider.getAttribute('aria-valuetext')).not.toBe('Bar 1 of 8');
+    const tab = screen.getByRole('region', { name: 'Arpeggio tab' });
+    expect(tab.querySelectorAll('[data-section] h3').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('navigation', { name: 'Sections' })).toBeNull();
   });
 
   it('shows now and next chords, and the display options change the tab', () => {
     const { container } = render(<Sheet />);
     expect(screen.getByRole('list', { name: 'Now and next chords' })).toBeTruthy();
     expect(container.querySelector('[data-finger]')).toBeTruthy();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Fingering letters' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Display' }));
+    // The popover's top layer isn't modelled by jsdom: reach inside as the Review tests do.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Fingering letters', hidden: true }));
     expect(container.querySelector('[data-finger]')).toBeNull();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Legend' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Legend', hidden: true }));
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull();
     expect(songStore.getState().prefs.display).toMatchObject({ fingers: false, legend: false });
   });

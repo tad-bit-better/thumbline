@@ -22,8 +22,8 @@ import {
   Drawer,
   IconButton,
   LottieMoment,
+  Popover,
   PlayerBar,
-  SectionNav,
   SegmentedControl,
   Slider,
   useReducedMotion,
@@ -86,7 +86,7 @@ const MOOD_SETTLE_MS = 300;
 
 const CHORD_NAME_OPTIONS = [
   { value: 'shape', label: 'Shape' },
-  { value: 'sounding', label: 'Sound' },
+  { value: 'sounding', label: 'Sounding' },
   { value: 'both', label: 'Both' },
 ] as const;
 const TAB_SIZES = [
@@ -280,7 +280,6 @@ export default function SheetPage() {
   const title = songTitle(meta.name);
   const shapeKey = arrangement && arrangement.capo > 0 ? KEYS[(effective.key.pc - arrangement.capo + 12) % 12] : null;
   const summary = arrangement ? warningSummary(arrangement.warnings) : undefined;
-  const currentSection = sections.find((sec) => currentBar >= sec.firstBar && currentBar < sec.firstBar + sec.bars);
   const patternIndex = pattern ? patterns.indexOf(pattern) : -1;
   const arrangementLine = [
     STYLE_NAMES[style] + (palo ? ` (${PALOS.find((p) => p.value === palo)?.label})` : ''),
@@ -292,11 +291,6 @@ export default function SheetPage() {
     .join(' · ');
   // Songs saved before the display options existed have none: the defaults.
   const display = { ...DEFAULT_DISPLAY, ...prefs.display };
-  const sectionItems = sections.map((sec) => ({ id: sec.id, title: sec.title, detail: sec.detail }));
-  const goToSection = (id: string) => {
-    const sec = sections.find((x) => x.id === id);
-    if (sec) seekBar(sec.firstBar);
-  };
 
   return (
     <AppShell
@@ -377,6 +371,46 @@ export default function SheetPage() {
                 />
               </div>
             )}
+            <Popover
+              label="Display"
+              className={styles.displayPanel}
+              trigger={({ ref, ...props }) => (
+                <Button variant="secondary" ref={ref as (el: HTMLButtonElement | null) => void} {...props}>
+                  Display
+                </Button>
+              )}
+            >
+              <div className={styles.displayOptions}>
+                <p className={styles.optionLabel}>Chord names</p>
+                <SegmentedControl
+                  label="Chord names"
+                  fullWidth
+                  tone="secondary"
+                  options={CHORD_NAME_OPTIONS}
+                  value={display.chordNames}
+                  onChange={(chordNames) => songStore.getState().setDisplay({ chordNames })}
+                />
+                <p className={styles.optionLabel}>Tab size</p>
+                <SegmentedControl
+                  label="Tab size"
+                  fullWidth
+                  tone="secondary"
+                  options={TAB_SIZES}
+                  value={display.tabSize}
+                  onChange={(tabSize) => songStore.getState().setDisplay({ tabSize })}
+                />
+                <Checkbox
+                  label="Fingering letters"
+                  checked={display.fingers}
+                  onChange={(fingers) => songStore.getState().setDisplay({ fingers })}
+                />
+                <Checkbox
+                  label="Legend"
+                  checked={display.legend}
+                  onChange={(legend) => songStore.getState().setDisplay({ legend })}
+                />
+              </div>
+            </Popover>
             <Button onClick={() => setCustomizing(true)}>Customize</Button>
           </div>
         </Card>
@@ -416,53 +450,6 @@ export default function SheetPage() {
 
         {arrangement && (
           <div className={styles.layout}>
-            <aside className={styles.left} aria-label="Sections and display">
-              <Card padding="sm" className={styles.panel}>
-                <h2 className={styles.panelTitle}>Sections</h2>
-                <SectionNav label="Sections" items={sectionItems} current={currentSection?.id} onSelect={goToSection} />
-              </Card>
-              <Card padding="sm" className={styles.panel}>
-                <h2 className={styles.panelTitle}>Display</h2>
-                <p className={styles.optionLabel}>Chord names</p>
-                <SegmentedControl
-                  label="Chord names"
-                  fullWidth
-                  tone="secondary"
-                  options={CHORD_NAME_OPTIONS}
-                  value={display.chordNames}
-                  onChange={(chordNames) => songStore.getState().setDisplay({ chordNames })}
-                />
-                <p className={styles.optionLabel}>Tab size</p>
-                <SegmentedControl
-                  label="Tab size"
-                  fullWidth
-                  tone="secondary"
-                  options={TAB_SIZES}
-                  value={display.tabSize}
-                  onChange={(tabSize) => songStore.getState().setDisplay({ tabSize })}
-                />
-                <Checkbox
-                  label="Fingering letters"
-                  checked={display.fingers}
-                  onChange={(fingers) => songStore.getState().setDisplay({ fingers })}
-                />
-                <Checkbox
-                  label="Legend"
-                  checked={display.legend}
-                  onChange={(legend) => songStore.getState().setDisplay({ legend })}
-                />
-              </Card>
-            </aside>
-
-            <SectionNav
-              className={styles.sectionChips}
-              label="Jump to section"
-              variant="chips"
-              items={sectionItems.map((x) => ({ ...x, title: x.title.replace('Section ', '') }))}
-              current={currentSection?.id}
-              onSelect={goToSection}
-            />
-
             {/* Focusable: on desktop the rail scrolls on its own, and keyboard users must be able to scroll it. */}
             <aside className={styles.right} aria-label="Chords" tabIndex={0}>
               <Card padding="sm" className={styles.panel}>

@@ -63,12 +63,12 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(customize).toBeHidden();
 
-  await page.getByRole('button', { name: 'Play' }).click();
-  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible({ timeout: 30_000 });
   // The first note can take a while when several browsers analyse and set up audio at once.
   await expect(page.locator('[data-playhead]')).toHaveCount(1, { timeout: 20_000 });
-  await page.getByRole('button', { name: 'Pause' }).click();
-  await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 
   // Click a later bar on the tab: it plays from there, and Pause keeps the place.
   // How many bars a row holds depends on the window and the grid (the tune uses 16ths), so
@@ -77,9 +77,9 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
   const barOf = async () => Number(/^Bar (\d+) of/.exec(String(await position.getAttribute('aria-valuetext')))?.[1]);
   const before = await barOf();
   await page.locator('[data-system]').last().click({ position: { x: 120, y: 90 } });
-  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible({ timeout: 30_000 });
   await expect.poll(barOf).toBeGreaterThan(before + 1);
-  await page.getByRole('button', { name: 'Pause' }).click();
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
   const here = await position.getAttribute('aria-valuetext');
   await page.getByRole('button', { name: 'Back one bar' }).click();
   await expect(position).not.toHaveAttribute('aria-valuetext', String(here));
@@ -91,9 +91,9 @@ test('a clip goes from upload to a playable sheet', async ({ page }) => {
   await expect(customize.getByRole('radio', { name: 'Rumba' })).toBeChecked();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('region', { name: 'Flamenco tab' })).toBeVisible();
-  await page.getByRole('button', { name: 'Play' }).click();
-  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('button', { name: 'Pause' }).click();
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await expectNoAxeViolations(page);
 });
 
