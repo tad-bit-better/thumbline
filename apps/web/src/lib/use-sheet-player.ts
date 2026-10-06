@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 type Options = {
   arrangement: Arrangement | null;
   beats?: Beats;
+  /** The recording's tuning (cents from A440), so the sheet plays in tune with it. */
+  tuningCents?: number;
   /** The original clip; decoded once, on the first play. */
   file: Blob | null;
   mix: Mix;
@@ -22,7 +24,7 @@ type Options = {
  * player rebuilt whenever the arrangement changes. Keeps the song position
  * (in ticks) so Pause resumes where it stopped and seeking works while paused.
  */
-export function useSheetPlayer({ arrangement, beats, file, mix, originalLevel, speed, loop, onEnd }: Options) {
+export function useSheetPlayer({ arrangement, beats, tuningCents, file, mix, originalLevel, speed, loop, onEnd }: Options) {
   const [state, setState] = useState<PlayerState>('idle');
   const [cursor, setCursor] = useState<number | undefined>();
   /** Where Play resumes from, in ticks: the last note heard, or where the user seeked to. */
@@ -76,6 +78,7 @@ export function useSheetPlayer({ arrangement, beats, file, mix, originalLevel, s
       arrangement: a,
       original,
       beats,
+      tuningCents,
       context: ctx,
       onCursor: (i) => {
         setCursor(i);

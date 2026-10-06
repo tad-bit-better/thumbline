@@ -212,6 +212,7 @@ export default function SheetPage() {
           barStartBeat: effective.barStartBeat,
         }
       : undefined,
+    tuningCents: effective?.tuningCents,
     file,
     mix: prefs.mix,
     originalLevel: prefs.originalLevel,

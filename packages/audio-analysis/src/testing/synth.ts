@@ -2,7 +2,8 @@
 const PC: Record<string, number> = { C: 0, 'C#': 1, D: 2, Eb: 3, E: 4, F: 5, 'F#': 6, G: 7, Ab: 8, A: 9, Bb: 10, B: 11 };
 const SHAPE: Record<string, number[]> = { '': [0, 4, 7], m: [0, 3, 7], '7': [0, 4, 7, 10] };
 
-export function chordClip(chart: string[], { bpm = 100, beatsPerBar = 4, sampleRate = 44100, leadIn = 0 } = {}) {
+/** `cents`: the whole clip this far off A440, like an old record mastered off speed. */
+export function chordClip(chart: string[], { bpm = 100, beatsPerBar = 4, sampleRate = 44100, leadIn = 0, cents = 0 } = {}) {
   const beat = 60 / bpm;
   const bars = chart.length;
   const seconds = leadIn + bars * beatsPerBar * beat + 0.5;
@@ -12,6 +13,7 @@ export function chordClip(chart: string[], { bpm = 100, beatsPerBar = 4, sampleR
     const root = PC[m[1]];
     const freqs = SHAPE[m[2]].map((iv) => 130.81 * 2 ** (((root + iv) % 12) / 12));
     freqs.push(65.41 * 2 ** (root / 12));
+    freqs.forEach((f, i) => (freqs[i] = f * 2 ** (cents / 1200)));
     const from = Math.floor((leadIn + bar * beatsPerBar * beat) * sampleRate);
     const to = Math.floor((leadIn + (bar + 1) * beatsPerBar * beat) * sampleRate);
     for (let i = from; i < to && i < x.length; i++) {

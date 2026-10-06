@@ -58,6 +58,12 @@ export type AnalysisResult = {
   mood?: Mood;
   /** Loudness per beat (index as beatTimesSec), 0..1 with the loud end of the song at 1 */
   beatEnergy?: number[];
+  /**
+   * How far the recording's tuning sits from A440, in cents (−50..50), when it
+   * is off by 6 or more: old records were often mastered off speed. Chords, key,
+   * bass and melody are already read against it; playback detunes the sheet to match.
+   */
+  tuningCents?: number;
 };
 
 /** The key from `bar` on, until the next span. */

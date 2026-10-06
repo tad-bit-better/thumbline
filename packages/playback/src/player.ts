@@ -24,6 +24,8 @@ export type PlayerOptions = {
   context?: AudioContext;
   /** Play like a person: small timing and touch variations (default true). */
   humanize?: boolean;
+  /** The recording's tuning, cents from A440 (`AnalysisResult.tuningCents`): the sheet plays at the same pitch, so Both sounds in tune. */
+  tuningCents?: number;
 };
 
 export type Player = {
@@ -156,6 +158,8 @@ export function createPlayer(options: PlayerOptions): Player {
     b.copyToChannel(data as Float32Array<ArrayBuffer>, 0);
     return b;
   };
+  /** The recording's tuning, in semitones. */
+  const tune = (options.tuningCents ?? 0) / 100;
   const render = (n: NoteSound): Float32Array => {
     const sr = ctx.sampleRate;
     switch (n.kind) {
@@ -166,12 +170,12 @@ export function createPlayer(options: PlayerOptions): Player {
       case 'apagado':
         return apagadoChunk(sr);
       case 'harmonic':
-        return harmonicTone(n.midi, sr);
+        return harmonicTone(n.midi + tune, sr);
       case 'muted':
-        return nylonPluck(n.midi, sr, { muted: true, touch: TOUCH_LEVELS[n.touch] });
+        return nylonPluck(n.midi + tune, sr, { muted: true, touch: TOUCH_LEVELS[n.touch], seed: n.midi });
       case 'pluck':
       case 'legato':
-        return nylonPluck(n.midi, sr, { touch: TOUCH_LEVELS[n.touch] });
+        return nylonPluck(n.midi + tune, sr, { touch: TOUCH_LEVELS[n.touch], seed: n.midi });
     }
   };
   const prepareSynth = () => {

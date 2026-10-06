@@ -56,6 +56,15 @@ const MIN_SIDE_RATIO = 0.08;
 const SILENT_RMS = 1e-4;
 /** Below this low-band alternation, a tracked tempo twice Percival's is trusted. */
 const DOUBLE_IS_REAL_BELOW = 0.6;
+/** Tuning: one frame this often, spectral peaks in this band, offsets under this many cents ignored. */
+const TUNING_STEP_SEC = 0.25;
+const TUNING_MIN_HZ = 80;
+const TUNING_MAX_HZ = 2500;
+const TUNING_MIN_CENTS = 6;
+const TUNING_SMOOTH_CENTS = 5;
+const TUNING_WINDOW_CENTS = 15;
+/** Votes within the window must beat an even spread by this share, or the peaks don't share a tuning: keep A440. */
+const TUNING_MIN_FOCUS = 0.1;
 const NOTE_NAMES: Record<string, number> = {
   C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11,
 };
@@ -153,7 +162,10 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   report({ step: 'key', fraction: 0.45, detail: { bpm } });
   await tick();
   checkAborted(signal);
-  const k = e.KeyExtractor(signalVec);
+  // Old records were often mastered off speed: read every pitch against the recording's own A.
+  const cents = estimateTuning(e, samples, sampleRate);
+  const tuningHz = 440 * 2 ** (cents / 1200);
+  const k = e.KeyExtractor(signalVec, true, 4096, 4096, 12, 3500, 60, 25, 0.2, 'bgate', sampleRate, 0.0001, tuningHz);
   // Mood signals (M10): cheap (~1.5 s for 4 minutes), and optional: a failure leaves the mood out.
   let feel: { onsetRate: number; danceability: number } | undefined;
   try {
@@ -185,8 +197,8 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
       return;
     }
     // harmonics = 0: overtones are modelled in the chord templates instead.
-    const h = e.HPCP(pk.frequencies, pk.magnitudes, true, 500, HPCP_HARMONICS, 5000, false, 40, false, 'unitMax', 440, sampleRate, 12, 'cosine', 1);
-    // Essentia's bin 0 is A (440 Hz reference); rotate so bin 0 is C.
+    const h = e.HPCP(pk.frequencies, pk.magnitudes, true, 500, HPCP_HARMONICS, 5000, false, 40, false, 'unitMax', tuningHz, sampleRate, 12, 'cosine', 1);
+    // Essentia's bin 0 is A (the tuning reference); rotate so bin 0 is C.
     const hpcp = e.vectorToArray(h.hpcp);
     for (let i = 0; i < 12; i++) add((i + 9) % 12, hpcp[i]);
     if (addBass) {
@@ -195,7 +207,7 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
       const mags = e.vectorToArray(pk.magnitudes);
       for (let i = 0; i < freqs.length; i++) {
         if (freqs[i] < BASS_MIN_HZ || freqs[i] > BASS_MAX_HZ) continue;
-        const midi = 69 + 12 * Math.log2(freqs[i] / 440);
+        const midi = 69 + 12 * Math.log2(freqs[i] / tuningHz);
         addBass(((Math.round(midi) % 12) + 12) % 12, mags[i] * mags[i]);
       }
     }
@@ -219,7 +231,7 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     counts[beat]++;
   }
 
-  const fineBass = bassPerBeat(e, samples, sampleRate, beatTimesSec, durationSec);
+  const fineBass = bassPerBeat(e, samples, sampleRate, beatTimesSec, durationSec, tuningHz);
   const features: BeatFeatures[] = beatTimesSec.map((t, b) => {
     const end = b + 1 < beats ? beatTimesSec[b + 1] : Math.min(durationSec, t + intervals[0]);
     const n = Math.max(1, counts[b]);
@@ -254,7 +266,7 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
   checkAborted(signal);
   let melody: AnalysisResult['melody'];
   try {
-    melody = cleanMelody(trackMelody(e, samples, sampleRate), keys.length > 1 ? keyAtSec : homeKey);
+    melody = cleanMelody(trackMelody(e, samples, sampleRate, tuningHz), keys.length > 1 ? keyAtSec : homeKey);
   } catch {
     melody = undefined; // a sheet without the tune beats no sheet
   }
@@ -273,6 +285,7 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
     ...(melody?.length ? { melody } : {}),
     ...(feel && brightnessHz !== undefined ? { mood: moodOf({ bpm, ...feel, brightnessHz, mode: homeKey.mode, chords }) } : {}),
     beatEnergy: beatEnergyOf(features.map((f) => f.energy)),
+    ...(cents ? { tuningCents: cents } : {}),
   };
 }
 
@@ -281,7 +294,7 @@ export async function analyzeSamples(samples: Float32Array, sampleRate: number, 
  * spectral peaks from 30 to 180 Hz, energy (magnitude²) by pitch class.
  * A beat too near either end of the clip for the frame keeps the short-frame bass.
  */
-function bassPerBeat(e: EssentiaLike, samples: Float32Array, sampleRate: number, beats: readonly number[], durationSec: number): Array<number[] | undefined> {
+function bassPerBeat(e: EssentiaLike, samples: Float32Array, sampleRate: number, beats: readonly number[], durationSec: number, tuningHz: number): Array<number[] | undefined> {
   const scale = sampleRate / 44100;
   const frame = Math.round((BASS_FRAME * scale) / 2) * 2;
   return beats.map((t, b) => {
@@ -301,12 +314,68 @@ function bassPerBeat(e: EssentiaLike, samples: Float32Array, sampleRate: number,
     const mags = e.vectorToArray(pk.magnitudes);
     for (let i = 0; i < freqs.length; i++) {
       if (freqs[i] < BASS_LOW_HZ || freqs[i] > BASS_MAX_HZ) continue;
-      const midi = 69 + 12 * Math.log2(freqs[i] / 440);
+      const midi = 69 + 12 * Math.log2(freqs[i] / tuningHz);
       out[((Math.round(midi) % 12) + 12) % 12] += mags[i] * mags[i];
     }
     free(vec, w.frame, sp.spectrum, pk.frequencies, pk.magnitudes);
     return out;
   });
+}
+
+/**
+ * engine-spec §1 tuning: how far the recording sits from A440, in whole cents
+ * (−50..50). Every quarter second, the spectral peaks from 80 Hz to 2.5 kHz
+ * each vote with their magnitude for their offset from the nearest A440
+ * semitone, on a circle a semitone round (so −49 and +51 agree). The tuning is
+ * the most voted offset (votes smoothed over ±5 cents), so drums and other
+ * unpitched peaks, spread round the circle, don't pull it. Offsets under
+ * 6 cents (inaudible against a guitar), or votes that don't gather (under a tenth within ±15 cents of the
+ * winner beyond an even spread), read as 0.
+ */
+export function estimateTuning(e: EssentiaLike, samples: Float32Array, sampleRate: number): number {
+  const step = Math.floor(TUNING_STEP_SEC * sampleRate);
+  const votes = new Float64Array(100);
+  for (let from = 0; from + FRAME <= samples.length; from += step) {
+    const vec = e.arrayToVector(samples.subarray(from, from + FRAME));
+    const w = e.Windowing(vec, true, FRAME, 'blackmanharris62');
+    const sp = e.Spectrum(w.frame, FRAME);
+    const pk = e.SpectralPeaks(sp.spectrum, 0.00001, TUNING_MAX_HZ, 30, TUNING_MIN_HZ, 'magnitude', sampleRate);
+    if (pk.frequencies.size() === 0) {
+      free(vec, w.frame, sp.spectrum, pk.frequencies, pk.magnitudes); // silence: no vote
+      continue;
+    }
+    const freqs = e.vectorToArray(pk.frequencies);
+    const mags = e.vectorToArray(pk.magnitudes);
+    free(vec, w.frame, sp.spectrum, pk.frequencies, pk.magnitudes);
+    for (let i = 0; i < freqs.length; i++) {
+      if (freqs[i] < TUNING_MIN_HZ) continue;
+      const c = 1200 * Math.log2(freqs[i] / 440);
+      votes[((Math.round(c) % 100) + 100) % 100] += mags[i];
+    }
+  }
+  const total = votes.reduce((a, v) => a + v, 0);
+  if (!total) return 0;
+  const around = (bin: number, half: number) => {
+    let sum = 0;
+    for (let d = -half; d <= half; d++) sum += votes[(bin + d + 100) % 100];
+    return sum;
+  };
+  let best = 0;
+  for (let b = 1; b < 100; b++) if (around(b, TUNING_SMOOTH_CENTS) > around(best, TUNING_SMOOTH_CENTS)) best = b;
+  const share = around(best, TUNING_WINDOW_CENTS) / total;
+  const even = (2 * TUNING_WINDOW_CENTS + 1) / 100;
+  if (share - even < TUNING_MIN_FOCUS) return 0;
+  // Refine inside the window: the votes' circular mean there.
+  let x = 0;
+  let y = 0;
+  for (let d = -TUNING_WINDOW_CENTS; d <= TUNING_WINDOW_CENTS; d++) {
+    const bin = (best + d + 100) % 100;
+    const angle = (2 * Math.PI * bin) / 100;
+    x += votes[bin] * Math.cos(angle);
+    y += votes[bin] * Math.sin(angle);
+  }
+  const cents = Math.round((Math.atan2(y, x) * 100) / (2 * Math.PI));
+  return Math.abs(cents) < TUNING_MIN_CENTS ? 0 : cents;
 }
 
 /** The key held for the most bars (the first on a tie). */

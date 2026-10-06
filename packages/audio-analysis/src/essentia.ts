@@ -10,7 +10,21 @@ export type EssentiaLike = {
   vectorToArray(input: EssentiaVector): Float32Array;
   RhythmExtractor2013(signal: EssentiaVector, maxTempo?: number, method?: string, minTempo?: number): { bpm: number; ticks: EssentiaVector; confidence: number };
   PercivalBpmEstimator(signal: EssentiaVector): { bpm: number };
-  KeyExtractor(audio: EssentiaVector): { key: string; scale: string; strength: number };
+  KeyExtractor(
+    audio: EssentiaVector,
+    averageDetuningCorrection?: boolean,
+    frameSize?: number,
+    hopSize?: number,
+    hpcpSize?: number,
+    maxFrequency?: number,
+    maximumSpectralPeaks?: number,
+    minFrequency?: number,
+    pcpThreshold?: number,
+    profileType?: string,
+    sampleRate?: number,
+    spectralPeaksThreshold?: number,
+    tuningFrequency?: number,
+  ): { key: string; scale: string; strength: number };
   Windowing(frame: EssentiaVector, normalized?: boolean, size?: number, type?: string): { frame: EssentiaVector };
   Spectrum(frame: EssentiaVector, size?: number): { spectrum: EssentiaVector };
   SpectralPeaks(
@@ -57,6 +71,10 @@ export type EssentiaLike = {
     signal: EssentiaVector,
     hopSize?: number,
     minDuration?: number,
+    pitchDistanceThreshold?: number,
+    rmsThreshold?: number,
+    sampleRate?: number,
+    tuningFrequency?: number,
   ): { onset: EssentiaVector; duration: EssentiaVector; MIDIpitch: EssentiaVector };
 };
 

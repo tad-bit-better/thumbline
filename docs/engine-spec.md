@@ -37,6 +37,7 @@ type AnalysisResult = {
   melody?: MelodyNote[];       // the tune; absent for clips analysed before M9
   mood?: Mood;                 // how the song feels; absent before M10
   beatEnergy?: number[];       // loudness per beat (as beatTimesSec), 0..1, the loud end of the song = 1
+  tuningCents?: number;        // the recording's tuning, cents from A440 (−50..50), when 6+ off; everything above is read against it
 };
 
 type KeySpan = { bar: number; key: AnalysisResult['key'] }; // the key from `bar` until the next span
@@ -50,6 +51,8 @@ type MelodyNote = {
   confidence: number;          // 0..1
 };
 ```
+
+**Tuning (M10b, 2026-10-07).** Old records were often mastered off speed (two 1960s–70s Hindi film songs sit 26 and 29 cents flat), and at a third of a semitone every note falls between two chroma bins: plain chords read as maj7 or 7, major and minor swap, the tune flickers. Before the key, every quarter second the spectral peaks from 80 Hz to 2.5 kHz vote with their magnitude for their offset from the nearest A440 semitone, on a circle a semitone round; the tuning is the most voted offset (smoothed ±5 cents, refined by the circular mean within ±15). Votes that don't gather there (under 10% above an even spread) or an offset under 6 cents read as A440. The key finder, chroma (HPCP reference), both bass readers and the tune's note segmentation all use the recording's A; playback renders the sheet at the same offset, so Both stays in tune.
 
 **Key mode (M10).** The key finder can't tell a key from its relative (C major / A minor share every note). After the chords are found, each chord counts for its length in beats (the first and last twice); if the relative's tonic chord (major family vs m, m7) outweighs the key's own by 1.2×, the key moves to the relative. The mood uses this key.
 
@@ -241,6 +244,7 @@ createPlayer({
   onEnd?: () => void,                // played to the end (not on stop or while looping)
   onStateChange?: (state: 'idle' | 'preparing' | 'playing') => void,
   context?: AudioContext,            // share one; otherwise the player owns it
+  tuningCents?: number,              // AnalysisResult.tuningCents: the sheet plays at the recording's pitch
 }) → {
   play(fromBar?): Promise<void>,
   playFrom(tick): Promise<void>,      // any point in the song (restarts if playing); powers click-to-seek

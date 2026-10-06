@@ -27,6 +27,12 @@ export type AnalysisResult = {
   melody?: MelodyNote[];
   mood?: Mood;
   beatEnergy?: number[];
+  /**
+   * How far the recording's tuning sits from A440, in cents (−50..50), when it
+   * is off by 6 or more: old records were often mastered off speed. Chords, key,
+   * bass and melody are already read against it; playback detunes the sheet to match.
+   */
+  tuningCents?: number;
 };
 
 /** The key from `bar` on, until the next span. */

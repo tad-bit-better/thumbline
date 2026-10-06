@@ -8,7 +8,7 @@ const push = vi.fn();
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace, prefetch: vi.fn() }) }));
 
-type Opts = { onCursor: (i: number) => void; onEnd?: () => void; onStateChange?: (s: string) => void; arrangement: { patternId: string } };
+type Opts = { onCursor: (i: number) => void; onEnd?: () => void; onStateChange?: (s: string) => void; arrangement: { patternId: string }; tuningCents?: number };
 const players: Array<Record<string, ReturnType<typeof vi.fn>> & { opts: Opts }> = [];
 vi.mock('@thumbline/playback', () => ({
   createPlayer: (opts: Opts) => {
@@ -179,6 +179,13 @@ describe('Sheet screen', () => {
     expect(container.querySelector('[data-playhead]')).toBeTruthy();
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Pause' })));
     expect(players[0].stop).toHaveBeenCalled();
+  });
+
+  it('plays the sheet at the recording\'s tuning', async () => {
+    songStore.getState().setAnalysis({ ...analysis, tuningCents: -29 });
+    render(<Sheet />);
+    await startPlaying();
+    expect(players[0].opts.tuningCents).toBe(-29);
   });
 
   it('turns the original down under the sheet', async () => {

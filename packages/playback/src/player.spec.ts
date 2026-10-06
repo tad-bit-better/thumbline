@@ -1,5 +1,6 @@
 import type { Arrangement, NoteEvent } from '@thumbline/engine';
 import { createPlayer } from './player.js';
+import { TOUCH_LEVELS, nylonPluck, touchLevelOf } from './synth.js';
 import { FakeAudioContext, type FakeBuffer, type FakeSource } from './testing/fake-audio.js';
 
 const SR = 8000;
@@ -26,7 +27,7 @@ const quarters = (bars: number) =>
     bars,
   );
 
-function setup(a: Arrangement, extra: { original?: FakeBuffer; beats?: { beatTimesSec: number[]; barStartBeat: number }; humanize?: boolean } = {}) {
+function setup(a: Arrangement, extra: { original?: FakeBuffer; beats?: { beatTimesSec: number[]; barStartBeat: number }; humanize?: boolean; tuningCents?: number } = {}) {
   const ctx = new FakeAudioContext(SR);
   const cursor: number[] = [];
   const onEnd = vi.fn();
@@ -68,6 +69,17 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe('createPlayer', () => {
+  it('plays the sheet at the recording\'s tuning', async () => {
+    const one = arrangement([{ tick: 0, string: 4, fret: 0, velocity: 0.8 }]);
+    const { ctx, player, run } = setup(one, { tuningCents: -30 });
+    await player.play();
+    await run(0.2);
+    const [note] = notes(ctx);
+    const touch = TOUCH_LEVELS[touchLevelOf(0.8)];
+    // The open B string (MIDI 59), 30 cents flat.
+    expect([...(note.buffer as FakeBuffer).getChannelData(0).slice(0, 400)]).toEqual([...nylonPluck(58.7, SR, { touch, seed: 59 }).slice(0, 400)]);
+  });
+
   it('schedules every note at its time on the audio clock', async () => {
     const { ctx, player, run } = setup(quarters(1));
     await player.play();

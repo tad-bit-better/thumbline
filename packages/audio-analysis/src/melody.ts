@@ -64,13 +64,14 @@ const free = (...vs: Array<EssentiaVector | undefined>) => vs.forEach((v) => v?.
 /**
  * The lead voice as notes: equal-loudness filter, PredominantPitchMelodia
  * (pitch per frame), then PitchContourSegmentation (notes). Confidence is the
- * mean pitch confidence over each note's frames.
+ * mean pitch confidence over each note's frames. Pitches are read against
+ * `tuningHz` (the recording's A), so a record mastered off pitch still lands on notes.
  */
-export function trackMelody(e: EssentiaLike, samples: Float32Array, sampleRate: number): MelodyNote[] {
+export function trackMelody(e: EssentiaLike, samples: Float32Array, sampleRate: number, tuningHz = 440): MelodyNote[] {
   const input = e.arrayToVector(samples);
   const eq = e.EqualLoudness(input, sampleRate);
   const m = e.PredominantPitchMelodia(eq.signal, 10, 3, 2048, false, 0.8, MELODY_HOP);
-  const seg = e.PitchContourSegmentation(m.pitch, input, MELODY_HOP, MIN_NOTE_SEC);
+  const seg = e.PitchContourSegmentation(m.pitch, input, MELODY_HOP, MIN_NOTE_SEC, 60, -2, sampleRate, tuningHz);
   const onset = e.vectorToArray(seg.onset);
   const duration = e.vectorToArray(seg.duration);
   const midi = e.vectorToArray(seg.MIDIpitch);

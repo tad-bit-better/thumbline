@@ -1,4 +1,4 @@
-import { AnalysisError, analyzeSamples, type Progress, trackBeats } from './pipeline.js';
+import { AnalysisError, analyzeSamples, estimateTuning, type Progress, trackBeats } from './pipeline.js';
 import { loadEssentiaNode } from './testing/node-essentia.js';
 import { chordClip } from './testing/synth.js';
 import type { AnalysisResult } from './types.js';
@@ -28,6 +28,10 @@ describe('analyzeSamples', () => {
     expect(result.beatTimesSec.length).toBeGreaterThan(60);
     expect(result.beatTimesSec[0]).toBeLessThan(0.65);
     for (let i = 1; i < result.beatTimesSec.length; i++) expect(result.beatTimesSec[i]).toBeGreaterThan(result.beatTimesSec[i - 1]);
+  });
+
+  it('leaves a recording at A440 alone (no tuning offset)', () => {
+    expect(result.tuningCents).toBeUndefined();
   });
 
   it('finds 4/4 and the key', () => {
@@ -88,6 +92,29 @@ describe('analyzeSamples', () => {
   it('requires 44.1 kHz input', async () => {
     await expect(analyzeSamples(new Float32Array(48000), 48000, { essentia })).rejects.toThrow(/44100/);
   });
+});
+
+describe('tuning', () => {
+  const chart = ['C', 'C', 'Am', 'Am', 'F', 'F', 'G', 'G', 'C', 'C', 'Am', 'Am', 'F', 'F', 'G', 'G'];
+  const bars = (r: AnalysisResult) => {
+    const n = Math.min(chart.length, Math.max(...r.chords.map((c) => c.bar)) + 1);
+    let right = 0;
+    for (let b = 0; b < n; b++) if (chordAt(r, b) === chart[b]) right++;
+    return right / n;
+  };
+
+  it('measures how far a recording sits from A440', () => {
+    expect(estimateTuning(essentia, chordClip(chart, { cents: -40 }), 44100)).toBeCloseTo(-40, -1);
+    expect(estimateTuning(essentia, chordClip(chart, { cents: 25 }), 44100)).toBeCloseTo(25, -1);
+    expect(Math.abs(estimateTuning(essentia, chordClip(chart), 44100))).toBeLessThan(5);
+  });
+
+  it('hears the chords of a record mastered off pitch, and reports the offset', async () => {
+    const r = await analyzeSamples(chordClip(chart, { bpm: 100, cents: -45 }), 44100, { essentia });
+    expect(r.tuningCents).toBeCloseTo(-45, -1);
+    expect(r.key).toEqual({ pc: 0, mode: 'major' });
+    expect(bars(r)).toBeGreaterThanOrEqual(0.85);
+  }, 60000);
 });
 
 describe('trackBeats', () => {
