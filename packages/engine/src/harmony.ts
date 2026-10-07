@@ -50,7 +50,8 @@ function voicesFor(rule: HarmonyRule, tick: number, dur: number, bar: number): n
  * counts, and is marked and held as harmony. The fullness (§4) can ask for
  * more: `rule` rich also harmonises off-beat tune notes of an eighth or more,
  * richest gives every note on a beat (an eighth or longer) two voices. The harmony
- * replaces pattern notes on its string while it rings, at 0.8 of the tune's
+ * replaces pattern notes on its string while it rings (stopping short of a
+ * thumb note there rather than dropping it), at 0.8 of the tune's
  * velocity, for at most a beat. Basic stays plain.
  */
 export function harmonise(
@@ -107,7 +108,10 @@ export function harmonise(
       }
       if (!placed) break;
       const h = placed;
-      // The harmony takes its string while it rings.
+      // The harmony replaces the pattern's notes on its string while it rings, but never the thumb's:
+      // it stops short of the next thumb note there instead of leaving a hole in the bass.
+      const nextThumb = out.find((e) => e.string === h.string && e.finger === 'p' && e.tick > h.tick && e.tick < h.tick + h.dur);
+      if (nextThumb) h.dur = nextThumb.tick - h.tick;
       out = out.filter((e) => e.melody || e.string !== h.string || e.tick < h.tick || e.tick >= h.tick + h.dur);
       out.push(h);
       have = [...have, h];

@@ -16,6 +16,12 @@ const SIXTEENTH = TICKS_PER_BEAT / 4;
 /** A note never rings longer than a beat and a half: the tune breathes. */
 const MAX_DUR = (TICKS_PER_BEAT * 3) / 2;
 const MELODY_VELOCITY = 0.9;
+/** Octave choice per note (placeOctaves): a note out of range, a note moved off the song's octave, and an octave change inside a phrase or across a rest. */
+const OUT_OF_RANGE_COST = 10;
+const OFF_SONG_OCTAVE_COST = 0.1;
+const OCTAVE_CHANGE_REVERSES = 3;
+const OCTAVE_CHANGE_KEEPS_DIRECTION = 1;
+const OCTAVE_CHANGE_AT_REST = 0.5;
 /** Pattern notes this close under a sounding melody note (semitones) would mask it. */
 const MASK_BELOW = 2;
 
@@ -122,6 +128,61 @@ export function placeNear(midi: number, span: ChordSpan, prev?: { fret: number }
   return best && { string: best.string, fret: best.fret };
 }
 
+/**
+ * engine-spec §4 melody octaves: each note's pitch in shape space, moved by
+ * whole octaves. The song's shift (melodyShift) is the default, but a phrase
+ * that climbs out of the top strings' range moves an octave as a whole, so its
+ * shape survives (a leap up stays a leap up). A best path over the notes: a note
+ * out of range costs 10, a note off the song's octave 0.1, changing octave
+ * between two notes 3 when it turns the step's direction round (a leap up
+ * played going down), 1 when it doesn't, 0.5 between phrases (after a rest of
+ * a beat or more, or a note held two beats).
+ * Notes still out of range then move an octave in on their own.
+ */
+export function placeOctaves(line: readonly MelodyLineNote[], capo: number): number[] {
+  if (!line.length) return [];
+  const shift = melodyShift(line, capo);
+  const OFFSETS = [-24, -12, 0, 12, 24];
+  const base = line.map((n) => n.midi - capo + shift);
+  const noteCost = (midi: number, offset: number) =>
+    (midi + offset < LOWEST || midi + offset > HIGHEST ? OUT_OF_RANGE_COST : 0) + (offset ? OFF_SONG_OCTAVE_COST * Math.abs(offset / 12) : 0);
+  let cost = OFFSETS.map((o) => noteCost(base[0], o));
+  const back: number[][] = [];
+  for (let i = 1; i < line.length; i++) {
+    // A rest of a beat, or a note held two beats, ends a phrase.
+    const rest = line[i].tick - (line[i - 1].tick + line[i - 1].dur) >= TICKS_PER_BEAT || line[i - 1].dur >= 2 * TICKS_PER_BEAT;
+    const step = Math.sign(base[i] - base[i - 1]);
+    const change = (j: number, k: number) => {
+      if (j === k) return 0;
+      if (rest) return OCTAVE_CHANGE_AT_REST;
+      const placed = Math.sign(base[i] + OFFSETS[k] - (base[i - 1] + OFFSETS[j]));
+      return placed === step ? OCTAVE_CHANGE_KEEPS_DIRECTION : OCTAVE_CHANGE_REVERSES;
+    };
+    const from: number[] = [];
+    cost = OFFSETS.map((o, k) => {
+      let best = 0;
+      let bestCost = Infinity;
+      cost.forEach((c, j) => {
+        const total = c + change(j, k);
+        if (total < bestCost) [best, bestCost] = [j, total];
+      });
+      from.push(best);
+      return bestCost + noteCost(base[i], o);
+    });
+    back.push(from);
+  }
+  let state = cost.indexOf(Math.min(...cost));
+  const out = new Array<number>(line.length);
+  for (let i = line.length - 1; i >= 0; i--) {
+    let midi = base[i] + OFFSETS[state];
+    while (midi < LOWEST) midi += 12;
+    while (midi > HIGHEST) midi -= 12;
+    out[i] = midi;
+    if (i > 0) state = back[i - 1][state];
+  }
+  return out;
+}
+
 const spanAt = (spans: readonly ChordSpan[], tick: number) => {
   let found: ChordSpan | undefined;
   for (const s of spans) {
@@ -135,20 +196,19 @@ const spanAt = (spans: readonly ChordSpan[], tick: number) => {
  * engine-spec §4 melody placement: each note of the tune on strings 2–5, as
  * near the chord shape's hand position as it can be (one fret of stretch is
  * free), preferring the shape's own note, higher strings, and small moves
- * from the last melody note. Out-of-range notes move an octave in.
+ * from the last melody note. Octaves come from placeOctaves: a phrase that
+ * climbs out of range moves an octave as a whole.
  * Moderate and Advanced slur a step of one or two frets on the same string
  * (hammer-on up, pull-off down).
  */
 export function placeMelody(line: readonly MelodyLineNote[], spans: readonly ChordSpan[], capo: number, level: Level): NoteEvent[] {
   if (!spans.length) return [];
-  const shift = melodyShift(line, capo);
+  const pitches = placeOctaves(line, capo);
   const out: NoteEvent[] = [];
   let prev: NoteEvent | undefined;
   let fingerIndex = 0;
-  for (const n of line) {
-    let midi = n.midi - capo + shift;
-    while (midi < LOWEST) midi += 12;
-    while (midi > HIGHEST) midi -= 12;
+  for (const [i, n] of line.entries()) {
+    const midi = pitches[i];
     const span = spanAt(spans, n.tick);
     if (!span) continue;
     const best = placeNear(midi, span, prev);

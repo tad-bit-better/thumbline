@@ -84,6 +84,20 @@ describe('placeMelody', () => {
     expect(notes.map((n) => OPEN_MIDI[n.string] + n.fret)).toEqual([60, 62, 64, 65, 67]);
   });
 
+  it('moves a phrase that climbs out of reach down an octave whole, keeping its shape', () => {
+    // My Heart Will Go On's whistle intro (in C, no capo): C D E E D, then the leap up to G A G, back to D.
+    // Its top notes are past the e string's 12th fret; folding them alone would turn the leap into a drop.
+    const intro = [72, 74, 76, 76, 74, 79, 81, 79, 74];
+    // Then the verse, an octave and more below it, where the song's middle sits.
+    const verse = [60, 62, 64, 62, 60, 59, 60, 62, 64, 62, 60, 59];
+    const line = [...intro, ...verse].map((midi, i) => ({ tick: i * 480, dur: 480, midi }));
+    const notes = placeMelody(line, [span('C', 0, line.length * 480)], 0, 'moderate');
+    const placed = notes.map((n) => OPEN_MIDI[n.string] + n.fret);
+    const steps = (xs: number[]) => xs.slice(1).map((x, i) => Math.sign(x - xs[i]));
+    expect(steps(placed.slice(0, intro.length))).toEqual(steps(intro));
+    expect(steps(placed.slice(intro.length))).toEqual(steps(verse));
+  });
+
   it('slurs a step on the same string at Moderate, not at Basic', () => {
     // E (64) then F# (66) on the open e string: hammer from 0 to 2
     const line = [

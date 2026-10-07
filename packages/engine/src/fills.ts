@@ -41,9 +41,9 @@ function approach(target: number, count: number, fromBelow: boolean, scale: Set<
  * other side is taken only if it keeps more notes and the preferred side lost
  * more than one. Placed like the tune near
  * the hand, fingers i and m alternating, a step of one or two frets on the same
- * string a sixteenth apart slurred (Advanced). The pattern's finger notes in
- * the window give way; the thumb's bass stays, and a fill note that the hand
- * can't hold with it is left out. Basic and flamenco play no fills. The
+ * string a sixteenth apart slurred (Advanced). The pattern's finger notes give
+ * way while a fill note sounds; the thumb's bass stays, and a fill note that
+ * the hand can't hold with it is left out (the pattern plays on there). Basic and flamenco play no fills. The
  * fullness (§4) sets how long the rest must be and the rhythms (`rules`; by
  * default the level's own, as above): the longest rhythm that fits the rest.
  */
@@ -92,8 +92,8 @@ export function addFills(
     // A shorter run starts later: it keeps the rhythm's last slots.
     const slots = rhythm.at.slice(rhythm.at.length - line.length);
 
-    // The pattern's finger notes in the window give way; the thumb keeps going.
-    out = out.filter((e) => e.melody || e.harmony || e.finger === 'p' || e.tick < from || e.tick >= next.tick);
+    // The pattern's finger notes give way while a fill note sounds (below); the thumb keeps going.
+    const fills: NoteEvent[] = [];
     let prev: NoteEvent | undefined = last;
     slots.forEach((offset, k) => {
       const tick = from + offset;
@@ -103,16 +103,20 @@ export function addFills(
       if (!spot) return;
       const dur = (slots[k + 1] ?? rhythm.span) - offset;
       const note: NoteEvent = { tick, dur, string: spot.string, fret: spot.fret, finger: FINGERS[k % 2], velocity: FILL_VELOCITY, fill: true };
-      const atTick = out.filter((e) => e.tick === tick && e.string !== note.string);
+      const atTick = out.filter((e) => e.tick === tick && e.string !== note.string && (e.melody || e.harmony || e.finger === 'p'));
       if (!isPlayable([...atTick, note], spanHere.voicing)) return;
       if (level === 'advanced' && prev?.fill && prev.string === note.string && tick - prev.tick <= TICKS_PER_BEAT / 4 && prev.fret >= 0) {
         const step = note.fret - prev.fret;
         if (Math.abs(step) >= 1 && Math.abs(step) <= 2) note.tech = step > 0 ? 'hammer' : 'pull';
       }
-      out = out.filter((e) => !(e.tick === tick && e.string === note.string));
-      out.push(note);
+      fills.push(note);
       prev = note;
     });
+    // A slot the hand couldn't fill keeps the pattern: no silence where a fill note was meant to be.
+    const sounding = (t: number) => fills.some((f) => f.tick <= t && t < f.tick + f.dur);
+    out = out.filter((e) => e.melody || e.harmony || e.finger === 'p' || !sounding(e.tick));
+    out = out.filter((e) => !fills.some((f) => f.tick === e.tick && f.string === e.string));
+    out.push(...fills);
   }
   return out.sort((a, b) => a.tick - b.tick || a.string - b.string);
 }
