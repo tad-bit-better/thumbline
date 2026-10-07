@@ -8,6 +8,7 @@ import { shapeDynamics } from './dynamics.js';
 import { mergeMelody, placeMelody, quantiseMelody } from './melody.js';
 import { applySections, applyTouch, moodLabelOf, moodValuesOf, sectionsOf } from './mood.js';
 import { addChordRuns, addFills } from './fills.js';
+import { addCounterLine, addEchoes } from './answers.js';
 import { harmonise } from './harmony.js';
 import { addRolls } from './rolls.js';
 import { walkBass } from './walk.js';
@@ -320,6 +321,12 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     });
   // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
   else if (opts.style !== 'flamenco') moveTopLine(rolled, spans, opts.level, toShape(input.key));
+
+  // The guitar answers the tune (§4 fullness 9–10): echoes in its pauses, a counter-line under held notes.
+  if (tune.length && opts.style !== 'flamenco') {
+    notes = addEchoes(notes, spans, (tick) => rulesAt(tick).echo);
+    notes = addCounterLine(notes, spans, (tick) => rulesAt(tick).counterLine);
+  }
 
   // Bars without a tune, asked to be fuller (§4 fullness 7+): a moving top line and runs into the chord changes.
   if (opts.style !== 'flamenco') {

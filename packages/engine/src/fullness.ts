@@ -25,6 +25,9 @@ export type FullnessRules = {
   fillTrim: boolean;
   /** Bars without a tune get a moving top line and runs into their chord changes, at this level's rules; null = left as they are. */
   tunelessRuns: Level | null;
+  /** The guitar answers the tune: echoes in its pauses (Moderate, Advanced), a counter-line under held notes (Advanced). */
+  echo: boolean;
+  counterLine: boolean;
   harmony: HarmonyRule;
   /** Walking bass at this level's count of notes, into chords at least `walkMinChord` long; null = none. */
   walk: Level | null;
@@ -74,7 +77,9 @@ const HARMONY_STEPS: HarmonyRule[] = ['moderate', 'advanced', 'rich', 'richest']
  *   first eighth inside the rest, when that keeps more notes than a shorter run.
  * - 7–10, bars without a tune: a moving top line, and runs into chord changes
  *   (the fill rhythms, at most half the outgoing chord).
- * - 9–10: harmony two steps richer.
+ * - 9–10: harmony two steps richer; the guitar answers the tune: an echo of a
+ *   phrase's end in its pauses (Moderate, Advanced) and a counter-line under
+ *   held notes (Advanced). Basic stays as at 8.
  */
 export function fullnessRules(fullness: number, level: Level): FullnessRules {
   const f = fullness;
@@ -92,6 +97,8 @@ export function fullnessRules(fullness: number, level: Level): FullnessRules {
     harmony,
     fillTrim: f >= 7 && !!as,
     tunelessRuns: f >= 7 ? as : null,
+    echo: f >= 9 && level !== 'basic',
+    counterLine: f >= 9 && level === 'advanced',
     walk: !as || f <= 4 ? null : as,
     walkMinChord: f >= 7 ? 2 * BEAT : 3 * BEAT,
     thin: f === 1 ? 'all' : f === 2 ? 'offbeat' : null,
