@@ -55,6 +55,8 @@ export type TabSheetProps = {
   size?: TabSize;
   /** Card mode: wrap a card's chord names (0-based bar), e.g. in a button that changes them. */
   renderChords?: (bar: number, chords: ReactNode) => ReactNode;
+  /** Card mode: controls beside a section's heading (e.g. its settings). */
+  renderSectionActions?: (section: TabSection) => ReactNode;
   className?: string;
 };
 
@@ -268,6 +270,7 @@ export function TabSheet({
   chordNames = 'both',
   size = 'm',
   renderChords,
+  renderSectionActions,
   className,
 }: TabSheetProps) {
   const cards = variant === 'cards';
@@ -375,10 +378,13 @@ export function TabSheet({
               const headingId = `${label.replace(/\W+/g, '-')}-${sec.id}`;
               return (
                 <div key={sec.id} role="group" aria-labelledby={headingId} className={styles['cardSection']} data-section={sec.id}>
-                  <h3 id={headingId} className={styles['sectionTitle']}>
-                    {sec.title}
-                    {sec.detail && <span className={styles['sectionDetail']}>{sec.detail}</span>}
-                  </h3>
+                  <div className={styles['sectionHead']}>
+                    <h3 id={headingId} className={styles['sectionTitle']}>
+                      {sec.title}
+                      {sec.detail && <span className={styles['sectionDetail']}>{sec.detail}</span>}
+                    </h3>
+                    {renderSectionActions?.(sec)}
+                  </div>
                   {grid(layout.systems.slice(sec.firstBar, sec.firstBar + sec.bars))}
                 </div>
               );

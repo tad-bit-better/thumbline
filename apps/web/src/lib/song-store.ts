@@ -3,6 +3,7 @@ import { type AnalysisResult, type ChordLabel, type ChordSegment, type Level, MO
 /** The flamenco palos v1 plays. */
 export type Palo = 'rumba' | 'tangos';
 import type { Mix } from '@thumbline/playback';
+import type { SectionChoice, SectionChoices } from './section-settings';
 import { type TempoScale, scaleTempo } from './tempo';
 import { del, get, set } from 'idb-keyval';
 import { useStore } from 'zustand';
@@ -23,6 +24,8 @@ export type Edits = {
   capo?: number;
   /** Count the song at half or double the tempo we heard (the beat finder can lock onto twice the pulse). */
   tempoScale?: TempoScale;
+  /** Per-section pattern and fullness (section-settings.ts keys). */
+  sections?: SectionChoices;
 };
 
 export type Speed = 0.5 | 0.75 | 1;
@@ -71,6 +74,8 @@ export type SongState = Saved & {
   setMeter: (beatsPerBar: 3 | 4) => void;
   setCapo: (capo: number) => void;
   setTempoScale: (scale: TempoScale) => void;
+  /** Set a section's choice under `key`, or clear it (null). */
+  setSection: (key: string, choice: SectionChoice | null) => void;
   setMood: (mood: Mood) => void;
   /** Go back to the mood we heard. */
   resetMood: () => void;
@@ -158,6 +163,11 @@ export function createSongStore(storage: Storage) {
       setMeter: (beatsPerBar) => update({ edits: { ...getState().edits, beatsPerBar } }),
       setCapo: (capo) => update({ edits: { ...getState().edits, capo } }),
       setTempoScale: (tempoScale) => update({ edits: { ...getState().edits, tempoScale } }),
+      setSection: (key, choice) => {
+        const { edits } = getState();
+        const { [key]: _old, ...rest } = edits.sections ?? {};
+        update({ edits: { ...edits, sections: choice ? { ...rest, [key]: choice } : rest } });
+      },
       setMood: (mood) => update({ edits: { ...getState().edits, mood } }),
       resetMood: () => {
         const { mood: _dropped, ...rest } = getState().edits;

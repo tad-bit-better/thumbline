@@ -59,13 +59,14 @@ export function harmonise(
   spans: readonly ChordSpan[],
   level: Level,
   beatsPerBar: BeatsPerBar,
-  rule: HarmonyRule = level === 'basic' ? 'none' : level,
+  rule: HarmonyRule | ((tick: number) => HarmonyRule) = level === 'basic' ? 'none' : level,
 ): NoteEvent[] {
+  const ruleAt = typeof rule === 'function' ? rule : () => rule;
   if (rule === 'none') return [...events];
   const bar = beatsPerBar * TICKS_PER_BEAT;
   let out = [...events];
   for (const tune of events.filter((e) => e.melody)) {
-    const want = voicesFor(rule, tune.tick, tune.dur, bar);
+    const want = voicesFor(ruleAt(tune.tick), tune.tick, tune.dur, bar);
     const span = spanAt(spans, tune.tick);
     if (!want || !span) continue;
     const tones = chordTones(span.played);

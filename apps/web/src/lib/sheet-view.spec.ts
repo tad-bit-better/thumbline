@@ -25,8 +25,7 @@ describe('sheetSections', () => {
   it('letters repeated runs of chords, with their bar ranges', () => {
     const verse = ['C', 'G', 'A', 'F', 'C', 'G', 'F', 'C'];
     const chorus = ['F', 'G', 'C', 'A', 'F', 'G', 'C', 'C'];
-    const a = arrange(song([...verse, ...chorus, ...verse]), { style: 'arpeggio', level: 'basic', capo: 0 });
-    expect(sheetSections(a).map((s) => [s.title, s.detail])).toEqual([
+    expect(sheetSections(song([...verse, ...chorus, ...verse])).map((s) => [s.title, s.detail])).toEqual([
       ['Section A', 'Bars 1–8'],
       ['Section B', 'Bars 9–16'],
       ['Section A', 'Bars 17–24'],
@@ -34,8 +33,9 @@ describe('sheetSections', () => {
   });
 
   it('covers every bar once', () => {
-    const a = arrange(song(['C', 'G', 'A', 'F', 'C', 'G', 'F', 'C', 'F', 'G']), { style: 'arpeggio', level: 'basic', capo: 0 });
-    const s = sheetSections(a);
+    const input = song(['C', 'G', 'A', 'F', 'C', 'G', 'F', 'C', 'F', 'G']);
+    const a = arrange(input, { style: 'arpeggio', level: 'basic', capo: 0 });
+    const s = sheetSections(input);
     expect(s.reduce((n, x) => n + x.bars, 0)).toBe(a.bars);
     s.forEach((x, i) => i && expect(x.firstBar).toBe(s[i - 1].firstBar + s[i - 1].bars));
   });

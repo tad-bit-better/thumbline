@@ -64,8 +64,22 @@ export function quantiseMelody(
   input: Pick<AnalysisResult, 'melody' | 'beatTimesSec' | 'barStartBeat'>,
   level: Level,
   songEnd: number,
-  grid: 'beat' | number = level === 'basic' ? 'beat' : SIXTEENTH,
+  grid: 'beat' | number | ((tick: number) => 'beat' | number) = level === 'basic' ? 'beat' : SIXTEENTH,
 ): MelodyLineNote[] {
+  if (typeof grid === 'function') {
+    // Per-bar grids (section fullness): each grid's line, keeping its notes from the bars that use it.
+    const BAR_PROBE = TICKS_PER_BEAT;
+    const used = new Map<string, 'beat' | number>();
+    for (let t = 0; t < songEnd; t += BAR_PROBE) {
+      const g = grid(t);
+      used.set(String(g), g);
+    }
+    if (used.size <= 1) return quantiseMelody(input, level, songEnd, [...used.values()][0] ?? (level === 'basic' ? 'beat' : SIXTEENTH));
+    const merged = [...used.values()]
+      .flatMap((g) => quantiseMelody(input, level, songEnd, g).filter((n) => String(grid(n.tick)) === String(g)))
+      .sort((a, b) => a.tick - b.tick);
+    return merged.map((n, i) => ({ ...n, dur: Math.max(SIXTEENTH, Math.min(n.dur, (merged[i + 1]?.tick ?? songEnd) - n.tick)) }));
+  }
   const toTick = secToTick(input.beatTimesSec, input.barStartBeat);
   const raw = (input.melody ?? [])
     .map((n) => {

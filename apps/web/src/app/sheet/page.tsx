@@ -44,6 +44,8 @@ import { AppShell } from '../../components/AppShell';
 import { barSpans, chordFlags, toBars } from '../../lib/bars';
 import { useBarPlayer } from '../../lib/use-bar-player';
 import { BarChords, barStatus } from './bar-chords';
+import { SectionEditor } from './section-editor';
+import { toSectionSettings } from '../../lib/section-settings';
 import {
   MOOD_OPTIONS,
   colourWords,
@@ -206,6 +208,9 @@ export default function SheetPage() {
         (prefs.pattern[`${style}.${prefs.level}`] ?? 0) % patterns.length
       ]
     : null;
+  // Sections from the song's chords (A, B, A…), and the reader's pattern and fullness for them.
+  const sections = useMemo(() => (effective ? sheetSections(effective) : []), [effective]);
+  const sectionSettings = useMemo(() => toSectionSettings(sections, edits.sections), [sections, edits.sections]);
   // The capo the sheet was first written with stays when a chord changes (flamenco picks its own).
   const pinnedCapo = style === 'flamenco' ? undefined : edits.capo;
   const arrangement = useMemo<Arrangement | null>(() => {
@@ -219,11 +224,12 @@ export default function SheetPage() {
         mood: moodValues,
         fullness: prefs.fullness,
         capo: pinnedCapo,
+        sectionSettings,
       });
     } catch {
       return null;
     }
-  }, [effective, style, prefs.level, pattern, palo, moodValues, prefs.fullness, pinnedCapo]);
+  }, [effective, style, prefs.level, pattern, palo, moodValues, prefs.fullness, pinnedCapo, sectionSettings]);
   useEffect(() => {
     if (arrangement && style !== 'flamenco' && edits.capo === undefined) songStore.getState().setCapo(arrangement.capo);
   }, [arrangement, style, edits.capo]);
@@ -271,7 +277,7 @@ export default function SheetPage() {
     onEnd,
   });
 
-  const sections = useMemo(() => (arrangement ? sheetSections(arrangement) : []), [arrangement]);
+
   const barTicks = (arrangement?.meter.beatsPerBar ?? 4) * 480;
   const currentBar = Math.floor(player.position / barTicks);
   const follow = useFollowPlayhead();
@@ -561,6 +567,19 @@ export default function SheetPage() {
                     jumpKey={follow.jumpKey}
                     onPlayheadView={follow.onPlayheadView}
                     coveredBottom={playerHeight}
+                    renderSectionActions={(tabSection) => {
+                      const section = sections.find((s) => s.id === tabSection.id);
+                      return section ? (
+                        <SectionEditor
+                          section={section}
+                          sections={sections}
+                          stored={edits.sections}
+                          patterns={patterns}
+                          songFullness={prefs.fullness}
+                          onChange={(key, choice) => songStore.getState().setSection(key, choice)}
+                        />
+                      ) : null;
+                    }}
                     renderChords={(bar, chords) => {
                       const cell = bars[bar];
                       if (!cell || !analysis) return chords;

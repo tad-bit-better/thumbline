@@ -1,7 +1,11 @@
 // What the Sheet screen shows about a song (screens.md §4, Sheet v2), as plain functions.
-import type { Arrangement } from '@thumbline/engine';
+import { type AnalysisResult, type Arrangement, chordName } from '@thumbline/engine';
 import type { TabSection } from '@thumbline/tab-renderer';
+import { toBars } from './bars';
 import { findSections, hasRepeats } from './sections';
+
+/** A section of the sheet; `letter` when sections repeat (A, B, A…), so a setting can follow every repeat. */
+export type SongSection = TabSection & { letter?: string };
 
 /** The song's name from its file: no extension, underscores as spaces, a site's "(mp3.pm)" tag dropped. */
 export function songTitle(fileName: string): string {
@@ -17,23 +21,27 @@ export function songTitle(fileName: string): string {
 /**
  * The song's sections for the tab: runs of bars that repeat the same chords get the same letter
  * (Section A, B, A…), each with its bar range. Without repeats, plain parts of 8 (or 4) bars.
+ * From the song's chords (not the arrangement), so per-section settings can shape the arrangement.
  */
-export function sheetSections(a: Arrangement): TabSection[] {
-  const barTicks = a.meter.beatsPerBar * 480;
-  const labels = Array.from({ length: a.bars }, (_, bar) =>
-    a.chordMarks
-      .filter((m) => m.tick < (bar + 1) * barTicks && (m.tick >= bar * barTicks || m === [...a.chordMarks].reverse().find((x) => x.tick <= bar * barTicks)))
-      .map((m) => m.soundingName)
-      .join(' '),
+export function sheetSections(a: AnalysisResult): SongSection[] {
+  const cells = toBars(a);
+  const labels = cells.map((cell) =>
+    (cell.segments.length ? cell.segments : cell.sounding ? [cell.sounding] : []).map((s) => (s.chord ? chordName(s.chord) : '-')).join(' '),
   );
   const bars = findSections(labels);
   const lettered = hasRepeats(bars);
-  const out: TabSection[] = [];
+  const out: SongSection[] = [];
   bars.forEach((b, bar) => {
     if (!b.starts) return;
     const last = out.at(-1);
     if (last) last.bars = bar - last.firstBar;
-    out.push({ id: String(bar), title: lettered ? `Section ${b.letter}` : `Part ${out.length + 1}`, firstBar: bar, bars: a.bars - bar });
+    out.push({
+      id: String(bar),
+      title: lettered ? `Section ${b.letter}` : `Part ${out.length + 1}`,
+      ...(lettered ? { letter: b.letter } : {}),
+      firstBar: bar,
+      bars: cells.length - bar,
+    });
   });
   return out.map((s) => ({ ...s, detail: s.bars > 1 ? `Bars ${s.firstBar + 1}–${s.firstBar + s.bars}` : `Bar ${s.firstBar + 1}` }));
 }

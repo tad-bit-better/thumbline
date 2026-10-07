@@ -322,6 +322,33 @@ describe('Sheet screen', () => {
     expect(result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([]);
   });
 
+  describe('section settings', () => {
+    const panel = (title: string) => document.querySelector(`[role="dialog"][aria-label="Settings for ${title}"][data-popover-open]`) as HTMLElement;
+
+    it('gives a section its own pattern and fullness, for every repeat, or just one', async () => {
+      render(<Sheet />);
+      // G D Em C twice: Section A, then Section A again.
+      const edit = screen.getAllByRole('button', { name: /^Edit section A/ });
+      expect(edit).toHaveLength(2);
+      await act(async () => fireEvent.click(edit[1]));
+      const p = panel('Section A');
+      const radios = within(p).getAllByRole('radio', { hidden: true });
+      await act(async () => fireEvent.click(radios[2]));
+      const patternId = (radios[2] as HTMLInputElement).value;
+      expect(songStore.getState().edits.sections).toEqual({ 'letter:A': { patternId } });
+      expect(screen.getAllByText('Custom')).toHaveLength(2);
+
+      await act(async () => fireEvent.click(within(p).getByRole('checkbox', { name: /Same as the song/, hidden: true })));
+      expect(songStore.getState().edits.sections?.['letter:A']).toEqual({ patternId, fullness: 5 });
+
+      await act(async () => fireEvent.click(within(p).getByRole('checkbox', { name: /Only this one/, hidden: true })));
+      expect(Object.keys(songStore.getState().edits.sections ?? {})).toEqual(['letter:A', 'bar:4']);
+
+      await act(async () => fireEvent.click(within(p).getByRole('button', { name: 'Reset section A', hidden: true })));
+      expect(Object.keys(songStore.getState().edits.sections ?? {})).toEqual(['letter:A']);
+    });
+  });
+
   describe('chords on the sheet', () => {
     // Bar 2's D was hard to hear (Bm close behind); the rest are clear.
     const unsure: AnalysisResult = {

@@ -138,6 +138,18 @@ describe('song store', () => {
   });
 });
 
+describe('section choices', () => {
+  it('sets and clears a section\'s choice, kept with the song', () => {
+    const store = createSongStore(memoryStorage());
+    store.getState().startSong(file());
+    store.getState().setSection('letter:A', { fullness: 8 });
+    store.getState().setSection('bar:16', { patternId: 'p2' });
+    expect(store.getState().edits.sections).toEqual({ 'letter:A': { fullness: 8 }, 'bar:16': { patternId: 'p2' } });
+    store.getState().setSection('letter:A', null);
+    expect(store.getState().edits.sections).toEqual({ 'bar:16': { patternId: 'p2' } });
+  });
+});
+
 describe('effectiveAnalysis', () => {
   it('counts the song at the tempo the reader set', () => {
     const half = effectiveAnalysis(analysis, { chords: {}, confirmed: [], tempoScale: 0.5 });

@@ -10,6 +10,8 @@ const OPEN_MIDI = [40, 45, 50, 55, 59, 64] as const;
 const LOWEST = 55;
 const HIGHEST = 76;
 const FILL_VELOCITY = 0.7;
+
+type FillRules = { rest: number | null; rhythms: readonly FillRhythm[]; trim?: boolean };
 const FINGERS: Finger[] = ['i', 'm'];
 const STEPS: Record<string, number[]> = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -51,10 +53,10 @@ export function addFills(
   events: readonly NoteEvent[],
   spans: readonly ChordSpan[],
   level: Level,
-  rules: { rest: number | null; rhythms: readonly FillRhythm[]; trim?: boolean } = (({ fillRest, fillRhythms }) => ({ rest: fillRest, rhythms: fillRhythms }))(fullnessRules(5, level)),
+  rulesIn: FillRules | ((tick: number) => FillRules) = (({ fillRest, fillRhythms }) => ({ rest: fillRest, rhythms: fillRhythms }))(fullnessRules(5, level)),
 ): NoteEvent[] {
-  if (rules.rest === null || !rules.rhythms.length) return [...events];
-  const minRest = rules.rest;
+  // Per-bar rules (section fullness): those of the bar the next tune note is in.
+  const rulesAt = typeof rulesIn === 'function' ? rulesIn : () => rulesIn;
   const tune = events.filter((e) => e.melody).sort((a, b) => a.tick - b.tick);
   let out = [...events];
   for (let i = 1; i < tune.length; i++) {
@@ -62,7 +64,8 @@ export function addFills(
     const next = tune[i];
     const restFrom = last.tick + last.dur;
     const rest = next.tick - restFrom;
-    if (rest < minRest) continue;
+    const rules = rulesAt(next.tick);
+    if (rules.rest === null || !rules.rhythms.length || rest < rules.rest) continue;
     let rhythm = rules.rhythms.find((r) => r.span <= rest);
     if (rules.trim && rhythm !== rules.rhythms[0]) {
       // The longest run's tail, from the first eighth inside the rest.

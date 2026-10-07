@@ -25,6 +25,20 @@ describe('TabSheet bar cards', () => {
     expect(first.querySelector('[data-card-chord]')?.textContent).toContain('G');
   });
 
+  it('puts the app\'s controls beside each section heading, outside the heading', () => {
+    render(
+      <TabSheet
+        arrangement={pop}
+        width={900}
+        variant="cards"
+        sections={SECTIONS}
+        renderSectionActions={(sec) => <button type="button">Edit {sec.title}</button>}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Edit Section B' })).toBeTruthy();
+    expect(screen.getAllByRole('heading').map((h) => h.textContent)).toEqual(['Section ABars 1–4', 'Section BBars 5–8']);
+  });
+
   it('lets the app wrap a card\'s chords (a button to change them)', () => {
     render(
       <TabSheet

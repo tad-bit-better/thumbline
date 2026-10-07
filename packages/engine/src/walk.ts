@@ -45,13 +45,22 @@ function placeBass(midi: number, span: ChordSpan): { string: number; fret: numbe
  * the hand can hold it with the rest. Basic and flamenco keep their bass.
  * A fuller setting (§4) walks into chords of `minChord` ticks or more.
  */
-export function walkBass(events: readonly NoteEvent[], spans: readonly ChordSpan[], level: Level, minChord = MIN_CHORD): NoteEvent[] {
-  if (level === 'basic') return [...events];
+export function walkBass(
+  events: readonly NoteEvent[],
+  spans: readonly ChordSpan[],
+  level: Level,
+  minChord = MIN_CHORD,
+  /** Per-bar settings (section fullness): the walk's level (null: none) and shortest chord, at a chord's start. */
+  rulesAt?: (tick: number) => { walk: Level | null; walkMinChord: number },
+): NoteEvent[] {
+  if (!rulesAt && level === 'basic') return [...events];
   let out = [...events];
   for (let i = 0; i + 1 < spans.length; i++) {
     const cur = spans[i];
     const next = spans[i + 1];
-    if (next.start !== cur.end || cur.end - cur.start < minChord) continue;
+    const here = rulesAt ? rulesAt(cur.start) : { walk: level, walkMinChord: minChord };
+    if (!here.walk || here.walk === 'basic') continue;
+    if (next.start !== cur.end || cur.end - cur.start < here.walkMinChord) continue;
     const from = bassOf(cur);
     const to = bassOf(next);
     if (Math.abs(to - from) <= 2) continue;
@@ -62,7 +71,7 @@ export function walkBass(events: readonly NoteEvent[], spans: readonly ChordSpan
     // Scale notes strictly between, in walking order; the ones nearest the new bass are played.
     const between: number[] = [];
     for (let m = from + dir; m !== to; m += dir) if (scale.has(((m % 12) + 12) % 12)) between.push(m);
-    const count = level === 'advanced' ? 2 : 1;
+    const count = here.walk === 'advanced' ? 2 : 1;
     const notes = between.slice(-count);
     if (!notes.length) continue;
     const ticks = notes.length === 2 ? [next.start - TICKS_PER_BEAT, next.start - TICKS_PER_BEAT / 2] : [next.start - TICKS_PER_BEAT];

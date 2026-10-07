@@ -444,3 +444,19 @@
   }
 }
 
+
+/* Edit section, beside a section heading. */
+.sectionActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sectionPanel {
+  width: min(340px, calc(100vw - 2 * var(--space-4)));
+}
+
+.sectionOptions {
+  display: grid;
+  gap: var(--space-2);
+}

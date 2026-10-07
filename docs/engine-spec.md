@@ -190,6 +190,7 @@ function arrange(input: AnalysisResult, opts: {
   style: Style; level: Level; patternId?: string; capo?: number | 'auto'; palo?: string;
   melody?: boolean; mood?: MoodLabel | Mood;
   fullness?: number;   // 1 (sparse) – 10 (full), whole numbers, default 5 (§4 fullness)
+  sectionSettings?: Array<{ fromBar: number; toBar: number; patternId?: string; fullness?: number }>; // §4 section settings
 }): Arrangement;
 ```
 
@@ -212,6 +213,8 @@ function arrange(input: AnalysisResult, opts: {
 **Playability check.** Reject a pattern for a chord if any simultaneous notes need a fret span > 4 or more than 4 fretted fingers; fall back to the next pattern at the same level, then the level below.
 
 **Tune octaves (2026-10-08).** The tune moves by whole octaves to fit the top strings (MIDI 55–76 in shape space). The song's shift (its median nearest G above middle C) is the default, but a phrase that climbs out of range moves an octave as a whole, so its shape survives: My Heart Will Go On's whistle intro (F G A, then the leap up to C D C) had its top notes folded down one by one, turning the leap into a drop. A best path over the notes: a note out of range costs 10, a note off the song's octave 0.1, changing octave between two notes 3 when it turns the step's direction round, 1 when it doesn't, 0.5 between phrases (after a rest of a beat, or a note held two beats). Notes still out of range then move an octave in on their own.
+
+**Section settings (2026-10-08).** `sectionSettings` give bars `fromBar`…`toBar − 1` their own pattern and/or fullness (a later setting wins where two overlap). A pattern plays in those bars when it is one of this style, level, meter and palo's patterns; otherwise (a stale saved choice) it is skipped. `patternChanges` lists the bars where the played pattern changes. Fullness applies per bar: the tune's grid in those bars, fills into a tune note there, harmony under a tune note there, a walk out of a chord starting there, and thinning under the tune there. Outside the settings, and with none, the arrangement is unchanged.
 
 **Fullness (2026-10-07).** How much the guitar fills in, 1–10; 5 plays exactly as the level always did. It fills silences and adds harmony; it never makes the rhythm faster than the level's (16ths at most, eighths for Basic), and Basic stays plain until 8. 1–2: no fills, harmony or walking bass, and while a tune note sounds the pattern's finger notes give way (1: all, 2: those off the beat; the thumb stays); Moderate and Advanced hear the tune on eighths (also at 3). 3–4: fills only into rests of two beats or more; no harmony at 3; no walking bass. 5–6: as written. 7–8: fills into rests of half a beat or more (a half-beat rest gets one eighth pickup); Moderate's fills run eighths over two beats, Advanced's add a beat of eighths before its run when three beats are free; a rest too short for the longest run gets its tail from the first eighth inside the rest, when that keeps more notes; harmony one step richer (Moderate's rule → Advanced's → rich: off-beat tune notes of an eighth or more get a voice → richest: every on-beat note gets two); the bass walks into chords of two beats or more. Basic from 8: the tune on eighths, and Moderate's fills (plus the pickup), harmony and walks. 9–10: harmony two steps richer.
 
