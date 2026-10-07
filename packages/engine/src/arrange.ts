@@ -7,7 +7,7 @@ import { type ChordSpan, isPlayable, runSegment } from './runner.js';
 import { shapeDynamics } from './dynamics.js';
 import { mergeMelody, placeMelody, quantiseMelody } from './melody.js';
 import { applySections, applyTouch, moodLabelOf, moodValuesOf, sectionsOf } from './mood.js';
-import { addFills } from './fills.js';
+import { addChordRuns, addFills } from './fills.js';
 import { harmonise } from './harmony.js';
 import { addRolls } from './rolls.js';
 import { walkBass } from './walk.js';
@@ -320,6 +320,19 @@ export function arrange(input: AnalysisResult, opts: ArrangeOptions): Arrangemen
     });
   // Flamenco's top notes are strums, tremolo (one repeated note), drones and campanella: they stay put.
   else if (opts.style !== 'flamenco') moveTopLine(rolled, spans, opts.level, toShape(input.key));
+
+  // Bars without a tune, asked to be fuller (§4 fullness 7+): a moving top line and runs into the chord changes.
+  if (opts.style !== 'flamenco') {
+    const sung = new Set<number>();
+    for (const t of tune) for (let b = Math.floor(t.tick / barTicks); b * barTicks < t.tick + t.dur; b++) sung.add(b);
+    const tuneless = (tick: number) => !sung.has(Math.floor(tick / barTicks));
+    const quietSpans = spans.filter((s) => tuneless(s.start) && tuneless(s.end - 1) && rulesAt(s.start).tunelessRuns);
+    if (quietSpans.length) {
+      // With no tune at all the top line already moves (above); here only the bars that asked for more.
+      if (tune.length) for (const s of quietSpans) moveTopLine(notes, [s], rulesAt(s.start).tunelessRuns ?? opts.level, s.key ?? toShape(input.key));
+      notes = addChordRuns(notes, spans, opts.level, rulesAt, tuneless);
+    }
+  }
 
   // Not every note weighs the same: the tune leads, the thumb holds, inner notes stay under (M9).
   shapeDynamics(notes, beatsPerBar);

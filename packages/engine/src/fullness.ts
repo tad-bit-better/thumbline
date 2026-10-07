@@ -23,6 +23,8 @@ export type FullnessRules = {
   fillRhythms: FillRhythm[];
   /** A rest shorter than the longest rhythm still gets its tail (from the first eighth inside the rest), when longer than the next rhythm. */
   fillTrim: boolean;
+  /** Bars without a tune get a moving top line and runs into their chord changes, at this level's rules; null = left as they are. */
+  tunelessRuns: Level | null;
   harmony: HarmonyRule;
   /** Walking bass at this level's count of notes, into chords at least `walkMinChord` long; null = none. */
   walk: Level | null;
@@ -70,6 +72,8 @@ const HARMONY_STEPS: HarmonyRule[] = ['moderate', 'advanced', 'rich', 'richest']
  *   walks like Moderate.
  * - 7–10: a rest too short for the longest run gets the run's tail, from the
  *   first eighth inside the rest, when that keeps more notes than a shorter run.
+ * - 7–10, bars without a tune: a moving top line, and runs into chord changes
+ *   (the fill rhythms, at most half the outgoing chord).
  * - 9–10: harmony two steps richer.
  */
 export function fullnessRules(fullness: number, level: Level): FullnessRules {
@@ -87,6 +91,7 @@ export function fullnessRules(fullness: number, level: Level): FullnessRules {
     fillRhythms,
     harmony,
     fillTrim: f >= 7 && !!as,
+    tunelessRuns: f >= 7 ? as : null,
     walk: !as || f <= 4 ? null : as,
     walkMinChord: f >= 7 ? 2 * BEAT : 3 * BEAT,
     thin: f === 1 ? 'all' : f === 2 ? 'offbeat' : null,

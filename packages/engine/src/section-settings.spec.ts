@@ -1,6 +1,7 @@
 import { arrange } from './arrange.js';
 import { TICKS_PER_BEAT } from './constants.js';
 import { patternsFor } from './patterns/index.js';
+import { isPlayable } from './runner.js';
 import { progression } from './testing/progression.js';
 import type { AnalysisResult, Arrangement, MelodyNote } from './types.js';
 
@@ -49,5 +50,37 @@ describe('section settings (pattern and fullness per section)', () => {
     expect(sheet([{ fromBar: 0, toBar: 8, patternId: 'arpeggio.basic.travis' }]).events).toEqual(sheet().events);
     expect(sheet([{ fromBar: 0, toBar: 8, patternId: 'no.such.pattern' }]).events).toEqual(sheet().events);
     expect(() => sheet([{ fromBar: 0, toBar: 8, fullness: 11 }])).toThrow(/1 to 10/);
+  });
+
+  describe('a section without a tune', () => {
+    // The tune sings in the verse only; the chorus (bars 8–15) is instrumental.
+    const half: AnalysisResult = { ...song, melody: song.melody?.filter((n) => n.startSec < 8 * 4 * BEAT_SEC) };
+    const at = (sectionSettings?: Parameters<typeof arrange>[1]['sectionSettings'], level: 'moderate' | 'advanced' = 'moderate') =>
+      arrange(half, { style: 'fingerstyle', level, capo: 0, patternId: patternsFor('fingerstyle', level, 4)[0].id, sectionSettings });
+    const topFrets = (a: Arrangement, from: number, to: number) => new Set(inBars(a, from, to).filter((e) => e.string >= 4 && e.finger !== 'p').map((e) => `${e.string}/${e.fret}`));
+
+    it('stays as it was at the song\'s fullness', () => {
+      expect(count(at(), 8, 16, 'fill')).toBe(0);
+    });
+
+    it('gets runs into its chord changes and a moving top line when fuller', () => {
+      const plain = at();
+      const full = at([{ fromBar: 8, toBar: 16, fullness: 8 }]);
+      expect(count(full, 8, 16, 'fill')).toBeGreaterThan(0);
+      expect(topFrets(full, 8, 16).size).toBeGreaterThan(topFrets(plain, 8, 16).size);
+      // Runs fill the time before a change; they don't speed up the rhythm.
+      expect(inBars(full, 8, 16).every((e) => e.tick % (BEAT / 4) === 0)).toBe(true);
+      expect(inBars(full, 0, 7)).toEqual(inBars(plain, 0, 7));
+    });
+
+    it('stays playable', () => {
+      const a = at([{ fromBar: 8, toBar: 16, fullness: 10 }], 'advanced');
+      const byTick = new Map<number, typeof a.events>();
+      for (const e of a.events) byTick.set(e.tick, [...(byTick.get(e.tick) ?? []), e]);
+      for (const [tick, notes] of byTick) {
+        const mark = [...a.chordMarks].reverse().find((m) => m.tick <= tick);
+        if (mark) expect(isPlayable(notes, mark.voicing)).toBe(true);
+      }
+    });
   });
 });

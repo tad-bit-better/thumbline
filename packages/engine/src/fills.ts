@@ -19,7 +19,7 @@ const STEPS: Record<string, number[]> = {
   phrygian: [0, 1, 3, 5, 7, 8, 10],
 };
 
-const midiOf = (e: NoteEvent) => OPEN_MIDI[e.string] + e.fret;
+const midiOf = (e: Pick<NoteEvent, 'string' | 'fret'>) => OPEN_MIDI[e.string] + e.fret;
 const spanAt = (spans: readonly ChordSpan[], tick: number) => spans.find((s) => s.start <= tick && tick < s.end);
 
 /** The `count` scale notes leading into `target` from below (ascending) or above (descending). */
@@ -75,51 +75,101 @@ export function addFills(
       if (tail.at.length > (rhythm?.at.length ?? 0)) rhythm = tail;
     }
     if (!rhythm) continue;
-    const from = next.tick - rhythm.span;
-    const span = spanAt(spans, from);
-    if (!span?.key) continue;
-    const key = span.key;
-    const scale = new Set((STEPS[key.mode] ?? STEPS['major']).map((s) => (key.pc + s) % 12));
-    const target = midiOf(next);
-    // The run's notes nearest the target that stay in range; the preferred side wins unless it loses more than one.
-    const inRange = (fromBelow: boolean) => {
-      const run = approach(target, rhythm.at.length, fromBelow, scale);
-      let k = run.length;
-      while (k > 0 && run[k - 1] >= LOWEST && run[k - 1] <= HIGHEST) k--;
-      return run.slice(k);
-    };
-    const preferred = inRange(midiOf(last) <= target);
-    const other = inRange(midiOf(last) > target);
-    const line = preferred.length >= rhythm.at.length - 1 || preferred.length >= other.length ? preferred : other;
-    if (!line.length) continue;
-    // A shorter run starts later: it keeps the rhythm's last slots.
-    const slots = rhythm.at.slice(rhythm.at.length - line.length);
+    out = addRun(out, last, next, rhythm, spans, level);
+  }
+  return out.sort((a, b) => a.tick - b.tick || a.string - b.string);
+}
 
-    // The pattern's finger notes give way while a fill note sounds (below); the thumb keeps going.
-    const fills: NoteEvent[] = [];
-    let prev: NoteEvent | undefined = last;
-    slots.forEach((offset, k) => {
-      const tick = from + offset;
-      const spanHere = spanAt(spans, tick) ?? span;
-      const thumb = new Set(out.filter((e) => e.tick === tick && e.finger === 'p').map((e) => e.string));
-      const spot = placeNear(line[k], spanHere, prev, thumb);
-      if (!spot) return;
-      const dur = (slots[k + 1] ?? rhythm.span) - offset;
-      const note: NoteEvent = { tick, dur, string: spot.string, fret: spot.fret, finger: FINGERS[k % 2], velocity: FILL_VELOCITY, fill: true };
-      const atTick = out.filter((e) => e.tick === tick && e.string !== note.string && (e.melody || e.harmony || e.finger === 'p'));
-      if (!isPlayable([...atTick, note], spanHere.voicing)) return;
-      if (level === 'advanced' && prev?.fill && prev.string === note.string && tick - prev.tick <= TICKS_PER_BEAT / 4 && prev.fret >= 0) {
-        const step = note.fret - prev.fret;
-        if (Math.abs(step) >= 1 && Math.abs(step) <= 2) note.tech = step > 0 ? 'hammer' : 'pull';
-      }
-      fills.push(note);
-      prev = note;
-    });
-    // A slot the hand couldn't fill keeps the pattern: no silence where a fill note was meant to be.
-    const sounding = (t: number) => fills.some((f) => f.tick <= t && t < f.tick + f.dur);
-    out = out.filter((e) => e.melody || e.harmony || e.finger === 'p' || !sounding(e.tick));
-    out = out.filter((e) => !fills.some((f) => f.tick === e.tick && f.string === e.string));
-    out.push(...fills);
+/** A note a run leads from or into: where it sounds (string and fret), and when. */
+type Anchor = Pick<NoteEvent, 'tick' | 'string' | 'fret'> & Partial<Pick<NoteEvent, 'fill'>>;
+
+/**
+ * One run in `rhythm` leading into `next` (it ends where `next` starts), walking
+ * the key's scale from `last`'s side: the shared core of tune fills and chord
+ * runs. The pattern's finger notes give way while a run note sounds; a slot the
+ * hand can't fill keeps the pattern.
+ */
+function addRun(out: NoteEvent[], last: Anchor, next: Anchor, rhythm: FillRhythm, spans: readonly ChordSpan[], level: Level): NoteEvent[] {
+  const from = next.tick - rhythm.span;
+  const span = spanAt(spans, from);
+  if (!span?.key) return out;
+  const key = span.key;
+  const scale = new Set((STEPS[key.mode] ?? STEPS['major']).map((s) => (key.pc + s) % 12));
+  const target = midiOf(next);
+  // The run's notes nearest the target that stay in range; the preferred side wins unless it loses more than one.
+  const inRange = (fromBelow: boolean) => {
+    const run = approach(target, rhythm.at.length, fromBelow, scale);
+    let k = run.length;
+    while (k > 0 && run[k - 1] >= LOWEST && run[k - 1] <= HIGHEST) k--;
+    return run.slice(k);
+  };
+  const preferred = inRange(midiOf(last) <= target);
+  const other = inRange(midiOf(last) > target);
+  const line = preferred.length >= rhythm.at.length - 1 || preferred.length >= other.length ? preferred : other;
+  if (!line.length) return out;
+  // A shorter run starts later: it keeps the rhythm's last slots.
+  const slots = rhythm.at.slice(rhythm.at.length - line.length);
+
+  // The pattern's finger notes give way while a fill note sounds (below); the thumb keeps going.
+  const fills: NoteEvent[] = [];
+  let prev: Anchor | undefined = last;
+  slots.forEach((offset, k) => {
+    const tick = from + offset;
+    const spanHere = spanAt(spans, tick) ?? span;
+    const thumb = new Set(out.filter((e) => e.tick === tick && e.finger === 'p').map((e) => e.string));
+    const spot = placeNear(line[k], spanHere, prev, thumb);
+    if (!spot) return;
+    const dur = (slots[k + 1] ?? rhythm.span) - offset;
+    const note: NoteEvent = { tick, dur, string: spot.string, fret: spot.fret, finger: FINGERS[k % 2], velocity: FILL_VELOCITY, fill: true };
+    const atTick = out.filter((e) => e.tick === tick && e.string !== note.string && (e.melody || e.harmony || e.finger === 'p'));
+    if (!isPlayable([...atTick, note], spanHere.voicing)) return;
+    if (level === 'advanced' && prev?.fill && prev.string === note.string && tick - prev.tick <= TICKS_PER_BEAT / 4 && prev.fret >= 0) {
+      const step = note.fret - prev.fret;
+      if (Math.abs(step) >= 1 && Math.abs(step) <= 2) note.tech = step > 0 ? 'hammer' : 'pull';
+    }
+    fills.push(note);
+    prev = note;
+  });
+  // A slot the hand couldn't fill keeps the pattern: no silence where a fill note was meant to be.
+  const sounding = (t: number) => fills.some((f) => f.tick <= t && t < f.tick + f.dur);
+  out = out.filter((e) => e.melody || e.harmony || e.finger === 'p' || !sounding(e.tick));
+  out = out.filter((e) => !fills.some((f) => f.tick === e.tick && f.string === e.string));
+  out.push(...fills);
+  return out;
+}
+
+/**
+ * engine-spec §4 fullness, a section without a tune (7 and up): a guitarist
+ * leads into each chord change with a short run, as fills lead into the tune.
+ * Where both chords sit in bars without a tune (`tuneless`) and the change's
+ * bar asks for it (`rulesAt(tick).tunelessRuns`), a run in the longest fill
+ * rhythm that fits half the outgoing chord leads from the last finger note on
+ * the top four strings into the first one of the new chord (or its shape's top
+ * note).
+ */
+export function addChordRuns(
+  events: readonly NoteEvent[],
+  spans: readonly ChordSpan[],
+  level: Level,
+  rulesAt: (tick: number) => { tunelessRuns: Level | null; fillRhythms: readonly FillRhythm[] },
+  tuneless: (tick: number) => boolean,
+): NoteEvent[] {
+  let out = [...events];
+  const top = (e: NoteEvent) => e.finger !== 'p' && e.string >= 2 && e.fret >= 0 && !e.tech?.startsWith('brush') && !e.tech?.startsWith('rasgueo');
+  for (let i = 1; i < spans.length; i++) {
+    const [prev, cur] = [spans[i - 1], spans[i]];
+    if (prev.end !== cur.start || !tuneless(cur.start) || !tuneless(prev.start)) continue;
+    const rules = rulesAt(cur.start);
+    if (!rules.tunelessRuns) continue;
+    const rhythm = rules.fillRhythms.find((r) => r.span <= (cur.start - prev.start) / 2);
+    if (!rhythm) continue;
+    const before = out.filter((e) => top(e) && e.tick >= prev.start && e.tick < cur.start - rhythm.span).at(-1);
+    const shapeTop = cur.voicing.frets.reduce((t, f, s) => (f >= 0 && s >= 2 ? s : t), -1);
+    const into: Anchor | undefined =
+      out.filter((e) => top(e) && e.tick === cur.start).sort((a, b) => b.string - a.string)[0] ??
+      (shapeTop >= 0 ? { tick: cur.start, string: shapeTop, fret: cur.voicing.frets[shapeTop] } : undefined);
+    if (!before || !into) continue;
+    out = addRun(out, before, into, rhythm, spans, level);
   }
   return out.sort((a, b) => a.tick - b.tick || a.string - b.string);
 }
