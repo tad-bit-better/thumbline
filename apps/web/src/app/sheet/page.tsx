@@ -2,10 +2,12 @@
 
 import {
   type Arrangement,
+  type ChordLabel,
   type Level,
   type Mood,
   type Style,
   arrange,
+  bestCapo,
   moodLabelOf,
   patternsFor,
 } from '@thumbline/engine';
@@ -29,7 +31,6 @@ import {
   useReducedMotion,
   useToast,
 } from '@thumbline/ui';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ViewTransition,
@@ -40,6 +41,9 @@ import {
   useState,
 } from 'react';
 import { AppShell } from '../../components/AppShell';
+import { barSpans, chordFlags, toBars } from '../../lib/bars';
+import { useBarPlayer } from '../../lib/use-bar-player';
+import { BarChords, barStatus } from './bar-chords';
 import {
   MOOD_OPTIONS,
   colourWords,
@@ -96,6 +100,11 @@ const TAB_SIZES = [
   { value: 's', label: 'S' },
   { value: 'm', label: 'M' },
   { value: 'l', label: 'L' },
+] as const;
+
+const METERS = [
+  { value: '4', label: '4/4' },
+  { value: '3', label: '3/4' },
 ] as const;
 
 const PALOS = [
@@ -192,6 +201,8 @@ export default function SheetPage() {
         (prefs.pattern[`${style}.${prefs.level}`] ?? 0) % patterns.length
       ]
     : null;
+  // The capo the sheet was first written with stays when a chord changes (flamenco picks its own).
+  const pinnedCapo = style === 'flamenco' ? undefined : edits.capo;
   const arrangement = useMemo<Arrangement | null>(() => {
     if (!effective || !pattern) return null;
     try {
@@ -202,11 +213,28 @@ export default function SheetPage() {
         palo,
         mood: moodValues,
         fullness: prefs.fullness,
+        capo: pinnedCapo,
       });
     } catch {
       return null;
     }
-  }, [effective, style, prefs.level, pattern, palo, moodValues, prefs.fullness]);
+  }, [effective, style, prefs.level, pattern, palo, moodValues, prefs.fullness, pinnedCapo]);
+  useEffect(() => {
+    if (arrangement && style !== 'flamenco' && edits.capo === undefined) songStore.getState().setCapo(arrangement.capo);
+  }, [arrangement, style, edits.capo]);
+  const betterCapo = useMemo(() => {
+    if (!effective || pinnedCapo === undefined) return undefined;
+    const best = bestCapo(effective.chords.flatMap((c) => (c.chord ? [c.chord] : [])));
+    return best !== pinnedCapo ? best : undefined;
+  }, [effective, pinnedCapo]);
+
+  // Chords on the sheet: what we're unsure of, and the bar player for "Hear this bar".
+  const bars = useMemo(() => (effective ? toBars(effective) : []), [effective]);
+  const spans = useMemo(() => (effective ? barSpans(effective, bars.length) : []), [effective, bars.length]);
+  const flags = useMemo(() => (effective ? chordFlags(effective, edits.confirmed) : new Map()), [effective, edits.confirmed]);
+  const flaggedBars = useMemo(() => bars.filter((c) => ['check', 'likely'].includes(barStatus(c, flags, edits.confirmed))).map((c) => c.bar), [bars, flags, edits.confirmed]);
+  const barPlayer = useBarPlayer(file);
+  const [chordBurst, setChordBurst] = useState<{ bar: number; key: number } | null>(null);
 
   const onEnd = useCallback(
     (wholeSong: boolean) => {
@@ -311,6 +339,20 @@ export default function SheetPage() {
   // Songs saved before the display options existed have none: the defaults.
   const display = { ...DEFAULT_DISPLAY, ...prefs.display };
 
+  /** Open a bar's chord picker, bringing its card into view. */
+  const openChord = (bar: number) => {
+    const chip = document.querySelector<HTMLButtonElement>(`[data-chord-bar="${bar}"]`);
+    chip?.scrollIntoView?.({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    chip?.click();
+  };
+  /** The next flagged bar after `bar` (wrapping round), other than it. */
+  const nextFlagged = (bar: number) => flaggedBars.find((b) => b > bar) ?? flaggedBars.find((b) => b !== bar);
+  const pickChord = (bar: number, segment: number, chord: ChordLabel) => {
+    songStore.getState().setChord(segment, chord);
+    setChordBurst((b) => ({ bar, key: (b?.key ?? 0) + 1 }));
+  };
+  const toCheck = flaggedBars.length;
+
   return (
     <AppShell
       wide
@@ -360,9 +402,6 @@ export default function SheetPage() {
               <dd>{Math.round(effective.bpm)} bpm</dd>
             </div>
           </dl>
-          <Link className={styles.navLink} href="/review">
-            Edit chords
-          </Link>
         </header>
 
         <Card padding="sm" className={styles.arrangementBar}>
@@ -458,12 +497,23 @@ export default function SheetPage() {
           </Card>
         )}
 
-        {summary && (
+        <p className={styles.warnings} data-tone={toCheck > 0 || summary ? 'warn' : undefined} aria-live="polite">
+          {toCheck > 0 ? `${toCheck} chord${toCheck > 1 ? 's' : ''} might be off. ` : ''}
+          Tap a chord to hear the bar or change it.{' '}
+          {toCheck > 0 && (
+            <button type="button" className={styles.inlineLink} onClick={() => openChord(flaggedBars[0])}>
+              Check {toCheck > 1 ? 'them' : 'it'}
+            </button>
+          )}
+          {summary && <span className={styles.summary}> {summary}</span>}
+        </p>
+
+        {betterCapo !== undefined && (
           <p className={styles.warnings}>
-            {summary}{' '}
-            <Link className={styles.inlineLink} href="/review">
-              Review chords
-            </Link>
+            Your chords sit better with {betterCapo > 0 ? `a capo on the ${ordinal(betterCapo)} fret` : 'no capo'}.{' '}
+            <button type="button" className={styles.inlineLink} onClick={() => songStore.getState().setCapo(betterCapo)}>
+              {betterCapo > 0 ? `Use capo ${betterCapo}` : 'Take the capo off'}
+            </button>
           </p>
         )}
 
@@ -506,6 +556,35 @@ export default function SheetPage() {
                     jumpKey={follow.jumpKey}
                     onPlayheadView={follow.onPlayheadView}
                     coveredBottom={playerHeight}
+                    renderChords={(bar, chords) => {
+                      const cell = bars[bar];
+                      if (!cell || !analysis) return chords;
+                      const span = spans[bar];
+                      const next = nextFlagged(bar);
+                      return (
+                        <BarChords
+                          cell={cell}
+                          heard={analysis}
+                          confirmed={edits.confirmed}
+                          flags={flags}
+                          onPick={(segment, chord) => pickChord(bar, segment, chord)}
+                          onHear={
+                            file && span
+                              ? () => {
+                                  player.stop();
+                                  void barPlayer.toggle(bar, span.start, span.end);
+                                }
+                              : undefined
+                          }
+                          hearing={barPlayer.playing === bar}
+                          onNext={next !== undefined ? () => openChord(next) : undefined}
+                          nextLabel={`Next to check (${toCheck - (flaggedBars.includes(bar) ? 1 : 0)} left)`}
+                          burstKey={chordBurst?.bar === bar ? chordBurst.key : undefined}
+                        >
+                          {chords}
+                        </BarChords>
+                      );
+                    }}
                   />
                 </div>
               </ViewTransition>
@@ -577,6 +656,18 @@ export default function SheetPage() {
 
       <Drawer open={customizing} title="Customize" onClose={() => setCustomizing(false)}>
         <div className={styles.customize}>
+          <h3 className={styles.panelTitle}>Time</h3>
+          <SegmentedControl
+            label="Time"
+            fullWidth
+            options={METERS}
+            value={String(meter) as '4' | '3'}
+            onChange={(v) => {
+              player.stop();
+              barPlayer.stop();
+              songStore.getState().setMeter(Number(v) as 3 | 4);
+            }}
+          />
           <h3 className={styles.panelTitle}>Style</h3>
           <SegmentedControl
             label="Style"

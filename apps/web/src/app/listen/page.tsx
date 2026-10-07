@@ -83,7 +83,7 @@ export default function Listen() {
     if (!hydrated) return;
     const nav = routerRef.current;
     if (!meta || !file) return nav.replace('/');
-    if (songStore.getState().analysis) return nav.replace('/review');
+    if (songStore.getState().analysis) return nav.replace('/sheet');
 
     const abort = new AbortController();
     controller.current = abort;
@@ -113,7 +113,7 @@ export default function Listen() {
         }));
         timer = setTimeout(() => {
           songStore.getState().setAnalysis(result);
-          nav.push('/review');
+          nav.push('/sheet');
         }, ADVANCE_MS);
       },
       (err: unknown) => {

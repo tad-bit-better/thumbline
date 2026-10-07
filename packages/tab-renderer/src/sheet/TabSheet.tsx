@@ -1,6 +1,6 @@
 import type { Arrangement } from '@thumbline/engine';
 import { Reveal, useReducedMotion } from '@thumbline/ui';
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { type ReactNode, memo, useEffect, useMemo, useRef } from 'react';
 import { GEOMETRY, type SheetLayout, type SystemLayout, layoutSheet, tickAtX } from '../layout/layout';
 import styles from './TabSheet.module.css';
 import { Technique } from './Techniques';
@@ -53,6 +53,8 @@ export type TabSheetProps = {
   chordNames?: ChordNameMode;
   /** Card mode: how big each card is drawn (default m). */
   size?: TabSize;
+  /** Card mode: wrap a card's chord names (0-based bar), e.g. in a button that changes them. */
+  renderChords?: (bar: number, chords: ReactNode) => ReactNode;
   className?: string;
 };
 
@@ -206,7 +208,17 @@ const SystemView = memo(function SystemView({
  * A bar card's head: its number, its chords as the reader asked (the chord carried in from the
  * bar before when it doesn't change), and badges for shapes that need a barre or were simplified.
  */
-function CardHead({ system: s, arrangement, chordNames }: { system: SystemLayout; arrangement: Arrangement; chordNames: ChordNameMode }) {
+function CardHead({
+  system: s,
+  arrangement,
+  chordNames,
+  renderChords,
+}: {
+  system: SystemLayout;
+  arrangement: Arrangement;
+  chordNames: ChordNameMode;
+  renderChords?: (bar: number, chords: ReactNode) => ReactNode;
+}) {
   const marks = arrangement.chordMarks.filter((m) => m.tick >= s.start && m.tick < s.end);
   const carried = marks.length ? [] : arrangement.chordMarks.filter((m) => m.tick < s.start).slice(-1);
   const shown = [...carried, ...marks];
@@ -217,16 +229,19 @@ function CardHead({ system: s, arrangement, chordNames }: { system: SystemLayout
         {s.firstBar + 1}
       </span>
       <span className={styles['cardChords']} data-card-chord="">
-        {shown.map((m, i) => {
-          const t = chordText({ name: m.voicing.name, sounding: capo && m.soundingName !== m.voicing.name ? m.soundingName : undefined }, chordNames);
-          return (
-            <span key={m.tick} className={carried.length ? styles['carried'] : undefined}>
-              {i > 0 && ' · '}
-              <b>{t.main}</b>
-              {t.sounds && <span className={styles['cardSounds']}> sounds {t.sounds}</span>}
-            </span>
-          );
-        })}
+        {(() => {
+          const chords = shown.map((m, i) => {
+            const t = chordText({ name: m.voicing.name, sounding: capo && m.soundingName !== m.voicing.name ? m.soundingName : undefined }, chordNames);
+            return (
+              <span key={m.tick} className={carried.length ? styles['carried'] : undefined}>
+                {i > 0 && ' · '}
+                <b>{t.main}</b>
+                {t.sounds && <span className={styles['cardSounds']}> sounds {t.sounds}</span>}
+              </span>
+            );
+          });
+          return renderChords ? renderChords(s.firstBar, chords) : chords;
+        })()}
       </span>
       {marks.some((m) => m.voicing.barre) && <span className={styles['badge']}>Barre</span>}
       {marks.some((m) => m.voicing.simplified) && <span className={styles['badge']}>Simplified</span>}
@@ -252,6 +267,7 @@ export function TabSheet({
   sections,
   chordNames = 'both',
   size = 'm',
+  renderChords,
   className,
 }: TabSheetProps) {
   const cards = variant === 'cards';
@@ -336,7 +352,7 @@ export function TabSheet({
   if (cards) {
     const card = (s: SystemLayout) => (
       <div key={s.index} className={styles['card']} data-bar-card={s.index} data-active={cursor?.system === s.index ? '' : undefined}>
-        <CardHead system={s} arrangement={arrangement} chordNames={chordNames} />
+        <CardHead system={s} arrangement={arrangement} chordNames={chordNames} renderChords={renderChords} />
         {view(s)}
       </div>
     );

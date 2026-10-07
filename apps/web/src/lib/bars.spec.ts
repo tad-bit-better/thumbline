@@ -1,5 +1,5 @@
 import type { AnalysisResult } from '@thumbline/engine';
-import { barSpans } from './bars';
+import { barSpans, chordFlags } from './bars';
 
 const base: AnalysisResult = {
   version: 1,
@@ -50,5 +50,35 @@ describe('barSpans', () => {
       { start: 0, end: 2 },
       { start: 2, end: 4 },
     ]);
+  });
+});
+
+describe('chordFlags', () => {
+  const song = (confidences: number[]): AnalysisResult => ({
+    ...base,
+    chords: confidences.map((confidence, bar) => ({ bar, beat: 0, chord: { pc: 0, quality: 'maj' }, confidence, alternatives: [] })),
+  });
+
+  it('flags the least sure ~12% of the chords, the lowest third of those as likely off', () => {
+    // 25 chords: 3 get flagged (12%, rounded up); the least sure of them is likely off.
+    const conf = Array.from({ length: 25 }, (_, i) => 0.05 + i * 0.01);
+    const flags = chordFlags(song(conf), []);
+    expect([...flags.entries()]).toEqual([
+      [0, 'likely'],
+      [1, 'check'],
+      [2, 'check'],
+    ]);
+  });
+
+  it('flags nothing we\'re fairly sure of, however it ranks', () => {
+    const flags = chordFlags(song(Array.from({ length: 20 }, (_, i) => 0.4 + i * 0.01)), []);
+    expect(flags.size).toBe(0);
+  });
+
+  it('leaves out chords the reader already chose, and silences', () => {
+    const s = song([0.01, 0.02, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
+    s.chords[1] = { ...s.chords[1], chord: null };
+    expect([...chordFlags(s, [0]).keys()]).toEqual([]);
+    expect([...chordFlags(s, []).keys()]).toEqual([0]);
   });
 });

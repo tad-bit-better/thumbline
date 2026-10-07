@@ -1,15 +1,41 @@
 import type { AnalysisResult, ChordLabel } from '@thumbline/engine';
 
+/** Share of a song's chords flagged on the sheet, the least sure first. */
+const FLAG_SHARE = 0.12;
+/** Never flag a chord this sure or surer, however it ranks (a clean song has nothing to check). */
+const FLAG_CEILING = 0.35;
+
+export type ChordFlag = 'check' | 'likely';
+
 /**
- * Below this confidence a chord is flagged on the Review screen. From the
- * synthetic eval: ~25% of chords flagged, catching ~45% of the wrong ones;
- * a flagged chord is wrong about half the time (base rate ~28%).
+ * Which chords the sheet marks (by index into analysis.chords): the least sure
+ * 12% of the song's chords (rounded up), only those under 0.35 confidence,
+ * leaving out chords the reader chose (`confirmed`) and silences. The lowest
+ * third of those (rounded up) are likely off; the rest might be. Ranked, not a
+ * fixed cut: confidence runs low on some songs (~0.17 on old film songs), so a
+ * fixed cut would flag half of them.
  */
-export const LOW_CONFIDENCE = 0.12;
+export function chordFlags(analysis: AnalysisResult, confirmed: readonly number[]): Map<number, ChordFlag> {
+  const chords = analysis.chords.flatMap((c, index) => (c.chord ? [{ index, confidence: c.confidence }] : []));
+  const quota = Math.ceil(chords.length * FLAG_SHARE);
+  const flagged = chords
+    .filter((c) => !confirmed.includes(c.index) && c.confidence < FLAG_CEILING)
+    .sort((a, b) => a.confidence - b.confidence || a.index - b.index)
+    .slice(0, quota);
+  const likely = new Set(flagged.slice(0, Math.ceil(flagged.length / 3)).map((c) => c.index));
+  return new Map(
+    flagged
+      .map((c) => c.index)
+      .sort((a, b) => a - b)
+      .map((index): [number, ChordFlag] => [index, likely.has(index) ? 'likely' : 'check']),
+  );
+}
 
 export type BarSegment = {
   /** Index into analysis.chords (what edits are keyed by). */
   index: number;
+  /** The bar it starts in (an earlier one when carried in). */
+  bar: number;
   beat: number;
   chord: ChordLabel | null;
   confidence: number;
@@ -24,7 +50,7 @@ export type BarCell = {
   sounding: BarSegment | null;
 };
 
-/** Group chord segments into bars for the Review grid. */
+/** Group chord segments into bars (the sheet's chord pickers). */
 export function toBars(analysis: AnalysisResult): BarCell[] {
   const bpb = analysis.meter.beatsPerBar;
   const fromBeats = Math.floor((analysis.beatTimesSec.length - analysis.barStartBeat) / bpb);
@@ -32,7 +58,7 @@ export function toBars(analysis: AnalysisResult): BarCell[] {
   const count = Math.max(fromBeats, fromChords);
   const cells: BarCell[] = Array.from({ length: count }, (_, bar) => ({ bar, segments: [], sounding: null }));
   analysis.chords.forEach((c, index) => {
-    cells[c.bar]?.segments.push({ index, beat: c.beat, chord: c.chord, confidence: c.confidence, alternatives: c.alternatives });
+    cells[c.bar]?.segments.push({ index, bar: c.bar, beat: c.beat, chord: c.chord, confidence: c.confidence, alternatives: c.alternatives });
   });
   let carried: BarSegment | null = null;
   for (const cell of cells) {

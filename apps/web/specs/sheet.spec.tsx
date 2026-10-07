@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { AnalysisResult } from '@thumbline/engine';
 import { ToastProvider } from '@thumbline/ui';
 import axe from 'axe-core';
@@ -32,7 +32,14 @@ class FakeAudioContext {
   decodeAudioData = vi.fn(async () => ({ duration: 20, numberOfChannels: 1, length: 1, sampleRate: 44100, getChannelData: () => new Float32Array(1) }));
   resume = vi.fn(async () => undefined);
   close = vi.fn(async () => undefined);
+  destination = {};
+  createBufferSource = () => {
+    const source = { buffer: null, onended: null, start: vi.fn(), stop: vi.fn(), connect: vi.fn(), disconnect: vi.fn() };
+    barSources.push(source);
+    return source;
+  };
 }
+const barSources: Array<{ start: ReturnType<typeof vi.fn> }> = [];
 vi.stubGlobal('AudioContext', FakeAudioContext);
 
 const { default: SheetPage } = await import('../src/app/sheet/page');
@@ -313,5 +320,85 @@ describe('Sheet screen', () => {
     const { container } = render(<Sheet />);
     const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
     expect(result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([]);
+  });
+
+  describe('chords on the sheet', () => {
+    // Bar 2's D was hard to hear (Bm close behind); the rest are clear.
+    const unsure: AnalysisResult = {
+      ...analysis,
+      chords: analysis.chords.map((c, i) => (i === 1 ? { ...c, confidence: 0.02, alternatives: [{ pc: 11, quality: 'm' }, { pc: 6, quality: 'm' }] } : c)),
+    };
+    // jsdom has no :popover-open: an open panel still counts as hidden, so find it by its label.
+    const panel = (bar: number) => document.querySelector(`[role="dialog"][aria-label="Chord for bar ${bar}"]`) as HTMLElement;
+    const open = async (bar: number) => {
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Bar ${bar}: `) }));
+        await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+      });
+      return panel(bar);
+    };
+
+    beforeEach(() => {
+      songStore.getState().setAnalysis(unsure);
+      barSources.length = 0;
+    });
+
+    it('marks the chords we\'re unsure of, in words too, and counts them', () => {
+      render(<Sheet />);
+      expect(screen.getByRole('button', { name: 'Bar 2: D, likely off. Change chord' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Bar 1: G. Change chord' })).toBeTruthy();
+      expect(screen.getByText(/1 chord might be off/)).toBeTruthy();
+    });
+
+    it('changes a chord from our suggestions and marks it as the reader\'s', async () => {
+      render(<Sheet />);
+      const p = await open(2);
+      expect(within(p).getByRole('button', { name: 'D, what we heard', hidden: true })).toBeTruthy();
+      await act(async () => fireEvent.click(within(p).getByRole('button', { name: 'Bm', hidden: true })));
+      expect(songStore.getState().edits.chords[1]).toEqual({ pc: 11, quality: 'm' });
+      expect(screen.getByRole('button', { name: 'Bar 2: Bm, your choice. Change chord' })).toBeTruthy();
+      expect(screen.queryByText(/might be off/)).toBeNull();
+    });
+
+    it('takes a chord we didn\'t suggest', async () => {
+      render(<Sheet />);
+      const p = await open(2);
+      fireEvent.click(within(p).getByRole('button', { name: 'Something else', hidden: true }));
+      fireEvent.click(within(p).getByRole('button', { name: 'Bb', hidden: true }));
+      fireEvent.click(within(p).getByRole('button', { name: 'Minor', hidden: true }));
+      await act(async () => fireEvent.click(within(p).getByRole('button', { name: 'Use Bbm', hidden: true })));
+      expect(songStore.getState().edits.chords[1]).toEqual({ pc: 10, quality: 'm' });
+    });
+
+    it('opens the chord to check from the notice', async () => {
+      render(<Sheet />);
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Check it' })));
+      expect(panel(2).hasAttribute('data-popover-open')).toBe(true);
+    });
+
+    it('plays the bar of the original from the picker', async () => {
+      render(<Sheet />);
+      const p = await open(2);
+      fireEvent.click(within(p).getByRole('button', { name: 'Hear this bar', hidden: true }));
+      await waitFor(() => expect(barSources).toHaveLength(1));
+      expect(barSources[0].start).toHaveBeenCalled();
+    });
+
+    it('keeps the capo when a chord changes, and offers a better one', async () => {
+      render(<Sheet />);
+      await waitFor(() => expect(songStore.getState().edits.capo).toBeDefined());
+      const capo = songStore.getState().edits.capo as number;
+      act(() => songStore.getState().setCapo(capo === 4 ? 5 : 4));
+      const better = screen.getByRole('button', { name: capo > 0 ? `Use capo ${capo}` : 'Take the capo off' });
+      act(() => fireEvent.click(better));
+      expect(songStore.getState().edits.capo).toBe(capo);
+    });
+
+    it('sets the time signature in Customize', () => {
+      render(<Sheet />);
+      fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
+      fireEvent.click(screen.getByRole('radio', { name: '3/4' }));
+      expect(songStore.getState().edits.beatsPerBar).toBe(3);
+    });
   });
 });

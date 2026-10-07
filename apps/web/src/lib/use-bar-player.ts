@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
- * Plays one stretch of the original clip at a time (a bar on the Review screen).
+ * Plays one stretch of the original clip at a time (a bar on the sheet, from its chord picker).
  * The AudioContext is made on the first press, inside the click as browsers
  * require; the clip is decoded once, on the device. Pressing the playing bar
  * again stops it; leaving the page stops it and closes the context.

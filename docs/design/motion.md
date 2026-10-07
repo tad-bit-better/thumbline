@@ -20,7 +20,7 @@ In `motion/react`, the springy curves map to `type: "spring", stiffness: 500, da
 | 1 | Pick drop | File accepted on Upload | 700ms | once | Pick falls from above, squashes (1.18 × 0.82), rebounds, settles. Shadow grows on impact |
 | 2 | Listening loop | During analysis | 1.1s | yes | 7 bars breathing out of phase; one orange, one mint. Optionally driven by real RMS |
 | 3 | Metronome | Listening screen, after BPM found | 60/bpm per swing | yes | Arm swings ±22–24°, weight orange. Speed set from detected tempo |
-| 4 | Chord confirmed | User picks an alternative | 450ms | once | Mint ring bursts outward and fades; tick badge pops in with overshoot |
+| 4 | Chord confirmed | User picks a chord in a bar card's picker (Sheet) | 450ms | once | Mint ring bursts outward and fades; tick badge pops in with overshoot |
 | 5 | Sheet reveal | Style or level change | 400ms + stagger | once | Implemented in code (`Reveal`), not Lottie: notes scale 0 → 1.25 → 1 left to right |
 | 6 | Level switch | Level segmented control | 340ms | once | In code (`motion` layout animation): pill slides with slight overshoot, then triggers #5 |
 | 7 | Playhead glow | During playback | synced | yes | In code: 4px violet line with a soft 28px halo; notes brighten as it passes |
@@ -40,8 +40,7 @@ The player's WASM renderer is served from our origin (`/lottie/dotlottie-player.
 
 ## Screen transitions (View Transitions API)
 - **Upload → Listening:** the drop zone card morphs into the listening card (`view-transition-name: main-card`).
-- **Listening → Review:** progress card fades out; chord grid blocks rise in with stagger.
-- **Review → Sheet:** chord blocks morph into the chord labels on the sheet (shared names per bar for the first 8 bars).
+- **Listening → Sheet:** progress card fades out; the bar cards reveal row by row. (The Review screen was folded into the Sheet on 2026-10-08.)
 - Fallback where unsupported: 200ms cross-fade.
 
 ## Performance rules

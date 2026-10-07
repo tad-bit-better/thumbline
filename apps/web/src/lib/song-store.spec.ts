@@ -160,4 +160,13 @@ describe('effectiveAnalysis', () => {
   it('returns the analysis unchanged without edits', () => {
     expect(effectiveAnalysis(analysis, { chords: {}, confirmed: [] })).toBe(analysis);
   });
+
+  it('keeps the capo the sheet was written with, until a new song', () => {
+    const store = createSongStore(memoryStorage());
+    store.getState().startSong(file());
+    store.getState().setCapo(3);
+    expect(store.getState().edits.capo).toBe(3);
+    store.getState().startSong(file());
+    expect(store.getState().edits.capo).toBeUndefined();
+  });
 });

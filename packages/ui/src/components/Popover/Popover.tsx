@@ -75,7 +75,10 @@ export function Popover({ label, trigger, children, onOpenChange, className }: P
         reposition();
         window.addEventListener('resize', reposition);
         window.addEventListener('scroll', reposition, true);
-        panel.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+        const first = panel.querySelector<HTMLElement>(FOCUSABLE);
+        // Content rendered only while open (onOpenChange) arrives a frame later.
+        if (first) first.focus();
+        else requestAnimationFrame(() => panel.querySelector<HTMLElement>(FOCUSABLE)?.focus());
       } else {
         window.removeEventListener('resize', reposition);
         window.removeEventListener('scroll', reposition, true);

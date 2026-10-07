@@ -9,7 +9,7 @@ import { createStore } from 'zustand/vanilla';
 
 export type SongMeta = { name: string; type: string; size: number };
 
-/** What the user changed on the Review screen, kept apart from the raw analysis. */
+/** What the user changed on the sheet, kept apart from the raw analysis. */
 export type Edits = {
   /** Segment index → chosen chord. */
   chords: Record<number, ChordLabel | null>;
@@ -18,6 +18,8 @@ export type Edits = {
   beatsPerBar?: 3 | 4;
   /** The mood the user set over the detected one (M10): a preset's values or the sliders'. */
   mood?: Mood;
+  /** The capo the sheet was first written with: a chord change doesn't move it (the reader asks to re-pick). */
+  capo?: number;
 };
 
 export type Speed = 0.5 | 0.75 | 1;
@@ -64,6 +66,7 @@ export type SongState = Saved & {
   relisten: () => void;
   setChord: (segment: number, chord: ChordLabel | null) => void;
   setMeter: (beatsPerBar: 3 | 4) => void;
+  setCapo: (capo: number) => void;
   setMood: (mood: Mood) => void;
   /** Go back to the mood we heard. */
   resetMood: () => void;
@@ -149,6 +152,7 @@ export function createSongStore(storage: Storage) {
         });
       },
       setMeter: (beatsPerBar) => update({ edits: { ...getState().edits, beatsPerBar } }),
+      setCapo: (capo) => update({ edits: { ...getState().edits, capo } }),
       setMood: (mood) => update({ edits: { ...getState().edits, mood } }),
       resetMood: () => {
         const { mood: _dropped, ...rest } = getState().edits;

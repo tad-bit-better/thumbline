@@ -25,6 +25,22 @@ describe('TabSheet bar cards', () => {
     expect(first.querySelector('[data-card-chord]')?.textContent).toContain('G');
   });
 
+  it('lets the app wrap a card\'s chords (a button to change them)', () => {
+    render(
+      <TabSheet
+        arrangement={pop}
+        width={900}
+        variant="cards"
+        renderChords={(bar, chords) => (
+          <button type="button" aria-label={`Change bar ${bar + 1}`}>
+            {chords}
+          </button>
+        )}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Change bar 3' }).textContent).toContain('Em');
+  });
+
   it('shows what a shape sounds like under a capo, per the chord-name setting', () => {
     const capo = sheet('F# | D#m | B | C#', 'arpeggio', 'moderate');
     const shapeName = capo.chordMarks[0].voicing.name;

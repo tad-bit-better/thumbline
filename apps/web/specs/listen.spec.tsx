@@ -52,13 +52,13 @@ describe('Listening screen', () => {
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('70');
   });
 
-  it('saves the result and moves on to Review', async () => {
+  it('saves the result and moves on to the sheet', async () => {
     render(<Listen />);
     await act(async () => last().resolve(RESULT));
     expect(screen.getByText('Finding the beat').closest('li')?.textContent).toContain('92 bpm, 4/4');
     await act(async () => vi.advanceTimersByTime(1000));
     expect(songStore.getState().analysis).toBe(RESULT);
-    expect(push).toHaveBeenCalledWith('/review');
+    expect(push).toHaveBeenCalledWith('/sheet');
   });
 
   it('sends clip problems back to Upload', async () => {
@@ -92,6 +92,6 @@ describe('Listening screen', () => {
   it('skips ahead when this song is already analysed', () => {
     songStore.getState().setAnalysis(RESULT);
     render(<Listen />);
-    expect(replace).toHaveBeenCalledWith('/review');
+    expect(replace).toHaveBeenCalledWith('/sheet');
   });
 });

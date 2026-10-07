@@ -18,4 +18,4 @@ export function AppShell({ actions, children, wide = false }: { actions?: ReactN
   );
 }
 
-export const STEPS = ['Upload', 'Listen', 'Review', 'Play'] as const;
+export const STEPS = ['Upload', 'Listen', 'Play'] as const;

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { axeViolations } from '../../testing/axe';
 import { Popover } from './Popover';
 
@@ -35,6 +36,21 @@ describe('Popover', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
     expect(onOpenChange).toHaveBeenLastCalledWith(true);
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'C', hidden: true }));
+  });
+
+  it('focuses content that only renders once open', async () => {
+    function Lazy() {
+      const [open, setOpen] = useState(false);
+      return (
+        <Popover label="Bar 9" onOpenChange={setOpen} trigger={(props) => <button type="button" {...props}>G</button>}>
+          {open && <button type="button">Em</button>}
+        </Popover>
+      );
+    }
+    render(<Lazy />);
+    fireEvent.click(screen.getByRole('button', { name: 'G' }));
+    await act(() => new Promise((r) => requestAnimationFrame(() => r(undefined))));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Em', hidden: true }));
   });
 
   it('closes when the browser dismisses it and returns focus', () => {

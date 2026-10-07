@@ -21,3 +21,5 @@ export { Logo, LogoMark, type LogoProps } from './Logo/Logo';
 export { Checkbox, type CheckboxProps } from './Checkbox/Checkbox';
 export { SectionNav, type SectionNavItem, type SectionNavProps } from './SectionNav/SectionNav';
 export { Drawer, type DrawerProps } from './Drawer/Drawer';
+export { ChordChip, type ChordChipProps, type ChordChipStatus } from './ChordChip/ChordChip';
+export { ChordPicker, type ChordPickerProps, type ChordChoice } from './ChordPicker/ChordPicker';
