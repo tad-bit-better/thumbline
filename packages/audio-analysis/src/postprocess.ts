@@ -62,6 +62,13 @@ const MID_BAR_CHANGE = 2;
 /** Per beat, for a chord whose tones are all in the song's key. */
 const KEY_BONUS_PER_BEAT = 0.02;
 const CONFIDENCE_SCALE = 0.3;
+/**
+ * A 7th read below this confidence plays as its triad: on off-pitch records and
+ * busy mixes the 7ths come at ~0.17 (two 1960s–70s film songs), on a song that
+ * really uses them at ~0.43 (blue). A wrong 7th sounds wrong; a plain triad rarely does.
+ */
+const PLAIN_BELOW = 0.25;
+const EXTENDED: Partial<Record<Quality, Quality>> = { '7': 'maj', maj7: 'maj', m7: 'm' };
 const SILENCE_RATIO = 0.03;
 const METER_MIN_SALIENCE = 0.02;
 const THREE_FOUR_BIAS = 1.2;
@@ -195,8 +202,9 @@ function scaleOf(key: { pc: number; mode: 'major' | 'minor' }): Set<number> {
  * (Viterbi): each slot (a bar, or half a bar in 4/4) scores every chord,
  * changing chord costs something (more inside a bar than on a bar line),
  * and chords in the song's key get a small bonus. Passing melody notes are
- * outvoted by the beats around them. Consecutive equal chords merge; quiet
- * stretches become `null`. Beats before the first downbeat are dropped.
+ * outvoted by the beats around them. A 7th read with low confidence plays as
+ * its triad (PLAIN_BELOW). Consecutive equal chords merge; quiet stretches
+ * become `null`. Beats before the first downbeat are dropped.
  */
 export function toSegments(
   beats: readonly BeatFeatures[],
@@ -266,19 +274,32 @@ export function toSegments(
     if (i > 0) state = back[i - 1][state];
   }
 
-  const out: ChordSegment[] = [];
-  let open: Open | null = null;
+  const opens: Open[] = [];
   slots.forEach((s, i) => {
     const k = path[i] === SILENT ? null : TEMPLATES[path[i]].key;
+    let open = opens.at(-1);
     if (!open || k !== open.key) {
-      if (open) out.push(close(open));
       open = { bar: s.bar, beat: s.beat, key: k, sums: new Float64Array(N), beats: 0 };
+      opens.push(open);
     }
     for (let j = 0; j < N; j++) open.sums[j] += s.sums[j];
     open.beats += s.beats;
   });
-  if (open) out.push(close(open));
-  return out;
+  // Unsure 7ths play plain, then a chord made plain joins the same chord beside it.
+  for (const open of opens) {
+    const seg = close(open);
+    const plain = seg.chord && EXTENDED[seg.chord.quality];
+    if (plain && seg.confidence < PLAIN_BELOW) open.key = `${seg.chord?.pc}:${plain}`;
+  }
+  const merged: Open[] = [];
+  for (const open of opens) {
+    const last = merged.at(-1);
+    if (last && last.key === open.key) {
+      for (let j = 0; j < N; j++) last.sums[j] += open.sums[j];
+      last.beats += open.beats;
+    } else merged.push(open);
+  }
+  return merged.map(close);
 }
 
 /** A stretch whose beats are this much faster (or 1/x slower) than the song's is counted on another pulse. */

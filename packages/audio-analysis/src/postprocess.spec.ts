@@ -155,6 +155,26 @@ describe('toSegments', () => {
     expect(toSegments(leaning, 4, 0).map(label)).toEqual(['C']);
   });
 
+  // An Am7 whose third is in doubt (C and C# both there, as on an off-pitch or busy record): Am7 or A7, we can't tell.
+  const unsure = (name: string) =>
+    beats([name, name, name, name]).map((b, i) => ({ ...b, chroma: Array.from(b.chroma, (v, k) => v + (k === 1 ? 0.8 : 0) + 0.02 * Math.sin(i + k)) }));
+
+  it('plays it plain when unsure: a 7th read with low confidence becomes its triad', () => {
+    const [seg] = toSegments(unsure('Am7'), 4, 0);
+    expect(['maj', 'm']).toContain(seg.chord?.quality);
+    expect(seg.chord?.pc).toBe(9);
+  });
+
+  it('keeps a 7th it hears clearly', () => {
+    expect(toSegments(beats(['G7', 'G7', 'G7', 'G7']), 4, 0).map(label)).toEqual(['G7']);
+    expect(toSegments(beats(['Am7', 'Am7', 'Am7', 'Am7']), 4, 0).map(label)).toEqual(['Am7']);
+  });
+
+  it('merges a chord made plain into the same chord next to it', () => {
+    const segs = toSegments([...beats(['Am', 'Am', 'Am', 'Am']), ...unsure('Am7')], 4, 0);
+    expect(segs.map(label)).toEqual(['Am']);
+  });
+
   it('is less confident about an ambiguous bar', () => {
     const clear = toSegments(beats(['C', 'C', 'C', 'C']), 4, 0)[0].confidence;
     const mixed = beats(['C', 'C', 'C', 'C']).map((b, i) => ({ ...b, chroma: Array.from(b.chroma, (v, k) => v + chroma('Am', i)[k] * 0.9) }));
