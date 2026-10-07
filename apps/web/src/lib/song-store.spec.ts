@@ -139,6 +139,12 @@ describe('song store', () => {
 });
 
 describe('effectiveAnalysis', () => {
+  it('counts the song at the tempo the reader set', () => {
+    const half = effectiveAnalysis(analysis, { chords: {}, confirmed: [], tempoScale: 0.5 });
+    expect(half.bpm).toBeCloseTo(analysis.bpm / 2, 1);
+    expect(half.beatTimesSec.length).toBeLessThan(analysis.beatTimesSec.length);
+  });
+
   it('applies chord edits', () => {
     const r = effectiveAnalysis(analysis, { chords: { 1: { pc: 11, quality: 'm' } }, confirmed: [1] });
     expect(r.chords[1].chord).toEqual({ pc: 11, quality: 'm' });

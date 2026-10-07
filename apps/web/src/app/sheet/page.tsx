@@ -106,6 +106,11 @@ const METERS = [
   { value: '4', label: '4/4' },
   { value: '3', label: '3/4' },
 ] as const;
+const TEMPO_SCALES = [
+  { value: '0.5', label: 'Half' },
+  { value: '1', label: 'As heard' },
+  { value: '2', label: 'Double' },
+] as const;
 
 const PALOS = [
   { value: 'rumba', label: 'Rumba' },
@@ -668,6 +673,25 @@ export default function SheetPage() {
               songStore.getState().setMeter(Number(v) as 3 | 4);
             }}
           />
+          <h3 className={styles.panelTitle}>Tempo</h3>
+          <SegmentedControl
+            label="Tempo"
+            fullWidth
+            options={TEMPO_SCALES}
+            value={String(edits.tempoScale ?? 1) as '0.5' | '1' | '2'}
+            onChange={(v) => {
+              player.stop();
+              barPlayer.stop();
+              songStore.getState().setTempoScale(Number(v) as 0.5 | 1 | 2);
+            }}
+          />
+          <p className={styles.hint}>
+            {edits.tempoScale === 0.5
+              ? `Counted at half the speed we heard: ${Math.round(effective.bpm)} bpm.`
+              : edits.tempoScale === 2
+                ? `Counted at double the speed we heard: ${Math.round(effective.bpm)} bpm.`
+                : 'If the sheet races ahead of the song or drags behind it, try half or double.'}
+          </p>
           <h3 className={styles.panelTitle}>Style</h3>
           <SegmentedControl
             label="Style"

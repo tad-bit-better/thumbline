@@ -18,7 +18,7 @@ All screens: max content width 1200–1240px, fluid down to 360px; nav with logo
 - Cancel button returns to Upload. Auto-advance to the Sheet when done.
 
 ## 3. Review (removed 2026-10-08)
-Chords are checked on the Sheet, where the reader can hear the bar and the arrangement at once (user, 2026-10-08: "that way we can remove review screen altogether"). `/review` redirects to `/sheet`; the stepper is Upload · Listen · Play. Time (4/4 · 3/4) moved into Customize; Mood was already there.
+Chords are checked on the Sheet, where the reader can hear the bar and the arrangement at once (user, 2026-10-08: "that way we can remove review screen altogether"). `/review` redirects to `/sheet`; the stepper is Upload · Listen · Play. Time (4/4 · 3/4) moved into Customize; Mood was already there. Customize also has **Tempo** (Half · As heard · Double, saved with the song; 2026-10-08) for when the beat finder locked onto twice or half the song's pulse.
 
 ## 4. Sheet (`/sheet`)
 v2 (2026-10-06, from the user's mock): use the width; the tab is the page, everything else sits around it.

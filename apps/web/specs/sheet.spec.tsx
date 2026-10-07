@@ -394,6 +394,14 @@ describe('Sheet screen', () => {
       expect(songStore.getState().edits.capo).toBe(capo);
     });
 
+    it('counts the song at half the tempo when it races', () => {
+      render(<Sheet />);
+      fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
+      fireEvent.click(screen.getByRole('radio', { name: 'Half' }));
+      expect(songStore.getState().edits.tempoScale).toBe(0.5);
+      expect(screen.getByText(/Counted at half the speed we heard: 46 bpm/)).toBeTruthy();
+    });
+
     it('sets the time signature in Customize', () => {
       render(<Sheet />);
       fireEvent.click(screen.getByRole('button', { name: 'Customize' }));

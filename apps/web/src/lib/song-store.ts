@@ -3,6 +3,7 @@ import { type AnalysisResult, type ChordLabel, type ChordSegment, type Level, MO
 /** The flamenco palos v1 plays. */
 export type Palo = 'rumba' | 'tangos';
 import type { Mix } from '@thumbline/playback';
+import { type TempoScale, scaleTempo } from './tempo';
 import { del, get, set } from 'idb-keyval';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
@@ -20,6 +21,8 @@ export type Edits = {
   mood?: Mood;
   /** The capo the sheet was first written with: a chord change doesn't move it (the reader asks to re-pick). */
   capo?: number;
+  /** Count the song at half or double the tempo we heard (the beat finder can lock onto twice the pulse). */
+  tempoScale?: TempoScale;
 };
 
 export type Speed = 0.5 | 0.75 | 1;
@@ -67,6 +70,7 @@ export type SongState = Saved & {
   setChord: (segment: number, chord: ChordLabel | null) => void;
   setMeter: (beatsPerBar: 3 | 4) => void;
   setCapo: (capo: number) => void;
+  setTempoScale: (scale: TempoScale) => void;
   setMood: (mood: Mood) => void;
   /** Go back to the mood we heard. */
   resetMood: () => void;
@@ -153,6 +157,7 @@ export function createSongStore(storage: Storage) {
       },
       setMeter: (beatsPerBar) => update({ edits: { ...getState().edits, beatsPerBar } }),
       setCapo: (capo) => update({ edits: { ...getState().edits, capo } }),
+      setTempoScale: (tempoScale) => update({ edits: { ...getState().edits, tempoScale } }),
       setMood: (mood) => update({ edits: { ...getState().edits, mood } }),
       resetMood: () => {
         const { mood: _dropped, ...rest } = getState().edits;
@@ -215,8 +220,12 @@ function rebar(seg: ChordSegment, from: number, to: number): ChordSegment {
   return { ...seg, bar: Math.floor(beat / to), beat: beat % to };
 }
 
-/** The analysis as the user corrected it: chord edits applied, beats regrouped for a new meter. */
+/** The analysis as the user corrected it: chord edits applied, beats regrouped for a new meter, counted at their tempo. */
 export function effectiveAnalysis(analysis: AnalysisResult, edits: Edits): AnalysisResult {
+  return scaleTempo(withEdits(analysis, edits), edits.tempoScale ?? 1);
+}
+
+function withEdits(analysis: AnalysisResult, edits: Edits): AnalysisResult {
   const edited = Object.keys(edits.chords).length > 0;
   const meter = edits.beatsPerBar && edits.beatsPerBar !== analysis.meter.beatsPerBar ? edits.beatsPerBar : null;
   if (!edited && !meter) return analysis;
