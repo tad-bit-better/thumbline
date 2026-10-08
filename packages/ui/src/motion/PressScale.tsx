@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import * as m from 'motion/react-m';
 import type { ReactNode } from 'react';
 import { SPRING_SNAP } from './springs';
 import { useReducedMotion } from './useReducedMotion';
@@ -16,8 +16,8 @@ export function PressScale({ children, className }: { children: ReactNode; class
     );
   }
   return (
-    <motion.div className={className} whileTap={{ scale: PRESSED_SCALE }} transition={SPRING_SNAP}>
+    <m.div className={className} whileTap={{ scale: PRESSED_SCALE }} transition={SPRING_SNAP}>
       {children}
-    </motion.div>
+    </m.div>
   );
 }

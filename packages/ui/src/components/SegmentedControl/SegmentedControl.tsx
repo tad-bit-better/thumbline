@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import * as m from 'motion/react-m';
 import { useId } from 'react';
 import { SPRING_BOUNCE, useReducedMotion } from '../../motion';
 import styles from './SegmentedControl.module.css';
@@ -62,7 +62,7 @@ export function SegmentedControl<V extends string>({
               (reduced ? (
                 <span className={styles['pill']} data-pill="" />
               ) : (
-                <motion.span layoutId={`${id}-pill`} className={styles['pill']} data-pill="" transition={SPRING_BOUNCE} />
+                <m.span layoutId={`${id}-pill`} className={styles['pill']} data-pill="" transition={SPRING_BOUNCE} />
               ))}
             <span className={styles['text']}>{option.label}</span>
           </label>

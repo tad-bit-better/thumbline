@@ -1,4 +1,5 @@
 import { MotionConfig } from 'motion/react';
+import { MotionFeatures } from './MotionFeatures';
 import { type ReactNode, createContext, useContext, useSyncExternalStore } from 'react';
 
 const QUERY = '(prefers-reduced-motion: reduce)';
@@ -36,7 +37,9 @@ export function ReducedMotionProvider({
   const mode = reduced === undefined ? 'user' : reduced ? 'always' : 'never';
   return (
     <ReducedMotionContext.Provider value={reduced}>
-      <MotionConfig reducedMotion={mode}>{children}</MotionConfig>
+      <MotionConfig reducedMotion={mode}>
+        <MotionFeatures>{children}</MotionFeatures>
+      </MotionConfig>
     </ReducedMotionContext.Provider>
   );
 }

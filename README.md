@@ -77,12 +77,12 @@ Chords are corrected on the sheet itself: tap a chord, hear that bar of the orig
 | End-to-end | Playwright: upload → listen → sheet → edit a chord → play, with axe-core checks on the upload and sheet screens |
 | Components | Storybook stories for each component's states (default, hover, focus, disabled where it applies, reduced motion) |
 | Accessibility | Real buttons and focus rings, 44 px targets, every animation respects `prefers-reduced-motion` |
+| Performance budget | Enforced in CI on the production build: first-load JavaScript ≤ 200 KB gzipped (Upload 185 KB, Sheet 197 KB) and LCP ≤ 2.5 s with the CPU slowed 4× (both under 0.6 s) |
 | Lighthouse | SEO, accessibility and best practices 100 (local production build, 2026-10-06) |
 | Analysis eval | Tempo within ±3 bpm on 95% of the synthetic set; chord root 88%, major/minor 81% |
 
 ## Known limitations and roadmap
 
-- **Performance budget:** first-load JavaScript (target under 200 KB gzipped) and LCP (target under 2 s) are not yet enforced in CI.
 - **Speed changes:** time-stretching a 3-minute clip runs on the main thread and blocks it for about 80 ms; it should move to a worker.
 - **Sound:** the synth puts 10–12% of its energy in 80–250 Hz, against 21–41% in real recordings, so it sounds thinner. Options are a body model or licensed samples.
 - **Tempo:** a slow song with a bass on every beat can be read at double tempo. Customize has a Half / Double control; detecting it automatically needs a better cue than bass alternation.
@@ -108,6 +108,7 @@ pnpm nx affected -t lint test build     # what CI runs
 pnpm nx run audio-analysis:eval         # analysis accuracy against ground truth
 pnpm nx storybook ui                    # UI kit
 pnpm nx e2e web-e2e                     # Playwright
+pnpm nx build @thumbline/web && pnpm exec playwright test -c apps/web-e2e/playwright.perf.config.mts   # performance budget
 pnpm nx graph                           # dependency graph
 ```
 
