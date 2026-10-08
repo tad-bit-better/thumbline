@@ -84,7 +84,6 @@ Chords are corrected on the sheet itself: tap a chord, hear that bar of the orig
 
 - **Performance budget in CI:** first-load JavaScript under 200 KB gzipped and LCP under 2 s, enforced, not just measured.
 - **Time-stretch in a worker:** switching speed on a 3-minute clip still blocks the main thread for about 80 ms.
-- **Split the Sheet page:** player, chord editing and section settings into hooks and smaller components.
 - **Sound depth:** the synth puts 10–12% of its energy in 80–250 Hz against 21–41% in real recordings: a body model, or licensed samples.
 - **Telling a double-time ballad from a fast song** automatically, with a better cue than bass alternation.
 

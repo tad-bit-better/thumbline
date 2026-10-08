@@ -1,7 +1,18 @@
 'use client';
 
-import { type AnalysisResult, type ChordLabel, type Quality, chordName } from '@thumbline/engine';
-import { type ChordChipStatus, ChordChip, ChordPicker, LottieMoment, Popover } from '@thumbline/ui';
+import {
+  type AnalysisResult,
+  type ChordLabel,
+  type Quality,
+  chordName,
+} from '@thumbline/engine';
+import {
+  type ChordChipStatus,
+  ChordChip,
+  ChordPicker,
+  LottieMoment,
+  Popover,
+} from '@thumbline/ui';
 import { type ReactNode, useState } from 'react';
 import type { BarCell, BarSegment, ChordFlag } from '../../lib/bars';
 import { LOTTIE } from '../../lib/lottie';
@@ -43,13 +54,26 @@ export type BarChordsProps = {
 
 /** The segments a bar's picker edits: those starting in it, or the one carried in. */
 const segmentsOf = (cell: BarCell): BarSegment[] =>
-  (cell.segments.length ? cell.segments : cell.sounding ? [cell.sounding] : []).filter((s) => s.chord !== null || s.alternatives.length > 0);
+  (cell.segments.length
+    ? cell.segments
+    : cell.sounding
+      ? [cell.sounding]
+      : []
+  ).filter((s) => s.chord !== null || s.alternatives.length > 0);
 
 /** The chip's mark: the reader's choice, else the worst flag among the bar's chords. */
-export function barStatus(cell: BarCell, flags: ReadonlyMap<number, ChordFlag>, confirmed: readonly number[]): ChordChipStatus {
+export function barStatus(
+  cell: BarCell,
+  flags: ReadonlyMap<number, ChordFlag>,
+  confirmed: readonly number[],
+): ChordChipStatus {
   if (cell.segments.some((s) => confirmed.includes(s.index))) return 'yours';
   const marks = cell.segments.map((s) => flags.get(s.index));
-  return marks.includes('likely') ? 'likely' : marks.includes('check') ? 'check' : 'none';
+  return marks.includes('likely')
+    ? 'likely'
+    : marks.includes('check')
+      ? 'check'
+      : 'none';
 }
 
 /**
@@ -57,19 +81,43 @@ export function barStatus(cell: BarCell, flags: ReadonlyMap<number, ChordFlag>, 
  * what we heard and our other guesses, "Something else", hear the bar, and
  * on to the next chord to check. Picks are kept as the reader's edits.
  */
-export function BarChords({ cell, heard, confirmed, flags, children, onPick, onHear, hearing, onNext, nextLabel, burstKey }: BarChordsProps) {
+export function BarChords({
+  cell,
+  heard,
+  confirmed,
+  flags,
+  children,
+  onPick,
+  onHear,
+  hearing,
+  onNext,
+  nextLabel,
+  burstKey,
+}: BarChordsProps) {
   const [open, setOpen] = useState(false);
   const segments = segmentsOf(cell);
   const bar = cell.bar + 1;
   const status = barStatus(cell, flags, confirmed);
-  const spoken = segments.map((s) => (s.chord ? chordName(s.chord) : 'no chord')).join(' then ') || 'no chord';
+  const spoken =
+    segments
+      .map((s) => (s.chord ? chordName(s.chord) : 'no chord'))
+      .join(' then ') || 'no chord';
 
   const groups = segments.map((seg, k) => {
     const raw = heard.chords[seg.index];
-    const ours = [raw?.chord ?? null, ...(raw?.alternatives ?? [])].filter((c): c is ChordLabel => c !== null);
+    const ours = [raw?.chord ?? null, ...(raw?.alternatives ?? [])].filter(
+      (c): c is ChordLabel => c !== null,
+    );
     const mine = confirmed.includes(seg.index) && seg.chord ? seg.chord : null;
-    const all = [...(mine && !ours.some((c) => chordName(c) === chordName(mine)) ? [mine] : []), ...ours];
-    const unique = all.filter((c, i) => all.findIndex((o) => chordName(o) === chordName(c)) === i);
+    const all = [
+      ...(mine && !ours.some((c) => chordName(c) === chordName(mine))
+        ? [mine]
+        : []),
+      ...ours,
+    ];
+    const unique = all.filter(
+      (c, i) => all.findIndex((o) => chordName(o) === chordName(c)) === i,
+    );
     const next = segments[k + 1];
     const label =
       seg.bar !== cell.bar
@@ -83,8 +131,19 @@ export function BarChords({ cell, heard, confirmed, flags, children, onPick, onH
       choices: unique.map((c) => ({
         id: chordName(c),
         name: chordName(c),
-        tag: mine && chordName(c) === chordName(mine) ? ('yours' as const) : raw?.chord && chordName(c) === chordName(raw.chord) ? ('heard' as const) : undefined,
-        strength: RANK_STRENGTH[Math.max(0, ours.findIndex((o) => chordName(o) === chordName(c)))] ?? 0.2,
+        tag:
+          mine && chordName(c) === chordName(mine)
+            ? ('yours' as const)
+            : raw?.chord && chordName(c) === chordName(raw.chord)
+              ? ('heard' as const)
+              : undefined,
+        strength:
+          RANK_STRENGTH[
+            Math.max(
+              0,
+              ours.findIndex((o) => chordName(o) === chordName(c)),
+            )
+          ] ?? 0.2,
       })),
       byName: new Map(unique.map((c) => [chordName(c), c])),
     };
@@ -94,13 +153,27 @@ export function BarChords({ cell, heard, confirmed, flags, children, onPick, onH
     <span className={styles.barChords}>
       {burstKey !== undefined && (
         // Chord confirmed (moment #4): decorative, over the chord.
-        <LottieMoment src={LOTTIE.chordConfirmed} playKey={burstKey} width={72} height={72} className={styles.chordBurst} fallback={null} />
+        <LottieMoment
+          src={LOTTIE.chordConfirmed}
+          playKey={burstKey}
+          width={72}
+          height={72}
+          className={styles.chordBurst}
+          fallback={null}
+        />
       )}
       <Popover
         label={`Chord for bar ${bar}`}
         onOpenChange={setOpen}
         trigger={({ ref, ...props }) => (
-          <ChordChip ref={ref as (el: HTMLButtonElement | null) => void} {...props} bar={bar} spoken={spoken} status={status} data-chord-bar={cell.bar}>
+          <ChordChip
+            ref={ref as (el: HTMLButtonElement | null) => void}
+            {...props}
+            bar={bar}
+            spoken={spoken}
+            status={status}
+            data-chord-bar={cell.bar}
+          >
             {children}
           </ChordChip>
         )}
@@ -109,18 +182,24 @@ export function BarChords({ cell, heard, confirmed, flags, children, onPick, onH
           open && (
             <ChordPicker
               title={`Bar ${bar}`}
-              groups={groups.map(({ byName: _byName, ...g }) => g)}
+              groups={groups.map((g) => ({ id: g.id, label: g.label, choices: g.choices }))}
               onPick={(groupId, name) => {
-                const chord = groups.find((g) => g.id === groupId)?.byName.get(name);
+                const chord = groups
+                  .find((g) => g.id === groupId)
+                  ?.byName.get(name);
                 if (chord) onPick(Number(groupId), chord);
                 close();
               }}
               other={{
                 roots: ROOTS,
                 qualities: QUALITIES,
-                nameOf: (root, quality) => chordName({ pc: root, quality: quality as Quality }),
+                nameOf: (root, quality) =>
+                  chordName({ pc: root, quality: quality as Quality }),
                 onPick: (groupId, root, quality) => {
-                  onPick(Number(groupId), { pc: root, quality: quality as Quality });
+                  onPick(Number(groupId), {
+                    pc: root,
+                    quality: quality as Quality,
+                  });
                   close();
                 },
               }}
