@@ -50,23 +50,23 @@ flowchart LR
 
 The boundaries are enforced by lint (`@nx/enforce-module-boundaries`), and the two data contracts between stages, `AnalysisResult` and `Arrangement`, are specified in [docs/engine-spec.md](docs/engine-spec.md). Any change to them updates the spec in the same commit.
 
-## Decisions worth discussing
+## Design decisions
 
-**1. A pure, deterministic engine as the contract between an uncertain front end and a real-time back end.**
+**1. A pure engine between analysis and playback.**
 Analysis is probabilistic and playback is timing-critical; the engine sits between them as a pure function with written contracts. That makes the musically hard part (33 patterns as data, voicings, capo choice, a playability checker for reach and fingers) testable without audio or a browser: the engine alone has 783 unit tests, including snapshot tests of whole arrangements.
 
-**2. One audio clock for two sources.**
+**2. One audio clock for the synth and the recording.**
 The synth and the original recording are scheduled on the same `AudioContext` clock with a 150 ms lookahead, rather than `setTimeout` timing. Every loop pass or speed change is a new "pass" that maps song time to audio time, so they cannot drift. Slower speeds play a WSOLA time-stretched copy of the original, prepared in the background and cached per ratio. The playhead is driven by `getOutputTimestamp()`, so it follows what is heard, not what was scheduled.
 
-**3. Tuning analysis by measurement, not by ear.**
-`pnpm nx run audio-analysis:eval` scores tempo, meter and chords against ground truth (20 synthetic songs plus licensed local references). Changes are accepted on numbers and rejected when the data doesn't support them. Two examples from the log in [PLAN.md](PLAN.md):
+**3. Analysis changes are measured against ground truth.**
+`pnpm nx run audio-analysis:eval` scores tempo, meter and chords against ground truth (20 synthetic songs plus licensed local references). A change ships when the numbers support it. Two examples from [PLAN.md](PLAN.md):
 - *Off-pitch records.* Two 1960s–70s film songs sat a third of a semitone flat, so every note fell between chroma bins. Measuring each recording's tuning and reading against it cut spurious maj7 chords from 29 to 9 and out-of-key melody notes from 26% to 11%, with the eval unchanged.
 - *A rejected fix.* A ballad was read at double tempo. Halving when chords looked "too long" failed on the data (median chord length matched a real 150 bpm song), so it shipped as a user-facing Half / Double tempo control instead of a heuristic that would misfire.
 
-**4. Everything on the device.**
+**4. No audio leaves the device.**
 Worker plus WebAssembly for analysis, IndexedDB for the song and the user's edits, no upload endpoint. The cost is analysis time (about 15 s for a 3-minute song on a laptop) and a large WebAssembly payload, mitigated by loading the worker and its WebAssembly only when analysis starts, and the animation player only on first interaction.
 
-**5. Editing where the result is visible.**
+**5. Chords are corrected on the sheet.**
 Chords are corrected on the sheet itself: tap a chord, hear that bar of the original, choose from ranked guesses or any root and type. Uncertain chords are flagged by rank (the least sure ~12%), not by a fixed threshold, because confidence runs low across whole genres. Each flag carries a mark and spoken text, never colour alone. Per-section settings (pattern and "fullness") feed back into the engine bar by bar.
 
 ## Quality
@@ -80,14 +80,14 @@ Chords are corrected on the sheet itself: tap a chord, hear that bar of the orig
 | Lighthouse | SEO, accessibility and best practices 100 (local production build, 2026-10-06) |
 | Analysis eval | Tempo within ±3 bpm on 95% of the synthetic set; chord root 88%, major/minor 81% |
 
-## What I'd do next
+## Known limitations and roadmap
 
-- **Performance budget in CI:** first-load JavaScript under 200 KB gzipped and LCP under 2 s, enforced, not just measured.
-- **Time-stretch in a worker:** switching speed on a 3-minute clip still blocks the main thread for about 80 ms.
-- **Sound depth:** the synth puts 10–12% of its energy in 80–250 Hz against 21–41% in real recordings: a body model, or licensed samples.
-- **Telling a double-time ballad from a fast song** automatically, with a better cue than bass alternation.
+- **Performance budget:** first-load JavaScript (target under 200 KB gzipped) and LCP (target under 2 s) are not yet enforced in CI.
+- **Speed changes:** time-stretching a 3-minute clip runs on the main thread and blocks it for about 80 ms; it should move to a worker.
+- **Sound:** the synth puts 10–12% of its energy in 80–250 Hz, against 21–41% in real recordings, so it sounds thinner. Options are a body model or licensed samples.
+- **Tempo:** a slow song with a bass on every beat can be read at double tempo. Customize has a Half / Double control; detecting it automatically needs a better cue than bass alternation.
 
-The full milestone history, with the reasoning and measurements behind each change, is in [PLAN.md](PLAN.md).
+Milestones, with the reasoning and measurements behind each change, are in [PLAN.md](PLAN.md).
 
 ---
 
