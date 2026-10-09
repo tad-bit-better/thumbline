@@ -190,6 +190,47 @@ export function roomImpulse(sampleRate: number, { seconds = 1.8, decay = 1.4, se
   return [channel(seed, 0), channel(seed + 1, 0.003)];
 }
 
+/**
+ * The body's resonances: Hz, gain at the peak (dB over the dry string) and ring
+ * time to −60 dB (s). A classical guitar: the air (Helmholtz) resonance near
+ * 100 Hz, the top plate's first modes near 200 and 250 Hz, then smaller ones.
+ * Tuned so the app's render puts about a fifth of its energy at 80–250 Hz,
+ * as solo recordings do (PLAN M10b: 21–41%; the synth alone had 10–12%).
+ */
+const BODY_MODES: ReadonlyArray<readonly [number, number, number]> = [
+  [98, 9, 0.12],
+  [192, 7, 0.09],
+  [255, 4.5, 0.07],
+  [330, 2.5, 0.05],
+  [412, 2.5, 0.045],
+  [560, 1.8, 0.04],
+  [705, 1.2, 0.035],
+  [930, 1, 0.03],
+];
+const BODY_SECONDS = 0.25;
+
+/**
+ * A guitar body's impulse response: the string itself (a unit impulse) plus
+ * the box's modes, each a decaying sine. Convolved without normalising, so
+ * the dry string passes at unity and the body only adds. The peaking filters
+ * it replaces (M9) only coloured the tone; these ring on after each note, the
+ * low "thump" a box gives every pluck.
+ */
+export function bodyImpulse(sampleRate: number): Float32Array {
+  const out = new Float32Array(Math.floor(sampleRate * BODY_SECONDS));
+  out[0] = 1;
+  for (const [hz, db, t60] of BODY_MODES) {
+    // A decaying sine's response at its own frequency is in quadrature with the dry impulse:
+    // |1 + iX| = 10^(db/20) with X = A·τ·sr/2, so the amplitude for the gain asked is A = 2X/(τ·sr).
+    const tau = t60 / Math.log(1000);
+    const x = Math.sqrt(10 ** (db / 10) - 1);
+    const amp = (2 * x) / (tau * sampleRate);
+    const w = (2 * Math.PI * hz) / sampleRate;
+    for (let n = 1; n < out.length; n++) out[n] += amp * Math.exp(-n / (tau * sampleRate)) * Math.sin(w * n);
+  }
+  return out;
+}
+
 /** Golpe: a knuckle tap on the top — a low thump plus a short click. */
 export function golpeBurst(sampleRate: number, seed = 1): Float32Array {
   const rand = random(seed);

@@ -218,8 +218,8 @@ describe('createPlayer', () => {
     const again = createPlayer({ arrangement: a, context: ctx as unknown as AudioContext, onCursor: () => undefined, humanize: false });
     await again.play();
     await run(5);
-    // Only the room's impulse response: every note was already made.
-    expect(made.mock.calls.length).toBe(1);
+    // Only the body's and the room's impulses: every note (a 4 s pluck) was already made.
+    expect(made.mock.calls.filter(([, length]) => length === SR * 4)).toHaveLength(0);
     expect(ctx.sources.slice(before).filter((s) => s.started !== undefined)).toHaveLength(8);
   });
 
@@ -239,10 +239,22 @@ describe('createPlayer', () => {
     expect(ctx.panners.every((p) => p.connected.includes(sheetBus))).toBe(true);
   });
 
+  it('puts the sheet, not the original, through a guitar body before the room joins', () => {
+    const { ctx } = setup(quarters(1), { original: clickTrack(1) });
+    const [master, sheetBus, originalBus] = ctx.gains;
+    const body = ctx.convolvers.find((c) => c.buffer?.numberOfChannels === 1);
+    expect(body).toBeDefined();
+    // Not normalised: the impulse carries the dry string at unity, so the body only adds.
+    expect((body as unknown as { normalize?: boolean }).normalize).toBe(false);
+    expect(sheetBus.connected).toContain(body);
+    expect(originalBus.connected).not.toContain(body);
+    expect(originalBus.connected).toContain(master);
+  });
+
   it('sends the sheet, not the original, through a small room', () => {
     const { ctx } = setup(quarters(1), { original: clickTrack(1) });
     const [master, sheetBus, originalBus] = ctx.gains;
-    const [room] = ctx.convolvers;
+    const room = ctx.convolvers.find((c) => c.buffer?.numberOfChannels === 2) as (typeof ctx.convolvers)[number];
     const send = ctx.gains.find((g) => g.connected.includes(room));
     expect(room.buffer?.numberOfChannels).toBe(2);
     expect(sheetBus.connected).toContain(send);

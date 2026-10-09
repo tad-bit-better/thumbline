@@ -1,5 +1,5 @@
 import type { NoteEvent } from '@thumbline/engine';
-import { STRUM_STEP_MS, feelOf, humanize, apagadoChunk, golpeBurst, harmonicTone, midiOf, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
+import { STRUM_STEP_MS, bodyImpulse, feelOf, humanize, apagadoChunk, golpeBurst, harmonicTone, midiOf, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 
 const SR = 44100;
 
@@ -121,6 +121,43 @@ describe('roomImpulse', () => {
       rr += r[i] * r[i];
     }
     expect(Math.abs(lr / Math.sqrt(ll * rr))).toBeLessThan(0.3);
+  });
+});
+
+/** |H(f)| of a short impulse response, in dB. */
+function responseDb(ir: Float32Array, hz: number): number {
+  let re = 0;
+  let im = 0;
+  const w = (2 * Math.PI * hz) / SR;
+  for (let n = 0; n < ir.length; n++) {
+    re += ir[n] * Math.cos(w * n);
+    im -= ir[n] * Math.sin(w * n);
+  }
+  return 20 * Math.log10(Math.hypot(re, im) + 1e-12);
+}
+
+describe('bodyImpulse', () => {
+  const ir = bodyImpulse(SR);
+
+  it('passes the string straight through, with the body added on top', () => {
+    expect(ir[0]).toBeCloseTo(1, 5);
+    expect(ir.length).toBeLessThanOrEqual(SR * 0.3);
+  });
+
+  it('resonates in the low mids like a guitar box (air and top plate), not in the treble', () => {
+    // Real solo recordings put 21–41% of their energy at 80–250 Hz; the synth alone put 10–12%.
+    const air = responseDb(ir, 98);
+    const plate = responseDb(ir, 192);
+    const treble = responseDb(ir, 1500);
+    expect(air - treble).toBeGreaterThan(6);
+    expect(plate - treble).toBeGreaterThan(4);
+    expect(responseDb(ir, 4000) - treble).toBeLessThan(1);
+  });
+
+  it('rings for a moment after the note, then is gone', () => {
+    const early = energyDb(ir, 0.002, 0.03);
+    expect(energyDb(ir, 0.05, 0.08) - early).toBeGreaterThan(-30);
+    expect(energyDb(ir, 0.2, 0.25) - early).toBeLessThan(-50);
   });
 });
 

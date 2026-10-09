@@ -84,7 +84,7 @@ Chords are corrected on the sheet itself: tap a chord, hear that bar of the orig
 ## Known limitations and roadmap
 
 - **Speed changes:** time-stretching a 3-minute clip runs on the main thread and blocks it for about 80 ms; it should move to a worker.
-- **Sound:** the synth puts 10–12% of its energy in 80–250 Hz, against 21–41% in real recordings, so it sounds thinner. Options are a body model or licensed samples.
+- **Sound:** a modelled guitar body now puts about 20–30% of the energy in 80–250 Hz on songs whose bass rings (real recordings 24–45%), up from 10–12%; songs whose mood shortens the bass stay thin there. The next steps are the bass strings themselves, then possibly licensed samples.
 - **Tempo:** a slow song with a bass on every beat can be read at double tempo. Customize has a Half / Double control; detecting it automatically needs a better cue than bass alternation.
 
 Milestones, with the reasoning and measurements behind each change, are in [PLAN.md](PLAN.md).

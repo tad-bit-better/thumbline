@@ -1,7 +1,7 @@
 import type { Arrangement } from '@thumbline/engine';
 import { type Scheduler, createScheduler } from './scheduler.js';
 import { timeStretchAsync } from './stretch.js';
-import { BRUSH_STEP_MS, type NoteSound, STRUM_STEP_MS, TOUCH_LEVELS, feelOf, humanize, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
+import { BRUSH_STEP_MS, type NoteSound, STRUM_STEP_MS, TOUCH_LEVELS, bodyImpulse, feelOf, humanize, apagadoChunk, golpeBurst, harmonicTone, noteGain, nylonPluck, roomImpulse, slapBurst, soundOf, strumOffsets } from './synth.js';
 import { type Beats, TICKS_PER_BEAT, createTimeline } from './timeline.js';
 
 export type Mix = 'sheet' | 'original' | 'both';
@@ -54,12 +54,8 @@ const DAMP_SEC = 0.03;
 /** A hammer-on or pull-off starts past the pluck's noisy attack and swells in. */
 const LEGATO_SKIP_SEC = 0.02;
 const LEGATO_RISE_SEC = 0.004;
-/** Body resonances (Hz, dB, Q), as in the M9 spike renders. */
-const BODY_EQ: ReadonlyArray<readonly [number, number, number]> = [
-  [105, 5, 2],
-  [230, 2.5, 1.4],
-  [5200, -3, 0.8],
-];
+/** After the body: a touch less fizz (Hz, dB, Q). The low resonances the M9 EQ gave are the body's modes now (bodyImpulse). */
+const BODY_EQ: ReadonlyArray<readonly [number, number, number]> = [[5200, -3, 0.8]];
 /** Vibrato on held melody notes: it starts after a moment, like a singer's. */
 const VIBRATO_MIN_SEC = 0.45;
 const VIBRATO_DELAY_SEC = 0.25;
@@ -113,9 +109,21 @@ export function createPlayer(options: PlayerOptions): Player {
   const originalBus = ctx.createGain();
   const compressor = ctx.createDynamicsCompressor();
   master.gain.value = 0.9;
-  // A guitar body under the strings: a low "box" resonance, a little warmth, softer pick noise.
+  // A guitar body under the strings: the box's resonances ring under every note (bodyImpulse),
+  // then softer pick noise and the mood's colour.
+  let into: AudioNode = sheetBus;
+  if (typeof ctx.createConvolver === 'function') {
+    const body = ctx.createConvolver();
+    // The impulse carries the dry string at unity: not normalised, so the body only adds.
+    body.normalize = false;
+    const ir = bodyImpulse(ctx.sampleRate);
+    const buffer = ctx.createBuffer(1, ir.length, ctx.sampleRate);
+    buffer.copyToChannel(ir as Float32Array<ArrayBuffer>, 0);
+    body.buffer = buffer;
+    into.connect(body);
+    into = body;
+  }
   if (typeof ctx.createBiquadFilter === 'function') {
-    let into: AudioNode = sheetBus;
     for (const [hz, db, q] of BODY_EQ) {
       const f = ctx.createBiquadFilter();
       f.type = 'peaking';
@@ -131,8 +139,9 @@ export function createPlayer(options: PlayerOptions): Player {
     shelf.frequency.value = 3000;
     shelf.gain.value = feel.shelfDb;
     into.connect(shelf);
-    shelf.connect(master);
-  } else sheetBus.connect(master);
+    into = shelf;
+  }
+  into.connect(master);
   originalBus.connect(master);
   master.connect(compressor);
   compressor.connect(ctx.destination);

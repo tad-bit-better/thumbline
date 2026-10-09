@@ -14,6 +14,7 @@ import { join, parse as parsePath } from 'node:path';
 import { arrange } from '../../packages/engine/dist/index.js';
 import {
   TOUCH_LEVELS,
+  bodyImpulse,
   roomImpulse,
   apagadoChunk,
   feelOf,
@@ -228,6 +229,9 @@ const IR = (() => {
   return ir.map((ch) => ch.map((v) => v * scale));
 })();
 
+/** The app's guitar body (player.ts): convolved raw, as the app's ConvolverNode has normalize off. */
+const BODY = bodyImpulse(SR);
+
 function renderFull(analysis, line, mono, capo0) {
   const length = mono.length;
   const bus = [new Float32Array(length), new Float32Array(length)];
@@ -319,8 +323,7 @@ function renderFull(analysis, line, mono, capo0) {
     const wetSend = MIX.room ? bus.map((ch, c) => convolve(ch, IR[c])) : null;
     // Guitar body, the song's dynamics, then the room joins, then normalise.
     for (const ch of bus) {
-      peak(ch, 105, 5, 2);
-      peak(ch, 230, 2.5, 1.4);
+      ch.set(convolve(ch, BODY));
       peak(ch, 5200, -3, 0.8);
       peak(ch, 4500, feel.shelfDb, 0.5); // the mood's colour (a broad bell standing in for the app's high shelf)
       for (let i = 0; i < ch.length; i++) ch[i] *= loud(i);
