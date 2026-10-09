@@ -8,8 +8,9 @@ let shared: AudioContext | null = null;
 const decodes = new WeakMap<Blob, Promise<AudioBuffer>>();
 
 /**
- * The context, made on first use. Made before any click it starts suspended:
- * call `wake()` inside the click, before any await, as browsers require.
+ * The context, made on first use. Only ever made inside a tap or key press:
+ * WebKit lets a context made outside one stay silent for good. Before sound
+ * starts, call `wake()` inside the click, before any await.
  */
 export function audioContext(): AudioContext {
   return (shared ??= new AudioContext({ latencyHint: 'interactive' }));
@@ -38,9 +39,27 @@ export function decodeOriginal(file: Blob): Promise<AudioBuffer> {
   return p;
 }
 
-/** Decode the clip while the page is idle, so Play doesn't wait for it. Returns a cancel. */
+/**
+ * Decode the clip before Play asks for it: while the page is idle once there's
+ * a context, else on the page's first tap or key press (which makes the
+ * context, as browsers require). Returns a cancel.
+ */
 export function decodeWhenIdle(file: Blob): () => void {
   const start = () => void decodeOriginal(file).catch(() => undefined);
+  if (!shared) {
+    const onGesture = () => {
+      off();
+      audioContext();
+      start();
+    };
+    const off = () => {
+      document.removeEventListener('pointerdown', onGesture, true);
+      document.removeEventListener('keydown', onGesture, true);
+    };
+    document.addEventListener('pointerdown', onGesture, true);
+    document.addEventListener('keydown', onGesture, true);
+    return off;
+  }
   if (typeof requestIdleCallback === 'function') {
     const id = requestIdleCallback(start, { timeout: IDLE_TIMEOUT_MS });
     return () => cancelIdleCallback(id);
