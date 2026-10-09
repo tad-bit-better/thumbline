@@ -11,6 +11,7 @@ import {
 import { type DisplayPrefs, songStore } from '../../lib/song-store';
 import styles from './sheet.module.css';
 import { CHORD_NAME_OPTIONS, TAB_SIZES } from './sheet-labels';
+import { memo } from 'react';
 
 export type ArrangementBarProps = {
   /** "Fingerstyle · Advanced · Warm · Pop groove". */
@@ -22,7 +23,7 @@ export type ArrangementBarProps = {
 };
 
 /** The arrangement in one line, pattern stepping, the Display popover and Customize. */
-export function ArrangementBar({
+export const ArrangementBar = memo(function ArrangementBar({
   line,
   patternIndex,
   patternCount,
@@ -106,4 +107,4 @@ export function ArrangementBar({
       </div>
     </Card>
   );
-}
+});

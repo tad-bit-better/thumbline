@@ -1,6 +1,6 @@
 import type { Arrangement } from '@thumbline/engine';
 import { Reveal, useReducedMotion } from '@thumbline/ui';
-import { type ReactNode, memo, useEffect, useMemo, useRef } from 'react';
+import { type ReactNode, memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { GEOMETRY, type SheetLayout, type SystemLayout, layoutSheet, tickAtX } from '../layout/layout';
 import styles from './TabSheet.module.css';
 import { Technique } from './Techniques';
@@ -17,6 +17,9 @@ const CARD_TARGET = { s: 190, m: 240, l: 330 } as const;
 /** Gap between cards and their padding (px): --space-3. */
 const CARD_GAP = 12;
 const CARD_PAD = 12;
+/** A card's head and the gaps around a row, for a section's size before it's first drawn (px; the browser remembers the real one). */
+const CARD_HEAD = 30;
+const SECTION_HEAD = 44;
 
 export type ChordNameMode = 'shape' | 'sounding' | 'both';
 export type TabSize = keyof typeof CARD_TARGET;
@@ -209,8 +212,9 @@ const SystemView = memo(function SystemView({
 /**
  * A bar card's head: its number, its chords as the reader asked (the chord carried in from the
  * bar before when it doesn't change), and badges for shapes that need a barre or were simplified.
+ * Memoised: while playing, only the card that holds the playhead draws again.
  */
-function CardHead({
+const CardHead = memo(function CardHead({
   system: s,
   arrangement,
   chordNames,
@@ -249,7 +253,7 @@ function CardHead({
       {marks.some((m) => m.voicing.simplified) && <span className={styles['badge']}>Simplified</span>}
     </div>
   );
-}
+});
 
 /** The tab: chord names, techniques, six strings (high e on top), right-hand fingers and the playhead. */
 export function TabSheet({
@@ -280,6 +284,13 @@ export function TabSheet({
   const layout = useMemo(() => layoutSheet(arrangement, inner, cards ? { barsPerSystem: 1 } : {}), [arrangement, inner, cards]);
   const reduced = useReducedMotion();
   const sheetRef = useRef<HTMLDivElement>(null);
+  // One seek handler for the life of the sheet, so a caller's new function each render doesn't redraw every system.
+  const seekRef = useRef(onSeek);
+  useEffect(() => {
+    seekRef.current = onSeek;
+  });
+  const seek = useCallback((tick: number) => seekRef.current?.(tick), []);
+  const seekable = onSeek ? seek : undefined;
 
   const cursor = cursorIndex === undefined ? undefined : layout.positions[cursorIndex];
   const activeTick = cursor ? arrangement.events[cursorIndex as number].tick : undefined;
@@ -345,7 +356,7 @@ export function TabSheet({
         activeTick={here ? activeTick : undefined}
         arrangement={arrangement}
         glow={!reduced}
-        onSeek={onSeek}
+        onSeek={seekable}
         chordNames={chordNames}
         card={cards}
       />
@@ -376,8 +387,17 @@ export function TabSheet({
         {sections?.length
           ? sections.map((sec) => {
               const headingId = `${label.replace(/\W+/g, '-')}-${sec.id}`;
+              const rows = Math.ceil(sec.bars / cols);
+              const height = SECTION_HEAD + rows * (GEOMETRY.systemHeight - CARD_CROP + CARD_HEAD + 2 * CARD_PAD) + (rows - 1) * CARD_GAP;
               return (
-                <div key={sec.id} role="group" aria-labelledby={headingId} className={styles['cardSection']} data-section={sec.id}>
+                <div
+                  key={sec.id}
+                  role="group"
+                  aria-labelledby={headingId}
+                  className={styles['cardSection']}
+                  style={{ ['--section-height' as string]: `${height}px` }}
+                  data-section={sec.id}
+                >
                   <div className={styles['sectionHead']}>
                     <h3 id={headingId} className={styles['sectionTitle']}>
                       {sec.title}

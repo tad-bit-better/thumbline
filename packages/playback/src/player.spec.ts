@@ -170,6 +170,40 @@ describe('createPlayer', () => {
     player.setLoop(null);
   });
 
+  it('makes only the opening notes before playing, and the rest while it plays', async () => {
+    // 16 bars of different notes, 0.5 s apart.
+    const long = arrangement(
+      Array.from({ length: 64 }, (_, i) => ({ tick: i * 480, string: 4, fret: i })),
+      16,
+    );
+    const { ctx, player, run, started } = setup(long);
+    const made = vi.spyOn(ctx, 'createBuffer');
+    await player.play();
+    // The first two seconds: a handful of notes, not all 64.
+    expect(made.mock.calls.length).toBeGreaterThan(0);
+    expect(made.mock.calls.length).toBeLessThanOrEqual(6);
+    await run(1);
+    expect(made.mock.calls.length).toBe(64);
+    await run(33);
+    expect(started()).toHaveLength(64);
+  });
+
+  it('keeps the notes it made for the next arrangement on the same context', async () => {
+    const a = quarters(2);
+    const { ctx, player, run } = setup(a);
+    await player.play();
+    await run(1);
+    player.dispose();
+    const before = ctx.sources.length;
+    const made = vi.spyOn(ctx, 'createBuffer');
+    const again = createPlayer({ arrangement: a, context: ctx as unknown as AudioContext, onCursor: () => undefined, humanize: false });
+    await again.play();
+    await run(5);
+    // Only the room's impulse response: every note was already made.
+    expect(made.mock.calls.length).toBe(1);
+    expect(ctx.sources.slice(before).filter((s) => s.started !== undefined)).toHaveLength(8);
+  });
+
   it('spreads strings across the stereo field, low left and high right', async () => {
     const a = arrangement([
       { tick: 0, string: 0, fret: 0 },

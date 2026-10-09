@@ -31,6 +31,7 @@ class FakeAudioContext {
   sampleRate = 44100;
   decodeAudioData = vi.fn(async () => ({ duration: 20, numberOfChannels: 1, length: 1, sampleRate: 44100, getChannelData: () => new Float32Array(1) }));
   resume = vi.fn(async () => undefined);
+  suspend = vi.fn(async () => undefined);
   close = vi.fn(async () => undefined);
   destination = {};
   createBufferSource = () => {

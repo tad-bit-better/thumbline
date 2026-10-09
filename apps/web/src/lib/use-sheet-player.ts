@@ -1,6 +1,7 @@
 import type { Arrangement } from '@thumbline/engine';
 import { type Beats, type Mix, type Player, type PlayerState, createPlayer } from '@thumbline/playback';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { audioContext, decodeOriginal, decodeWhenIdle, rest, wake } from './original-audio';
 
 type Options = {
   arrangement: Arrangement | null;
@@ -19,9 +20,9 @@ type Options = {
 };
 
 /**
- * Owns the audio for the Sheet screen: one AudioContext (created on the first
- * Play, inside the click, as browsers require), the decoded original, and a
- * player rebuilt whenever the arrangement changes. Keeps the song position
+ * Owns the audio for the Sheet screen: the shared AudioContext (woken inside
+ * the Play click, as browsers require), the original decoded while the page is
+ * idle, and a player rebuilt whenever the arrangement changes. Keeps the song position
  * (in ticks) so Pause resumes where it stopped and seeking works while paused.
  */
 export function useSheetPlayer({ arrangement, beats, tuningCents, file, mix, originalLevel, speed, loop, onEnd }: Options) {
@@ -31,8 +32,6 @@ export function useSheetPlayer({ arrangement, beats, tuningCents, file, mix, ori
   const [position, setPosition] = useState(0);
   /** The current run started at the top and hasn't jumped: reaching the end is a whole-song play. */
   const whole = useRef(true);
-  const context = useRef<AudioContext | null>(null);
-  const decoded = useRef<{ file: Blob; buffer: AudioBuffer } | null>(null);
   const player = useRef<Player | null>(null);
   const latest = useRef({ mix, originalLevel, speed, loop, onEnd });
   latest.current = { mix, originalLevel, speed, loop, onEnd };
@@ -68,12 +67,8 @@ export function useSheetPlayer({ arrangement, beats, tuningCents, file, mix, ori
 
   const ensure = async (a: Arrangement) => {
     if (player.current) return player.current;
-    const ctx = (context.current ??= new AudioContext({ latencyHint: 'interactive' }));
-    let original: AudioBuffer | undefined;
-    if (file) {
-      if (decoded.current?.file !== file) decoded.current = { file, buffer: await ctx.decodeAudioData(await file.arrayBuffer()) };
-      original = decoded.current.buffer;
-    }
+    const ctx = audioContext();
+    const original = file ? await decodeOriginal(file) : undefined;
     const p = createPlayer({
       arrangement: a,
       original,
@@ -99,8 +94,14 @@ export function useSheetPlayer({ arrangement, beats, tuningCents, file, mix, ori
     return p;
   };
 
+  // Decode the clip while the page is idle, so Play starts at once.
+  useEffect(() => (file ? decodeWhenIdle(file) : undefined), [file]);
+  useEffect(() => rest, []);
+
   const playFrom = async (tick: number) => {
     if (!arrangement) return;
+    // Inside the click, before any await: browsers let sound start only from a gesture.
+    wake();
     setState('preparing');
     try {
       const p = await ensure(arrangement);
@@ -115,7 +116,7 @@ export function useSheetPlayer({ arrangement, beats, tuningCents, file, mix, ori
     return playFrom(position);
   };
   /** Pause: Play resumes from here. */
-  const stop = () => player.current?.stop();
+  const stop = useCallback(() => player.current?.stop(), []);
   const toggle = () => (state === 'idle' ? play() : stop());
   /**
    * Move to `tick`. While playing, playback jumps there; otherwise the

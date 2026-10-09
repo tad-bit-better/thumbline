@@ -1,6 +1,7 @@
 import type { AnalysisResult, Arrangement } from '@thumbline/engine';
 import styles from './sheet.module.css';
 import { KEYS, ordinal } from './sheet-labels';
+import { memo } from 'react';
 
 export type SheetHeaderProps = {
   title: string;
@@ -11,7 +12,7 @@ export type SheetHeaderProps = {
 };
 
 /** "Your sheet", the song's name (with a little equaliser while it plays) and its facts: key, capo, time, tempo. */
-export function SheetHeader({
+export const SheetHeader = memo(function SheetHeader({
   title,
   song,
   arrangement,
@@ -64,4 +65,4 @@ export function SheetHeader({
       </dl>
     </header>
   );
-}
+});

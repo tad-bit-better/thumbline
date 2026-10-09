@@ -11,7 +11,7 @@ import {
   useToast,
 } from '@thumbline/ui';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '../../components/AppShell';
 import { LOTTIE } from '../../lib/lottie';
 import { detectedMood, moodName } from '../../lib/mood';
@@ -61,6 +61,9 @@ export default function SheetPage() {
     else if (!analysis) routerRef.current.replace('/listen');
   }, [hydrated, meta, analysis]);
 
+  // Re-arranging a long song takes a moment: the control answers first, the sheet follows.
+  const arrangedEdits = useDeferredValue(edits);
+  const arrangedPrefs = useDeferredValue(prefs);
   const {
     effective,
     flamencoOk,
@@ -73,8 +76,13 @@ export default function SheetPage() {
     sections,
     arrangement,
     betterCapo,
-  } = useSheetArrangement(analysis, edits, prefs);
-  const chords = useChordChecking(effective, edits.confirmed, file, reduced);
+  } = useSheetArrangement(analysis, arrangedEdits, arrangedPrefs);
+  const chords = useChordChecking(
+    effective,
+    arrangedEdits.confirmed,
+    file,
+    reduced,
+  );
 
   const onEnd = useCallback(
     (wholeSong: boolean) => {
@@ -138,6 +146,20 @@ export default function SheetPage() {
     void player.toggle();
   };
 
+  const stopPlayer = player.stop;
+  const stopBar = chords.barPlayer.stop;
+  const stopAudio = useCallback(() => {
+    stopPlayer();
+    stopBar();
+  }, [stopPlayer, stopBar]);
+  const openCustomize = useCallback(() => setCustomizing(true), []);
+  const closeCustomize = useCallback(() => setCustomizing(false), []);
+  // Songs saved before the display options existed have none: the defaults.
+  const display = useMemo(
+    () => ({ ...DEFAULT_DISPLAY, ...prefs.display }),
+    [prefs.display],
+  );
+
   useSheetKeys({
     togglePlay,
     toggleLoop: () => setLoop((l) => !l),
@@ -152,19 +174,13 @@ export default function SheetPage() {
     : undefined;
   const arrangementLine = [
     styleLabel(style, palo),
-    levelLabel(prefs.level),
+    levelLabel(arrangedPrefs.level),
     mood ? moodName(mood) : undefined,
     pattern?.name,
   ]
     .filter(Boolean)
     .join(' · ');
-  // Songs saved before the display options existed have none: the defaults.
-  const display = { ...DEFAULT_DISPLAY, ...prefs.display };
   const toCheck = chords.flaggedBars.length;
-  const stopAudio = () => {
-    player.stop();
-    chords.barPlayer.stop();
-  };
 
   return (
     <AppShell
@@ -189,7 +205,7 @@ export default function SheetPage() {
           patternIndex={pattern ? patterns.indexOf(pattern) : -1}
           patternCount={patterns.length}
           display={display}
-          onCustomize={() => setCustomizing(true)}
+          onCustomize={openCustomize}
         />
 
         <SheetNotices
@@ -213,10 +229,13 @@ export default function SheetPage() {
             style={style}
             sections={sections}
             patterns={patterns}
-            songFullness={prefs.fullness}
-            edits={edits}
+            songFullness={arrangedPrefs.fullness}
+            edits={arrangedEdits}
             display={display}
-            player={player}
+            cursor={player.cursor}
+            position={player.position}
+            seek={(tick) => void player.seek(tick, true)}
+            stopPlayer={player.stop}
             follow={follow}
             chords={chords}
             tabRef={tabRef}
@@ -263,7 +282,7 @@ export default function SheetPage() {
             playing={playing}
             preparing={player.state === 'preparing'}
             onTogglePlay={togglePlay}
-            title={`${styleLabel(style, palo)}, ${levelLabel(prefs.level)}`}
+            title={`${styleLabel(style, palo)}, ${levelLabel(arrangedPrefs.level)}`}
             subtitle={`${Math.round(effective.bpm)} bpm, ${MIX_TEXT[file ? prefs.mix : 'sheet']}${prefs.speed < 1 ? `, ${prefs.speed * 100}% speed` : ''}`}
             mix={file ? prefs.mix : 'sheet'}
             mixDisabled={!file}
@@ -288,7 +307,7 @@ export default function SheetPage() {
 
       <CustomizePanel
         open={customizing}
-        onClose={() => setCustomizing(false)}
+        onClose={closeCustomize}
         stopAudio={stopAudio}
         bpm={effective.bpm}
         beatsPerBar={effective.meter.beatsPerBar}

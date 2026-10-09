@@ -7,7 +7,7 @@ import {
   moodLabelOf,
   patternsFor,
 } from '@thumbline/engine';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { effectiveMood } from '../../lib/mood';
 import { toSectionSettings } from '../../lib/section-settings';
 import { sheetSections } from '../../lib/sheet-view';
@@ -17,6 +17,9 @@ import {
   effectiveAnalysis,
   songStore,
 } from '../../lib/song-store';
+
+/** Arrangements kept per song, so switching back is instant. */
+const RECENT_ARRANGEMENTS = 12;
 
 /**
  * The song as the sheet plays it: the reader's edits applied, the style that
@@ -69,22 +72,33 @@ export function useSheetArrangement(
   );
   // The capo the sheet was first written with stays when a chord changes (flamenco picks its own).
   const pinnedCapo = style === 'flamenco' ? undefined : edits.capo;
+  // The last few arrangements of this song as edited: going back to a pattern or level is instant.
+  const recent = useRef<{ song: AnalysisResult | null; byOptions: Map<string, Arrangement | null> }>({ song: null, byOptions: new Map() });
   const arrangement = useMemo<Arrangement | null>(() => {
     if (!effective || !pattern) return null;
+    const options = {
+      style,
+      level: prefs.level,
+      patternId: pattern.id,
+      palo,
+      mood: moodValues,
+      fullness: prefs.fullness,
+      capo: pinnedCapo,
+      sectionSettings,
+    };
+    if (recent.current.song !== effective) recent.current = { song: effective, byOptions: new Map() };
+    const cache = recent.current.byOptions;
+    const key = JSON.stringify(options);
+    if (cache.has(key)) return cache.get(key) ?? null;
+    let made: Arrangement | null;
     try {
-      return arrange(effective, {
-        style,
-        level: prefs.level,
-        patternId: pattern.id,
-        palo,
-        mood: moodValues,
-        fullness: prefs.fullness,
-        capo: pinnedCapo,
-        sectionSettings,
-      });
+      made = arrange(effective, options);
     } catch {
-      return null;
+      made = null;
     }
+    cache.set(key, made);
+    if (cache.size > RECENT_ARRANGEMENTS) cache.delete(cache.keys().next().value as string);
+    return made;
   }, [
     effective,
     style,

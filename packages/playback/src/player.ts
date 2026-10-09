@@ -74,6 +74,13 @@ const STRING_PAN = 0.25;
 const DEFAULT_ORIGINAL_LEVEL = 0.9;
 const MIX_GLIDE_SEC = 0.02;
 const MIN_RATIO = 0.5;
+/** Notes made before the first one plays: this much of the song from the start point. The rest are made while it plays. */
+const PREPARE_SEC = 2;
+/** Making notes in the background: at most this long at a time, so the page keeps answering. */
+const SLICE_MS = 8;
+
+/** Notes already made, per context: a new arrangement on the same context (another pattern, a chord edit) reuses them. */
+const madeNotes = new WeakMap<object, Map<string, AudioBuffer>>();
 
 type Frame = (cb: () => void) => () => void;
 const nextFrame: Frame =
@@ -151,15 +158,16 @@ export function createPlayer(options: PlayerOptions): Player {
   const human = options.humanize === false ? a.events.map(() => ({ offsetSec: 0, gain: 1 })) : humanize(a.events, a.meter.beatsPerBar);
 
   const sounds = a.events.map((e) => soundOf(e, a.capo));
-  const buffers = new Map<string, AudioBuffer>();
-  const soundKey = (n: NoteSound) => ('midi' in n ? `${n.kind === 'legato' ? 'pluck' : n.kind}:${n.midi}:${n.touch}` : n.kind);
+  let buffers = madeNotes.get(ctx);
+  if (!buffers) madeNotes.set(ctx, (buffers = new Map<string, AudioBuffer>()));
+  /** The recording's tuning, in semitones. */
+  const tune = (options.tuningCents ?? 0) / 100;
+  const soundKey = (n: NoteSound) => ('midi' in n ? `${n.kind === 'legato' ? 'pluck' : n.kind}:${n.midi + tune}:${n.touch}` : n.kind);
   const toBuffer = (data: Float32Array) => {
     const b = ctx.createBuffer(1, data.length, ctx.sampleRate);
     b.copyToChannel(data as Float32Array<ArrayBuffer>, 0);
     return b;
   };
-  /** The recording's tuning, in semitones. */
-  const tune = (options.tuningCents ?? 0) / 100;
   const render = (n: NoteSound): Float32Array => {
     const sr = ctx.sampleRate;
     switch (n.kind) {
@@ -178,11 +186,32 @@ export function createPlayer(options: PlayerOptions): Player {
         return nylonPluck(n.midi + tune, sr, { touch: TOUCH_LEVELS[n.touch], seed: n.midi });
     }
   };
-  const prepareSynth = () => {
-    for (const n of sounds) {
-      const key = soundKey(n);
-      if (!buffers.has(key)) buffers.set(key, toBuffer(render(n)));
-    }
+  const bufferFor = (n: NoteSound): AudioBuffer => {
+    const key = soundKey(n);
+    let b = buffers.get(key);
+    if (!b) buffers.set(key, (b = toBuffer(render(n))));
+    return b;
+  };
+  /**
+   * Before playing from `fromSec`: the notes of its first PREPARE_SEC. Then the
+   * rest in slices of SLICE_MS, in the order they're heard from there, so they're
+   * ready before the scheduler reaches them (it makes any it meets first itself).
+   */
+  let filling: ReturnType<typeof setTimeout> | null = null;
+  const prepareSynth = (fromSec: number) => {
+    const order = a.events.map((_, i) => i).filter((i) => eventSec[i] >= fromSec);
+    for (const i of order) if (eventSec[i] < fromSec + PREPARE_SEC) bufferFor(sounds[i]);
+    // Then the notes before the start point (loops and seeks come back to them).
+    const rest = [...order, ...a.events.map((_, i) => i).filter((i) => eventSec[i] < fromSec)];
+    let next = 0;
+    const slice = () => {
+      filling = null;
+      const until = performance.now() + SLICE_MS;
+      while (next < rest.length && performance.now() < until) bufferFor(sounds[rest[next++]]);
+      if (next < rest.length) filling = setTimeout(slice, 0);
+    };
+    if (filling) clearTimeout(filling);
+    filling = setTimeout(slice, 0);
   };
 
   const stretched = new Map<number, Promise<AudioBuffer>>();
@@ -281,7 +310,7 @@ export function createPlayer(options: PlayerOptions): Player {
       // The note's written length on the audio clock (song seconds run 1/ratio as fast at other speeds).
       const held = (timeline.tickToSec(e.tick + e.dur) - eventSec[eventIndex]) / ratio;
       const sound = sounds[eventIndex];
-      const buffer = buffers.get(soundKey(sound));
+      const buffer = bufferFor(sound);
       const damp = (s: number) => {
         const prev = ringing[s];
         if (!prev) return;
@@ -366,12 +395,12 @@ export function createPlayer(options: PlayerOptions): Player {
     if (state !== 'idle') stop();
     setState('preparing');
     await ctx.resume();
-    prepareSynth();
+    const at = Math.max(0, Math.min(fromTick, a.bars * barTicks));
+    prepareSynth(timeline.tickToSec(at));
     await ensureOriginal(ratio);
     if (state !== 'preparing') return; // stopped while preparing
     scheduler = createScheduler({ eventSec, endSec: timeline.endSec });
     scheduler.setLoop(loop);
-    const at = Math.max(0, Math.min(fromTick, a.bars * barTicks));
     scheduler.start(ctx.currentTime + START_DELAY_SEC, timeline.tickToSec(at), ratio);
     setState('playing');
     tick();
@@ -410,6 +439,7 @@ export function createPlayer(options: PlayerOptions): Player {
     },
     dispose() {
       stop();
+      if (filling) clearTimeout(filling);
       sheetBus.disconnect();
       originalBus.disconnect();
       master.disconnect();

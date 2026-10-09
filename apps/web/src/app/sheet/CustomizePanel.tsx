@@ -27,6 +27,7 @@ import {
   fullnessWords,
 } from './sheet-labels';
 import { useSettled } from './use-settled';
+import { memo } from 'react';
 
 export type CustomizePanelProps = {
   open: boolean;
@@ -47,7 +48,7 @@ export type CustomizePanelProps = {
 };
 
 /** The Customize side panel: time, tempo, style, level, palo, fullness, the feel, and the pattern (screens.md §4). */
-export function CustomizePanel({
+export const CustomizePanel = memo(function CustomizePanel({
   open,
   onClose,
   stopAudio,
@@ -208,4 +209,4 @@ export function CustomizePanel({
       </div>
     </Drawer>
   );
-}
+});

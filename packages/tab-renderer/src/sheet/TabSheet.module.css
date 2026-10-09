@@ -206,6 +206,13 @@
   box-shadow: var(--ring-focus);
 }
 
+/* Long songs: the browser skips laying out and painting sections off screen. Per section, not per
+   card, so a chord's confirm burst (which rises past its card's edge) isn't clipped. */
+.cardSection {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--section-height, 600px);
+}
+
 .sectionHead {
   display: flex;
   flex-wrap: wrap;
