@@ -114,6 +114,25 @@ describe('createPlayer', () => {
     expect(cursor).toEqual([0]);
   });
 
+  it('follows the output timestamp when it is on the page\'s clock', async () => {
+    const { ctx, player, run, cursor } = setup(quarters(1));
+    // What is heard lags the context clock by 100 ms; the timestamp was taken a moment ago.
+    (ctx as unknown as { getOutputTimestamp: () => AudioTimestamp }).getOutputTimestamp = () => ({ contextTime: ctx.currentTime - 0.1, performanceTime: performance.now() - 1 });
+    await player.play();
+    await run(0.1);
+    expect(cursor).toEqual([]);
+    await run(0.15);
+    expect(cursor).toEqual([0]);
+  });
+
+  it('ignores an output timestamp that is not on the page\'s clock (WebKit on Linux reports performance.now() + contextTime)', async () => {
+    const { ctx, player, run, cursor } = setup(quarters(1));
+    (ctx as unknown as { getOutputTimestamp: () => AudioTimestamp }).getOutputTimestamp = () => ({ contextTime: ctx.currentTime, performanceTime: performance.now() + ctx.currentTime * 1000 });
+    await player.play();
+    await run(0.6);
+    expect(cursor).toContain(0);
+  });
+
   it('staggers rasgueado strokes and uses a noise burst for golpe', async () => {
     const strum = [0, 1, 2, 3, 4, 5].map((s) => ({ tick: 0, string: s, fret: 0, tech: 'rasgueo-down' as const }));
     const { ctx, player, run } = setup(arrangement([...strum, { tick: 960, string: 0, fret: -1, tech: 'golpe' }]));

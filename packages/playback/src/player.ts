@@ -74,6 +74,13 @@ const STRING_PAN = 0.25;
 const DEFAULT_ORIGINAL_LEVEL = 0.9;
 const MIX_GLIDE_SEC = 0.02;
 const MIN_RATIO = 0.5;
+/**
+ * An output timestamp is trusted only if it was taken within this long before now, and no further ahead than
+ * this: WebKit on Linux reports performanceTime as performance.now() + contextTime, which would put what is
+ * heard at zero for good (the e2e playhead never appeared there).
+ */
+const TIMESTAMP_MAX_AGE_MS = 1000;
+const TIMESTAMP_MAX_AHEAD_MS = 50;
 /** Notes made before the first one plays: this much of the song from the start point. The rest are made while it plays. */
 const PREPARE_SEC = 2;
 /** Making notes in the background: at most this long at a time, so the page keeps answering. */
@@ -268,7 +275,8 @@ export function createPlayer(options: PlayerOptions): Player {
   const audibleTime = () => {
     const ts = typeof ctx.getOutputTimestamp === 'function' ? ctx.getOutputTimestamp() : null;
     if (ts && ts.contextTime !== undefined && ts.performanceTime !== undefined && ts.performanceTime > 0) {
-      return ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+      const age = performance.now() - ts.performanceTime;
+      if (age > -TIMESTAMP_MAX_AHEAD_MS && age < TIMESTAMP_MAX_AGE_MS) return ts.contextTime + age / 1000;
     }
     return ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0);
   };
